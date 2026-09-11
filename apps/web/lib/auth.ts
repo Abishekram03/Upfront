@@ -1,45 +1,6 @@
 import { betterAuth } from "better-auth"
 import { twoFactor } from "better-auth/plugins"
-import { memoryAdapter } from "better-auth/adapters/memory"
-import fs from "node:fs"
-import path from "node:path"
-import os from "node:os"
-
-const DB_PATH = process.env.NODE_ENV === "production"
-  ? path.join(os.tmpdir(), "usrly_auth_store.json")
-  : path.resolve(process.cwd(), "usrly_auth_store.json")
-
-function loadStore(): Record<string, any[]> {
-  try {
-    if (fs.existsSync(DB_PATH)) {
-      const data = fs.readFileSync(DB_PATH, "utf-8")
-      return JSON.parse(data)
-    }
-  } catch (err) {
-    console.warn("[Better Auth] Failed to read auth store from disk, starting fresh:", err)
-  }
-  return {}
-}
-
-const loaded = loadStore()
-
-// Plain JavaScript object without Proxies so structuredClone inside memoryAdapter works smoothly
-const store: Record<string, any[]> = {
-  user: loaded.user || [],
-  session: loaded.session || [],
-  account: loaded.account || [],
-  verification: loaded.verification || [],
-  twoFactor: loaded.twoFactor || [],
-  ...loaded,
-}
-
-function persistStore() {
-  try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(store, null, 2), "utf-8")
-  } catch (err) {
-    console.warn("[Better Auth] Failed to save auth store to disk:", err)
-  }
-}
+import { pool, ensureTables } from "./db"
 
 const getBaseURL = () => {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
@@ -48,54 +9,14 @@ const getBaseURL = () => {
   return "http://localhost:3000"
 }
 
+// Ensure database tables exist in Supabase
+ensureTables().catch((err) => {
+  console.error("[Better Auth] ensureTables failed:", err)
+})
+
 export const auth: any = betterAuth({
   appName: "usrly",
-  database: memoryAdapter(store),
-  databaseHooks: {
-    user: {
-      create: {
-        after: async () => persistStore(),
-      },
-      update: {
-        after: async () => persistStore(),
-      },
-    },
-    session: {
-      create: {
-        after: async () => persistStore(),
-      },
-      update: {
-        after: async () => persistStore(),
-      },
-      delete: {
-        after: async () => persistStore(),
-      },
-    },
-    account: {
-      create: {
-        after: async () => persistStore(),
-      },
-      update: {
-        after: async () => persistStore(),
-      },
-    },
-    verification: {
-      create: {
-        after: async () => persistStore(),
-      },
-      delete: {
-        after: async () => persistStore(),
-      },
-    },
-    twoFactor: {
-      create: {
-        after: async () => persistStore(),
-      },
-      update: {
-        after: async () => persistStore(),
-      },
-    },
-  },
+  database: pool,
   baseURL: getBaseURL(),
   trustedOrigins: [
     "http://localhost:3000",
@@ -125,5 +46,3 @@ export const auth: any = betterAuth({
     }),
   ],
 })
-
-
