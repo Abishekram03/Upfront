@@ -39,10 +39,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f1f5f9] text-slate-900">
+    <div className="flex h-screen w-full overflow-hidden bg-white text-neutral-900">
       {/* Sidebar for Desktop */}
       <div className="hidden md:flex h-full shrink-0">
-        <Suspense fallback={<div className="w-64 border-r border-slate-200 bg-white" />}>
+        <Suspense fallback={<div className="w-64 border-r border-neutral-200 bg-[#fafafa]" />}>
           <DashboardSidebar
             activeTool={activeTool}
             onSelectTool={handleSelectTool}
@@ -57,8 +57,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
             className="fixed inset-0 bg-black/40 backdrop-blur-xs"
             onClick={() => setIsMobileOpen(false)}
           />
-          <div className="relative z-10 h-full w-64 bg-white shadow-xl">
-            <Suspense fallback={<div className="w-64 bg-white h-full" />}>
+          <div className="relative z-10 h-full w-64 bg-[#fafafa] shadow-xl">
+            <Suspense fallback={<div className="w-64 bg-[#fafafa] h-full" />}>
               <DashboardSidebar
                 activeTool={activeTool}
                 onSelectTool={(tool) => {

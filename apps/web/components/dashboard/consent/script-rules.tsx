@@ -88,15 +88,15 @@ export function ScriptRules() {
   return (
     <div className="space-y-6 max-w-5xl pb-16">
       {/* Header */}
-      <div className="border-b border-slate-200 pb-5">
+      <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">Script Rules & Auto-Blocking</h1>
-          <span className="rounded-[4px] bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
+          <h1 className="text-xl font-bold tracking-tight text-neutral-900">Script Rules & Auto-Blocking</h1>
+          <span className="rounded-[4px] bg-neutral-100 px-2.5 py-0.5 text-xs font-bold text-neutral-700 border border-neutral-200">
             CookieYes Gating Standard
           </span>
         </div>
-        <p className="text-xs text-slate-500 mt-1">
-          Zero-code script gating for 3rd-party marketing, analytics, and functional tags on <strong className="text-slate-800">{activeDomain || "your site"}</strong>.
+        <p className="text-xs text-neutral-500 mt-1">
+          Zero-code script gating for 3rd-party marketing, analytics, and functional tags on <strong className="text-neutral-800">{activeDomain || "your site"}</strong>.
         </p>
       </div>
 

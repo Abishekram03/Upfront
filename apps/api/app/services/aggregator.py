@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
-from sqlalchemy import select, func, and_, desc, distinct
+from sqlalchemy import select, func, and_, desc, distinct, cast, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.site import Site
 from app.models.session import Session
@@ -78,7 +78,7 @@ async def get_site_stats(
         func.count(distinct(Session.visitor_hash)).label("unique_visitors"),
         func.sum(Session.pageviews_count).label("total_pageviews"),
         func.avg(Session.duration).label("avg_duration"),
-        func.sum(func.cast(Session.is_bounce, func.INTEGER if "sqlite" in str(db.bind.url) else func.INT)).label("bounces"),
+        func.sum(cast(Session.is_bounce, Integer)).label("bounces"),
         func.count(Session.id).label("total_sessions"),
     ).where(
         and_(
@@ -101,7 +101,7 @@ async def get_site_stats(
         func.count(distinct(Session.visitor_hash)).label("prev_visitors"),
         func.sum(Session.pageviews_count).label("prev_pageviews"),
         func.avg(Session.duration).label("prev_duration"),
-        func.sum(func.cast(Session.is_bounce, func.INTEGER if "sqlite" in str(db.bind.url) else func.INT)).label("prev_bounces"),
+        func.sum(cast(Session.is_bounce, Integer)).label("prev_bounces"),
         func.count(Session.id).label("prev_sessions"),
     ).where(
         and_(
@@ -156,7 +156,7 @@ async def get_site_stats(
             func.count(distinct(Session.visitor_hash)).label("v"),
             func.sum(Session.pageviews_count).label("p"),
             func.avg(Session.duration).label("dur"),
-            func.sum(func.cast(Session.is_bounce, func.INTEGER if "sqlite" in str(db.bind.url) else func.INT)).label("b"),
+            func.sum(cast(Session.is_bounce, Integer)).label("b"),
             func.count(Session.id).label("tot"),
         ).where(
             and_(
@@ -191,7 +191,7 @@ async def get_site_stats(
         and_(
             Session.site_id == site_id,
             Session.started_at >= start_date,
-            Session.referrer_source != None
+            Session.referrer_source.is_not(None)
         )
     ).group_by(Session.referrer_source).order_by(desc("cnt")).limit(20)
     
@@ -238,7 +238,7 @@ async def get_site_stats(
         and_(
             Session.site_id == site_id,
             Session.started_at >= start_date,
-            Session.country != None
+            Session.country.is_not(None)
         )
     ).group_by(Session.country).order_by(desc("cnt")).limit(30)
 
@@ -263,7 +263,7 @@ async def get_site_stats(
             and_(
                 Session.site_id == site_id,
                 Session.started_at >= start_date,
-                column != None
+                column.is_not(None)
             )
         ).group_by(column).order_by(desc("cnt")).limit(10)
         res = (await db.execute(q)).all()

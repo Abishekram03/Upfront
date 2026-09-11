@@ -1,10 +1,18 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.site import Site
+from app.models.session import Session
+from app.models.pageview import Pageview
+from app.models.consent import ConsentConfig, ConsentReceipt
 from app.schemas.site import SiteCreate, SiteOut
+
+class SiteUpdate(BaseModel):
+    timezone: Optional[str] = None
+    public: Optional[bool] = None
 
 router = APIRouter()
 
@@ -30,11 +38,34 @@ async def create_site(payload: SiteCreate, db: AsyncSession = Depends(get_db)):
     await db.refresh(site)
     return site
 
+@router.patch("/sites/{site_id}", response_model=SiteOut)
+async def update_site(site_id: str, payload: SiteUpdate, db: AsyncSession = Depends(get_db)):
+    site = await db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    if payload.timezone is not None:
+        site.timezone = payload.timezone
+    if payload.public is not None:
+        site.public = payload.public
+    await db.commit()
+    await db.refresh(site)
+    return site
+
 @router.delete("/sites/{site_id}")
 async def delete_site(site_id: str, db: AsyncSession = Depends(get_db)):
     site = await db.get(Site, site_id)
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
-    await db.delete(site)
-    await db.commit()
-    return {"ok": True, "message": "Site deleted successfully"}
+    
+    try:
+        # Cascade delete dependent records
+        await db.execute(delete(Pageview).where(Pageview.site_id == site.id))
+        await db.execute(delete(Session).where(Session.site_id == site.id))
+        await db.execute(delete(ConsentReceipt).where(ConsentReceipt.domain == site.domain))
+        await db.execute(delete(ConsentConfig).where(ConsentConfig.domain == site.domain))
+        await db.delete(site)
+        await db.commit()
+        return {"ok": True, "message": "Site and all associated data deleted successfully"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete site: {str(e)}")

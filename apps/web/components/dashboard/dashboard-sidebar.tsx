@@ -91,7 +91,7 @@ export function DashboardSidebar({
   return (
     <aside
       className={cn(
-        "flex h-screen flex-col justify-between border-r border-slate-200 bg-white transition-all duration-200 select-none",
+        "flex h-screen flex-col justify-between border-r border-neutral-200 bg-[#fafafa] transition-all duration-200 select-none",
         isCollapsed ? "w-16" : "w-64"
       )}
     >
@@ -100,11 +100,11 @@ export function DashboardSidebar({
         {/* Logo — Ojuju Font, Weight 800 */}
         <div className="flex items-center justify-between px-1">
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="font-[family-name:var(--font-ojuju)] text-3xl font-[800] tracking-tight text-slate-900 group-hover:text-[#1868db] transition-colors">
+            <span className="font-[family-name:var(--font-ojuju)] text-3xl font-[800] tracking-tight text-neutral-900 group-hover:text-[#1868db] transition-colors">
               usrly
             </span>
           </Link>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600 bg-slate-100 rounded-[4px] px-2 py-0.5 border border-slate-200">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-600 bg-neutral-100 rounded-[4px] px-2 py-0.5 border border-neutral-200">
             v1.0
           </span>
         </div>
@@ -119,7 +119,7 @@ export function DashboardSidebar({
         {/* Navigation Group Header */}
         <div className="pt-2">
           {!isCollapsed && (
-            <div className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
               {activeTool === "analytics" ? "Web Analytics" : "Consent Management"}
             </div>
           )}
@@ -138,7 +138,7 @@ export function DashboardSidebar({
                     "group flex items-center gap-2.5 rounded-[4px] px-3 py-2 text-xs font-semibold transition-all",
                     isActive
                       ? "bg-[#1868db] text-white shadow-xs"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                      : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900",
                     isCollapsed && "justify-center px-2"
                   )}
                   title={item.title}
@@ -148,7 +148,7 @@ export function DashboardSidebar({
                       "size-4 shrink-0 transition-colors",
                       isActive
                         ? "text-white"
-                        : "text-slate-400 group-hover:text-slate-600"
+                        : "text-neutral-400 group-hover:text-neutral-600"
                     )}
                   />
                   {!isCollapsed && (
@@ -159,7 +159,7 @@ export function DashboardSidebar({
                       "rounded-[3px] px-1.5 py-0.5 text-[10px] font-bold uppercase",
                       isActive
                         ? "bg-white/20 text-white"
-                        : "bg-slate-100 text-slate-600 border border-slate-200"
+                        : "bg-neutral-100 text-neutral-600 border border-neutral-200"
                     )}>
                       {item.badge}
                     </span>
@@ -172,10 +172,10 @@ export function DashboardSidebar({
       </div>
 
       {/* Bottom Section */}
-      <div className="border-t border-slate-200 p-4 space-y-3">
+      <div className="border-t border-neutral-200 p-4 space-y-3">
         {/* Syft Brand Attribution */}
         {!isCollapsed && (
-          <div className="flex items-center justify-between px-1 text-[11px] text-slate-400">
+          <div className="flex items-center justify-between px-1 text-[11px] text-neutral-400">
             <span>By Syft Technologies</span>
             <span className="flex size-2 rounded-full bg-emerald-500 ring-2 ring-emerald-100" />
           </div>

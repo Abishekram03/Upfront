@@ -50,7 +50,7 @@ class ConsentConfig(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    site = relationship("Site", back_populates="consent_config", lazy="joined")
+    site = relationship("Site", back_populates="consent_config", lazy="selectin")
 
 
 class ConsentReceipt(Base):
@@ -73,4 +73,4 @@ class ConsentReceipt(Base):
     user_agent_category = Column(String(50), default="Desktop")
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
-    site = relationship("Site", back_populates="consent_receipts", lazy="joined")
+    site = relationship("Site", back_populates="consent_receipts", lazy="selectin")

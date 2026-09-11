@@ -93,6 +93,19 @@ export async function createSite(domain: string, timezone: string = "UTC"): Prom
   return await res.json()
 }
 
+export async function updateSite(siteId: string, payload: { timezone?: string; public?: boolean }): Promise<Site> {
+  const res = await fetch(`${API_BASE}/api/v1/sites/${siteId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to update site")
+  }
+  return await res.json()
+}
+
 export async function deleteSite(siteId: string): Promise<{ ok: boolean; message: string }> {
   const res = await fetch(`${API_BASE}/api/v1/sites/${siteId}`, {
     method: "DELETE",

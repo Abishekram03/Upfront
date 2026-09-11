@@ -1,6 +1,6 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy import select, func, desc, and_
+from sqlalchemy import select, func, desc, and_, cast, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -200,11 +200,11 @@ async def get_consent_stats(
         
     # 2. Aggregations
     agg_q = select(
-        func.sum(func.cast(ConsentReceipt.consent_given, func.INTEGER if "sqlite" in str(db.bind.url) else func.INT)).label("accepted"),
-        func.sum(func.cast(ConsentReceipt.functional, func.INTEGER if "sqlite" in str(db.bind.url) else func.INT)).label("functional"),
-        func.sum(func.cast(ConsentReceipt.analytics, func.INTEGER if "sqlite" in str(db.bind.url) else func.INT)).label("analytics"),
-        func.sum(func.cast(ConsentReceipt.performance, func.INTEGER if "sqlite" in str(db.bind.url) else func.INT)).label("performance"),
-        func.sum(func.cast(ConsentReceipt.advertisement, func.INTEGER if "sqlite" in str(db.bind.url) else func.INT)).label("advertisement"),
+        func.sum(cast(ConsentReceipt.consent_given, Integer)).label("accepted"),
+        func.sum(cast(ConsentReceipt.functional, Integer)).label("functional"),
+        func.sum(cast(ConsentReceipt.analytics, Integer)).label("analytics"),
+        func.sum(cast(ConsentReceipt.performance, Integer)).label("performance"),
+        func.sum(cast(ConsentReceipt.advertisement, Integer)).label("advertisement"),
     ).where(ConsentReceipt.domain == clean_domain)
     
     agg_res = (await db.execute(agg_q)).one()

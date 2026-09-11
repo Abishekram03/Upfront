@@ -35,14 +35,14 @@ export function DashboardTopbar({
   const [domainDropdown, setDomainDropdown] = useState(false)
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-neutral-200 bg-white/95 px-4 backdrop-blur-md">
       {/* Left side: Mobile Toggle & Domain Switcher */}
       <div className="flex items-center gap-3">
         {onToggleSidebar && (
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="flex size-8 items-center justify-center rounded-[4px] border border-slate-200 text-slate-600 hover:bg-slate-100 md:hidden"
+            className="flex size-8 items-center justify-center rounded-[4px] border border-neutral-200 text-neutral-600 hover:bg-neutral-100 md:hidden"
           >
             <Menu className="size-4" />
           </button>
@@ -50,11 +50,11 @@ export function DashboardTopbar({
 
         {/* Domain Switcher Pill / Skeleton / Empty */}
         {isLoadingSites ? (
-          <div className="h-8 w-36 bg-slate-100 rounded-[4px] animate-pulse border border-slate-200" />
+          <div className="h-8 w-36 bg-neutral-100 rounded-[4px] animate-pulse border border-neutral-200" />
         ) : sites.length === 0 ? (
           <Link
             href="/settings"
-            className="inline-flex items-center gap-1.5 rounded-[4px] border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
           >
             <Plus className="size-3.5 text-[#1868db]" />
             <span>Add Website</span>
@@ -64,11 +64,11 @@ export function DashboardTopbar({
             <button
               type="button"
               onClick={() => setDomainDropdown(!domainDropdown)}
-              className="flex items-center gap-2 rounded-[4px] border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-2xs"
+              className="flex items-center gap-2 rounded-[4px] border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 transition-colors shadow-2xs"
             >
               <Globe className="size-3.5 text-[#1868db]" />
               <span>{activeDomain || sites[0]?.domain || "Select Site"}</span>
-              <ChevronDown className="size-3 text-slate-400" />
+              <ChevronDown className="size-3 text-neutral-400" />
             </button>
 
             {domainDropdown && (
@@ -77,41 +77,44 @@ export function DashboardTopbar({
                   className="fixed inset-0 z-40"
                   onClick={() => setDomainDropdown(false)}
                 />
-                <div className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-[6px] border border-slate-200 bg-white p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95">
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Your Websites
+                <div className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-[4px] border border-neutral-200 bg-white p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    Your Monitored Sites
                   </div>
-                  {sites.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        onChangeDomain?.(s.domain)
-                        setDomainDropdown(false)
-                      }}
-                      className={cn(
-                        "w-full flex items-center justify-between rounded-[4px] px-2.5 py-1.5 text-xs text-left transition-colors",
-                        activeDomain === s.domain
-                          ? "bg-blue-50 text-[#1868db] font-bold"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                      )}
-                    >
-                      <span className="truncate">{s.domain}</span>
-                      {activeDomain === s.domain && (
-                        <span className="size-2 rounded-full bg-[#1868db] shrink-0" />
-                      )}
-                    </button>
-                  ))}
-
-                  <div className="my-1 border-t border-slate-200" />
-
+                  <div className="max-h-56 overflow-y-auto space-y-0.5 pt-1">
+                    {sites.map((s) => {
+                      const isSelected = s.domain === activeDomain
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            onChangeDomain?.(s.domain)
+                            setDomainDropdown(false)
+                          }}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-[4px] px-2.5 py-1.5 text-xs text-left transition-colors",
+                            isSelected
+                              ? "bg-blue-50 text-[#1868db] font-semibold"
+                              : "text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900"
+                          )}
+                        >
+                          <span className="truncate">{s.domain}</span>
+                          {isSelected && (
+                            <span className="size-1.5 rounded-full bg-[#1868db]" />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="my-1 border-t border-neutral-100" />
                   <Link
                     href="/settings"
                     onClick={() => setDomainDropdown(false)}
-                    className="flex w-full items-center gap-1.5 rounded-[4px] px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#1868db] transition-colors"
+                    className="flex w-full items-center gap-1.5 rounded-[4px] px-2.5 py-1.5 text-xs font-medium text-[#1868db] hover:bg-blue-50 transition-colors"
                   >
-                    <Plus className="size-3 text-[#1868db]" />
-                    <span>Manage Sites</span>
+                    <Plus className="size-3.5" />
+                    <span>Add New Website</span>
                   </Link>
                 </div>
               </>
@@ -120,34 +123,34 @@ export function DashboardTopbar({
         )}
       </div>
 
-      {/* Right side: Live Pulse, Snippet Modal trigger */}
+      {/* Right side Actions */}
       <div className="flex items-center gap-3">
-        {/* Live Visitor Indicator */}
+        {/* Realtime Active Visitor Indicator */}
         {activeDomain && (
-          <div className="flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-3 py-1 text-xs font-medium text-emerald-800">
+          <div className="hidden sm:flex items-center gap-2 rounded-[4px] border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600 font-medium">
             <span className="relative flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
             <span>
-              <strong className="font-bold text-emerald-900">{realtimeVisitors ?? 0}</strong> online now
+              <strong className="text-neutral-900">{realtimeVisitors}</strong> online
             </span>
           </div>
         )}
 
-        {/* Embed Snippet Button */}
-        {activeDomain && onOpenSnippetModal && (
-          <button
-            type="button"
+        {/* Tracking Code Snippet CTA */}
+        {onOpenSnippetModal && activeDomain && (
+          <Button
+            size="sm"
             onClick={onOpenSnippetModal}
-            className="flex items-center gap-1.5 text-xs font-semibold bg-[#1868db] hover:bg-[#1559be] text-white px-3.5 py-1.5 rounded-[4px] shadow-xs transition-colors"
+            className="h-8 gap-1.5 bg-[#1868db] hover:bg-[#1456b8] text-white text-xs font-semibold rounded-[4px] px-3 shadow-xs"
           >
-            <Code className="size-3.5 text-white" />
+            <Code className="size-3.5" />
             <span className="hidden sm:inline">Install Script</span>
-          </button>
+            <span className="sm:hidden">Script</span>
+          </Button>
         )}
       </div>
     </header>
   )
 }
-
