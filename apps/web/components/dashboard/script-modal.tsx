@@ -18,9 +18,8 @@ export function ScriptModal({
 }: ScriptModalProps) {
   const [copied, setCopied] = useState(false)
 
-  if (!open || !domain) return null
-
-  const snippet = `<script defer data-domain="${domain}" src="${API_BASE}/userly.js"></script>`
+  const scriptHost = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
+  const snippet = `<script defer data-domain="${domain}" src="${scriptHost}/userly.js"></script>`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(snippet)

@@ -390,19 +390,20 @@ export function SettingsView() {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-neutral-700">
-                    Paste this snippet into your website's &lt;head&gt;
-                  </label>
-                  <div className="relative rounded-[6px] border border-neutral-800 bg-neutral-950 p-3 text-neutral-100 shadow-inner">
-                    <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
-                      {`<script defer data-domain="${createdSite?.domain}" src="${API_BASE}/userly.js"></script>`}
-                    </pre>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-neutral-700">
+                      Paste this snippet into your website's &lt;head&gt;
+                    </label>
+                    <div className="relative rounded-[6px] border border-neutral-800 bg-neutral-950 p-3 text-neutral-100 shadow-inner">
+                      <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
+                        {`<script defer data-domain="${createdSite?.domain}" src="${typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"}/userly.js"></script>`}
+                      </pre>
                     <button
                       type="button"
                       onClick={() => {
+                        const host = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
                         navigator.clipboard.writeText(
-                          `<script defer data-domain="${createdSite?.domain}" src="${API_BASE}/userly.js"></script>`
+                          `<script defer data-domain="${createdSite?.domain}" src="${host}/userly.js"></script>`
                         )
                         setCopiedSnippet(true)
                         setTimeout(() => setCopiedSnippet(false), 2000)
@@ -473,13 +474,14 @@ export function SettingsView() {
             <div className="space-y-4 pt-4">
               <div className="relative rounded-[6px] border border-neutral-800 bg-neutral-950 p-3 text-neutral-100 shadow-inner">
                 <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
-                  {`<script defer data-domain="${selectedSiteForSnippet.domain}" src="${API_BASE}/userly.js"></script>`}
+                  {`<script defer data-domain="${selectedSiteForSnippet.domain}" src="${typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"}/userly.js"></script>`}
                 </pre>
                 <button
                   type="button"
                   onClick={() => {
+                    const host = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
                     navigator.clipboard.writeText(
-                      `<script defer data-domain="${selectedSiteForSnippet.domain}" src="${API_BASE}/userly.js"></script>`
+                      `<script defer data-domain="${selectedSiteForSnippet.domain}" src="${host}/userly.js"></script>`
                     )
                     setCopiedSnippet(true)
                     setTimeout(() => setCopiedSnippet(false), 2000)

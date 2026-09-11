@@ -9,11 +9,6 @@ const getBaseURL = () => {
   return "http://localhost:3000"
 }
 
-// Ensure database tables exist in Supabase
-ensureTables().catch((err) => {
-  console.error("[Better Auth] ensureTables failed:", err)
-})
-
 export const auth: any = betterAuth({
   appName: "usrly",
   database: pool,
@@ -46,3 +41,7 @@ export const auth: any = betterAuth({
     }),
   ],
 })
+
+export async function initAuthDatabase() {
+  await ensureTables()
+}
