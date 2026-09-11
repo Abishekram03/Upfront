@@ -176,6 +176,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
     return points.reduce((acc, pt, i, arr) => {
       if (i === 0) return `M ${pt.x},${pt.y}`
       const prev = arr[i - 1]
+      if (!prev) return acc
       const cp1x = prev.x + (pt.x - prev.x) / 2
       const cp1y = prev.y
       const cp2x = prev.x + (pt.x - prev.x) / 2
@@ -186,8 +187,11 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
 
   const areaPath = useMemo(() => {
     if (points.length === 0 || !linePath) return ""
-    return `${linePath} L ${points[points.length - 1].x},${svgHeight - paddingY} L ${points[0].x},${svgHeight - paddingY} Z`
-  }, [linePath, points])
+    const first = points[0]
+    const last = points[points.length - 1]
+    if (!first || !last) return ""
+    return `${linePath} L ${last.x},${svgHeight - paddingY} L ${first.x},${svgHeight - paddingY} Z`
+  }, [linePath, points, svgHeight, paddingY])
 
   // Handle Chart Hover
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -470,7 +474,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
           </h2>
         </div>
 
-        <div className="flex items-center gap-1 bg-white border border-neutral-200/90 rounded-xl p-1 shadow-2xs">
+        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-[4px] p-1 shadow-xs">
           {[
             { key: "24h", label: "24 Hours" },
             { key: "7d", label: "7 Days" },
@@ -485,7 +489,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
                 "px-2.5 py-1 text-xs font-semibold rounded-[4px] transition-colors",
                 period === p.key
                   ? "bg-[#1868db] text-white shadow-xs"
-                  : "text-slate-600 hover:text-[#1868db] hover:bg-[#eef5fc]"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               )}
             >
               {p.label}

@@ -61,3 +61,4 @@ ENV/
 *.sqlite3
 userly_prod.db
 usrly_prod.db
+*auth_store.json

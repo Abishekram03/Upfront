@@ -129,12 +129,12 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
   return (
     <div className="space-y-6 max-w-5xl pb-16">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e0ebf8] pb-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-slate-900">Cookie Policy Generator</h1>
-            <span className="rounded-[4px] bg-[#eef5fc] px-2.5 py-0.5 text-xs font-bold text-[#1868db] border border-[#cbe0f8]">
-              GDPR & ePrivacy Ready
+            <span className="rounded-[4px] bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
+              GDPR & CCPA Compliant
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -146,7 +146,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
           <button
             type="button"
             onClick={() => handleCopy(fullHtmlPolicy, "html")}
-            className="text-xs font-semibold text-slate-700 bg-white border border-[#e0ebf8] hover:bg-[#f8fbff] rounded-[4px] px-3.5 py-2 shadow-2xs transition-colors inline-flex items-center gap-1.5"
+            className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-[4px] px-3.5 py-2 shadow-2xs transition-colors inline-flex items-center gap-1.5"
           >
             {copiedType === "html" ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5 text-[#1868db]" />}
             Copy HTML
@@ -167,7 +167,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left: Metadata Inputs */}
         <div className="md:col-span-1 space-y-4">
-          <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-4 space-y-3.5 shadow-2xs">
+          <div className="rounded-[4px] border border-slate-200 bg-white p-4 space-y-3.5 shadow-2xs">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Policy Details</h3>
 
             <div>
@@ -176,7 +176,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#1868db]"
+                className="w-full rounded-[4px] border border-slate-200 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:border-[#1868db]"
               />
             </div>
 
@@ -186,7 +186,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
                 type="email"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
-                className="w-full rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#1868db]"
+                className="w-full rounded-[4px] border border-slate-200 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:border-[#1868db]"
               />
             </div>
 
@@ -196,12 +196,12 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
                 type="date"
                 value={effectiveDate}
                 onChange={(e) => setEffectiveDate(e.target.value)}
-                className="w-full rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#1868db]"
+                className="w-full rounded-[4px] border border-slate-200 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:border-[#1868db]"
               />
             </div>
           </div>
 
-          <div className="rounded-[6px] border border-[#cbe0f8] bg-[#eef5fc] p-4 text-xs text-[#1868db] space-y-2">
+          <div className="rounded-[4px] border border-blue-200 bg-blue-50/60 p-4 text-xs text-[#1868db] space-y-2">
             <div className="flex items-center gap-1.5 font-bold">
               <Sparkles className="size-4" /> Why Embed the Policy?
             </div>
@@ -213,15 +213,15 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
 
         {/* Right: Embed Code Tabs */}
         <div className="md:col-span-2 space-y-4">
-          <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-4 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between border-b border-[#e0ebf8] pb-3">
-              <div className="flex items-center bg-[#eef5fc] p-0.5 rounded-[4px] border border-[#e0ebf8] text-xs">
+          <div className="rounded-[4px] border border-slate-200 bg-white p-4 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-[4px] border border-slate-200 text-xs">
                 <button
                   type="button"
                   onClick={() => setActiveEmbedTab("dynamic")}
                   className={cn(
                     "px-3 py-1 rounded-[4px] font-bold transition-all",
-                    activeEmbedTab === "dynamic" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                    activeEmbedTab === "dynamic" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
                   )}
                 >
                   1. Dynamic Widget (Auto-updating)
@@ -231,7 +231,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
                   onClick={() => setActiveEmbedTab("html")}
                   className={cn(
                     "px-3 py-1 rounded-[4px] font-bold transition-all",
-                    activeEmbedTab === "html" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                    activeEmbedTab === "html" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
                   )}
                 >
                   2. Full HTML Code
@@ -241,7 +241,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
                   onClick={() => setActiveEmbedTab("markdown")}
                   className={cn(
                     "px-3 py-1 rounded-[4px] font-bold transition-all",
-                    activeEmbedTab === "markdown" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                    activeEmbedTab === "markdown" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
                   )}
                 >
                   3. Markdown
@@ -296,8 +296,8 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
       </div>
 
       {/* Live Visual Preview */}
-      <div className="rounded-[6px] border border-[#e0ebf8] bg-white shadow-2xs overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-[#e0ebf8] bg-[#f8fbff] flex items-center justify-between">
+      <div className="rounded-[4px] border border-slate-200 bg-white shadow-2xs overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Eye className="size-4 text-[#1868db]" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Live Policy Preview</h3>
@@ -327,16 +327,16 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
 
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-slate-900">3. Cookie Categories & Declaration Table</h3>
-            <div className="overflow-x-auto rounded-[4px] border border-[#e0ebf8]">
+            <div className="overflow-x-auto rounded-[4px] border border-slate-200">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#f8fbff] border-b border-[#e0ebf8] text-slate-500 font-bold uppercase tracking-wider">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
                   <tr>
                     <th className="py-2.5 px-3.5">Category</th>
                     <th className="py-2.5 px-3.5">Purpose & Description</th>
                     <th className="py-2.5 px-3.5">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#f0f6fe]">
+                <tbody className="divide-y divide-slate-100">
                   <tr>
                     <td className="py-2.5 px-3.5 font-bold text-slate-900">Necessary</td>
                     <td className="py-2.5 px-3.5 text-slate-600">Essential for core features, secure login authentication, and storing consent preferences.</td>
@@ -374,7 +374,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
             </p>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-[#e0ebf8]">
+          <div className="space-y-2 pt-2 border-t border-slate-200">
             <h3 className="text-sm font-bold text-slate-900">5. Contact Information</h3>
             <p className="text-xs text-slate-600">
               For any questions regarding our cookie policy, please contact us at:{" "}

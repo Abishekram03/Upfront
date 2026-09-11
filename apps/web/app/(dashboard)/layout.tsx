@@ -39,10 +39,10 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f4f8fd] text-slate-900">
+    <div className="flex h-screen w-full overflow-hidden bg-[#f1f5f9] text-slate-900">
       {/* Sidebar for Desktop */}
       <div className="hidden md:flex h-full shrink-0">
-        <Suspense fallback={<div className="w-64 border-r border-[#e0ebf8] bg-white" />}>
+        <Suspense fallback={<div className="w-64 border-r border-slate-200 bg-white" />}>
           <DashboardSidebar
             activeTool={activeTool}
             onSelectTool={handleSelectTool}
@@ -70,6 +70,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
+
 
       {/* Main Content Area with Topbar */}
       <div className="flex flex-1 flex-col overflow-hidden">

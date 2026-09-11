@@ -162,12 +162,12 @@ export function ConsentLogs() {
   return (
     <div className="space-y-6 max-w-6xl pb-16">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e0ebf8] pb-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-slate-900">Proof of Consent Vault</h1>
-            <span className="inline-flex items-center gap-1 rounded-[4px] bg-[#eef5fc] px-2.5 py-0.5 text-xs font-bold text-[#1868db] border border-[#cbe0f8]">
-              <Shield className="size-3" /> GDPR Article 7(1) Audit Ready
+            <span className="inline-flex items-center gap-1 rounded-[4px] bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
+              <Shield className="size-3 text-[#1868db]" /> GDPR Article 7(1) Audit Ready
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -180,7 +180,7 @@ export function ConsentLogs() {
             type="button"
             onClick={loadReceipts}
             disabled={isLoading}
-            className="text-xs font-semibold text-slate-700 bg-white border border-[#e0ebf8] hover:bg-[#f8fbff] rounded-[4px] px-3 py-1.5 shadow-2xs transition-colors inline-flex items-center"
+            className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-[4px] px-3 py-1.5 shadow-2xs transition-colors inline-flex items-center"
           >
             <RefreshCw className={cn("size-3.5 mr-1.5 text-[#1868db]", isLoading && "animate-spin")} />
             Refresh
@@ -199,7 +199,7 @@ export function ConsentLogs() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-[6px] border border-[#e0ebf8] shadow-2xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-[4px] border border-slate-200 shadow-2xs">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
           <input
@@ -210,12 +210,12 @@ export function ConsentLogs() {
               setSearchQuery(e.target.value)
               setPage(1)
             }}
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-[#1868db] transition-colors"
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-[4px] border border-slate-200 bg-slate-50/60 text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-[#1868db] transition-colors"
           />
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-[#eef5fc] p-0.5 rounded-[4px] border border-[#e0ebf8] text-xs">
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-[4px] border border-slate-200 text-xs">
             <button
               type="button"
               onClick={() => {
@@ -224,7 +224,7 @@ export function ConsentLogs() {
               }}
               className={cn(
                 "px-2.5 py-1 rounded-[4px] font-bold transition-all",
-                filterType === "all" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                filterType === "all" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               )}
             >
               All ({receipts.length})
@@ -237,7 +237,7 @@ export function ConsentLogs() {
               }}
               className={cn(
                 "px-2.5 py-1 rounded-[4px] font-bold transition-all",
-                filterType === "accepted" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                filterType === "accepted" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               )}
             >
               Accepted All
@@ -250,7 +250,7 @@ export function ConsentLogs() {
               }}
               className={cn(
                 "px-2.5 py-1 rounded-[4px] font-bold transition-all",
-                filterType === "rejected" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                filterType === "rejected" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               )}
             >
               Rejected All
@@ -263,7 +263,7 @@ export function ConsentLogs() {
               }}
               className={cn(
                 "px-2.5 py-1 rounded-[4px] font-bold transition-all",
-                filterType === "custom" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                filterType === "custom" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               )}
             >
               Custom
@@ -273,10 +273,10 @@ export function ConsentLogs() {
       </div>
 
       {/* Main Table Card */}
-      <div className="rounded-[6px] border border-[#e0ebf8] bg-white shadow-2xs overflow-hidden">
+      <div className="rounded-[4px] border border-slate-200 bg-white shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#f8fbff] border-b border-[#e0ebf8] text-slate-500 font-bold uppercase tracking-wider">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-4">Timestamp (UTC)</th>
                 <th className="py-3 px-4">Visitor / Hash</th>
@@ -287,17 +287,17 @@ export function ConsentLogs() {
                 <th className="py-3 px-4 text-right">Receipt ID</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#f0f6fe]">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td className="py-3.5 px-4"><div className="h-3 w-28 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4"><div className="h-3 w-20 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4"><div className="h-3 w-12 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4"><div className="h-5 w-16 bg-[#eef5fc] rounded-full" /></td>
-                    <td className="py-3.5 px-4"><div className="h-4 w-40 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4"><div className="h-3 w-16 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4 text-right"><div className="h-3 w-16 bg-[#eef5fc] rounded ml-auto" /></td>
+                    <td className="py-3.5 px-4"><div className="h-3 w-28 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="h-3 w-20 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="h-3 w-12 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="h-5 w-16 bg-slate-100 rounded-full" /></td>
+                    <td className="py-3.5 px-4"><div className="h-4 w-40 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="h-3 w-16 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4 text-right"><div className="h-3 w-16 bg-slate-100 rounded ml-auto" /></td>
                   </tr>
                 ))
               ) : paginatedReceipts.length === 0 ? (
@@ -321,12 +321,12 @@ export function ConsentLogs() {
                   const isRejectedAll = !receipt.consent_given && !receipt.functional && !receipt.analytics && !receipt.performance && !isAd
 
                   return (
-                    <tr key={receipt.id} className="hover:bg-[#f8fbff] transition-colors">
+                    <tr key={receipt.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 font-mono text-slate-600">
                         {formatTimestamp(receipt.created_at)}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="font-mono text-slate-700 bg-[#eef5fc] px-1.5 py-0.5 rounded-[3px] text-[11px] border border-[#cbe0f8]">
+                        <span className="font-mono text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-[3px] text-[11px] border border-slate-200">
                           {receipt.visitor_hash ? `${receipt.visitor_hash.slice(0, 10)}...` : "anonymous"}
                         </span>
                       </td>
@@ -346,7 +346,7 @@ export function ConsentLogs() {
                             <XCircle className="size-3" /> Rejected All
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[11px] font-bold bg-[#eef5fc] text-[#1868db] border border-[#cbe0f8]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[11px] font-bold bg-blue-50 text-[#1868db] border border-blue-200">
                             <Sliders className="size-3" /> Custom
                           </span>
                         )}
@@ -358,50 +358,50 @@ export function ConsentLogs() {
                           </span>
                           <span
                             className={cn(
-                              "px-1.5 py-0.5 rounded-[3px] text-[10px] font-medium border",
+                              "px-1.5 py-0.5 rounded-[3px] text-[10px] font-medium",
                               receipt.functional
-                                ? "bg-[#eef5fc] text-[#1868db] border-[#cbe0f8]"
-                                : "bg-slate-50 text-slate-400 border-slate-200 line-through"
+                                ? "bg-blue-50 text-[#1868db] border border-blue-200"
+                                : "bg-slate-50 text-slate-400 border border-slate-200 line-through"
                             )}
                           >
                             Func
                           </span>
                           <span
                             className={cn(
-                              "px-1.5 py-0.5 rounded-[3px] text-[10px] font-medium border",
+                              "px-1.5 py-0.5 rounded-[3px] text-[10px] font-medium",
                               receipt.analytics
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                : "bg-slate-50 text-slate-400 border-slate-200 line-through"
+                                ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                : "bg-slate-50 text-slate-400 border border-slate-200 line-through"
                             )}
                           >
                             Ana
                           </span>
                           <span
                             className={cn(
-                              "px-1.5 py-0.5 rounded-[3px] text-[10px] font-medium border",
+                              "px-1.5 py-0.5 rounded-[3px] text-[10px] font-medium",
                               receipt.performance
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : "bg-slate-50 text-slate-400 border-slate-200 line-through"
+                                ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                : "bg-slate-50 text-slate-400 border border-slate-200 line-through"
                             )}
                           >
                             Perf
                           </span>
                           <span
                             className={cn(
-                              "px-1.5 py-0.5 rounded-[3px] text-[10px] font-medium border",
+                              "px-1.5 py-0.5 rounded-[3px] text-[10px] font-medium",
                               isAd
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : "bg-slate-50 text-slate-400 border-slate-200 line-through"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : "bg-slate-50 text-slate-400 border border-slate-200 line-through"
                             )}
                           >
                             Ad
                           </span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-slate-600 capitalize">
+                      <td className="py-3.5 px-4 text-slate-600">
                         {receipt.user_agent_category || "Desktop"}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono text-[11px] text-slate-400">
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-400 text-[11px]">
                         {receipt.id.slice(0, 8)}...
                       </td>
                     </tr>
@@ -413,35 +413,37 @@ export function ConsentLogs() {
         </div>
 
         {/* Pagination Footer */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#f8fbff] border-t border-[#e0ebf8] text-xs text-slate-500">
-          <div>
-            Showing <strong className="text-slate-800">{filteredReceipts.length > 0 ? (page - 1) * pageSize + 1 : 0}</strong> to{" "}
-            <strong className="text-slate-800">{Math.min(page * pageSize, filteredReceipts.length)}</strong> of{" "}
-            <strong className="text-slate-800">{filteredReceipts.length}</strong> receipts
-          </div>
+        {totalPages > 1 && (
+          <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs">
+            <div className="text-slate-500">
+              Showing <strong>{(page - 1) * pageSize + 1}</strong> to{" "}
+              <strong>{Math.min(page * pageSize, filteredReceipts.length)}</strong> of{" "}
+              <strong>{filteredReceipts.length}</strong> receipts
+            </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="h-7 px-2.5 text-xs font-semibold border border-[#e0ebf8] bg-white text-slate-700 hover:bg-[#eef5fc] rounded-[4px] inline-flex items-center disabled:opacity-50"
-            >
-              <ChevronLeft className="size-3.5 mr-0.5" /> Previous
-            </button>
-            <span className="px-2 font-bold text-slate-700">
-              {page} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="h-7 px-2.5 text-xs font-semibold border border-[#e0ebf8] bg-white text-slate-700 hover:bg-[#eef5fc] rounded-[4px] inline-flex items-center disabled:opacity-50"
-            >
-              Next <ChevronRight className="size-3.5 ml-0.5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-2.5 py-1 rounded-[4px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="px-2 font-bold text-slate-800">
+                {page} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-2.5 py-1 rounded-[4px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

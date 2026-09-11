@@ -184,7 +184,7 @@ export function SignupForm({
             </FieldGroup>
           </form>
 
-          <div className="relative hidden bg-[#f4f8fd] p-8 md:flex flex-col justify-between border-l border-[#e0ebf8]">
+          <div className="relative hidden bg-slate-50 p-8 md:flex flex-col justify-between border-l border-slate-200">
             <div className="flex items-center gap-2">
               <span className="font-[family-name:var(--font-ojuju)] text-3xl font-[800] tracking-tight text-[#1868db]">
                 usrly

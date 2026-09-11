@@ -88,10 +88,10 @@ export function ScriptRules() {
   return (
     <div className="space-y-6 max-w-5xl pb-16">
       {/* Header */}
-      <div className="border-b border-[#e0ebf8] pb-5">
+      <div className="border-b border-slate-200 pb-5">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold tracking-tight text-slate-900">Script Rules & Auto-Blocking</h1>
-          <span className="rounded-[4px] bg-[#eef5fc] px-2.5 py-0.5 text-xs font-bold text-[#1868db] border border-[#cbe0f8]">
+          <span className="rounded-[4px] bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
             CookieYes Gating Standard
           </span>
         </div>
@@ -101,19 +101,19 @@ export function ScriptRules() {
       </div>
 
       {/* How it Works Banner */}
-      <div className="rounded-[6px] border border-[#cbe0f8] bg-[#eef5fc] p-4 text-xs text-[#1868db] space-y-2">
+      <div className="rounded-[4px] border border-blue-200 bg-blue-50/60 p-4 text-xs text-[#1868db] space-y-2">
         <div className="flex items-center gap-2 font-bold text-[#1868db]">
           <Sparkles className="size-4 text-[#1868db]" />
           How Script Auto-Blocking Works
         </div>
         <p className="text-slate-700 leading-relaxed text-[11px]">
-          Replace <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-[#cbe0f8] font-mono text-[#1868db]">type="text/javascript"</code> with <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-[#cbe0f8] font-mono text-[#1868db]">type="text/usrly-block"</code> and specify the <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-[#cbe0f8] font-mono text-[#1868db]">data-category="advertisement"</code> attribute.
+          Replace <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-blue-200 font-mono text-[#1868db]">type="text/javascript"</code> with <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-blue-200 font-mono text-[#1868db]">type="text/usrly-block"</code> and specify the <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-blue-200 font-mono text-[#1868db]">data-category="advertisement"</code> attribute.
           The browser will hold the script until the visitor grants consent, at which point <strong>usrly</strong> will dynamically unblock and execute it.
         </p>
       </div>
 
       {/* Google Consent Mode v2 Card */}
-      <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 space-y-3 shadow-2xs">
+      <div className="rounded-[4px] border border-slate-200 bg-white p-5 space-y-3 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="size-8 rounded-[4px] bg-[#1868db] text-white flex items-center justify-center font-bold text-xs shadow-xs">
@@ -129,7 +129,7 @@ export function ScriptRules() {
           </span>
         </div>
         <p className="text-xs text-slate-600 leading-relaxed">
-          When visitors interact with your banner, <strong>usrly.js</strong> automatically calls <code className="bg-[#f8fbff] border border-[#e0ebf8] px-1.5 py-0.5 rounded font-mono text-[#1868db]">gtag('consent', 'update', &#123; ... &#125;)</code> with the exact categories chosen. No complex Tag Manager triggers required.
+          When visitors interact with your banner, <strong>usrly.js</strong> automatically calls <code className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono text-[#1868db]">gtag('consent', 'update', &#123; ... &#125;)</code> with the exact categories chosen. No complex Tag Manager triggers required.
         </p>
       </div>
 
@@ -141,14 +141,14 @@ export function ScriptRules() {
           {trackers.map((tracker, idx) => (
             <div
               key={tracker.name}
-              className="rounded-[6px] border border-[#e0ebf8] bg-white p-4 shadow-2xs space-y-3"
+              className="rounded-[4px] border border-slate-200 bg-white p-4 shadow-2xs space-y-3"
             >
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-xs font-bold text-slate-900">{tracker.name}</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">{tracker.desc}</p>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[4px] bg-[#eef5fc] text-[#1868db] border border-[#cbe0f8]">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[4px] bg-blue-50 text-[#1868db] border border-blue-200">
                   {tracker.category}
                 </span>
               </div>
@@ -182,3 +182,4 @@ export function ScriptRules() {
     </div>
   )
 }
+

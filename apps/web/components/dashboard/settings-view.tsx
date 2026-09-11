@@ -113,7 +113,7 @@ export function SettingsView() {
   return (
     <div className="space-y-6 max-w-6xl pb-16">
       {/* Header & Add Site Action */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e0ebf8] pb-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
             Site Settings
@@ -139,24 +139,24 @@ export function SettingsView() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="flex flex-col justify-between rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-xs animate-pulse"
+              className="flex flex-col justify-between rounded-[6px] border border-slate-200 bg-white p-5 shadow-xs animate-pulse"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="size-9 rounded-[4px] bg-[#eef5fc]" />
+                    <div className="size-9 rounded-[4px] bg-slate-100" />
                     <div className="space-y-1.5">
-                      <div className="h-3.5 w-28 bg-[#eef5fc] rounded" />
-                      <div className="h-2.5 w-20 bg-[#eef5fc] rounded" />
+                      <div className="h-3.5 w-28 bg-slate-100 rounded" />
+                      <div className="h-2.5 w-20 bg-slate-100 rounded" />
                     </div>
                   </div>
-                  <div className="h-5 w-14 bg-[#eef5fc] rounded-full" />
+                  <div className="h-5 w-14 bg-slate-100 rounded-full" />
                 </div>
               </div>
-              <div className="mt-6 pt-3 border-t border-[#e0ebf8] flex items-center justify-between gap-2">
-                <div className="h-8 flex-1 bg-[#eef5fc] rounded-[4px]" />
-                <div className="h-8 w-20 bg-[#eef5fc] rounded-[4px]" />
-                <div className="size-8 bg-[#eef5fc] rounded-[4px]" />
+              <div className="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between gap-2">
+                <div className="h-8 flex-1 bg-slate-100 rounded-[4px]" />
+                <div className="h-8 w-20 bg-slate-100 rounded-[4px]" />
+                <div className="size-8 bg-slate-100 rounded-[4px]" />
               </div>
             </div>
           ))}
@@ -181,9 +181,9 @@ export function SettingsView() {
         </div>
       ) : sites.length === 0 ? (
         /* 3. EMPTY STATE */
-        <div className="rounded-[8px] border border-[#e0ebf8] bg-white p-12 text-center shadow-xs">
+        <div className="rounded-[8px] border border-slate-200 bg-white p-12 text-center shadow-xs">
           <div className="mx-auto flex max-w-sm flex-col items-center space-y-3">
-            <div className="flex size-12 items-center justify-center rounded-[6px] bg-[#eef5fc] text-[#1868db]">
+            <div className="flex size-12 items-center justify-center rounded-[6px] bg-slate-100 text-[#1868db]">
               <Globe className="size-6" />
             </div>
             <h3 className="text-sm font-bold text-slate-900">No sites added yet</h3>
@@ -205,13 +205,13 @@ export function SettingsView() {
           {sites.map((site) => (
             <div
               key={site.id}
-              className="flex flex-col justify-between rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs transition-all hover:border-[#1868db] hover:shadow-md"
+              className="flex flex-col justify-between rounded-[6px] border border-slate-200 bg-white p-5 shadow-2xs transition-all hover:border-[#1868db] hover:shadow-md"
             >
               <div>
                 {/* Card Top: Domain & Status */}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-[4px] bg-[#eef5fc] border border-[#cbe0f8] text-[#1868db]">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-[4px] bg-slate-50 border border-slate-200 text-[#1868db]">
                       <Globe className="size-4" />
                     </div>
                     <div>
@@ -242,13 +242,13 @@ export function SettingsView() {
               </div>
 
               {/* Card Bottom Actions */}
-              <div className="mt-6 pt-3 border-t border-[#e0ebf8] flex items-center justify-between gap-2">
+              <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedSiteForSnippet(site)}
-                  className="h-8 text-xs font-semibold border border-[#cbe0f8] bg-[#eef5fc] text-[#1868db] hover:bg-[#e2eefb] rounded-[4px] px-3 gap-1.5 flex-1 inline-flex items-center justify-center transition-colors"
+                  className="h-8 text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-[4px] px-3 gap-1.5 flex-1 inline-flex items-center justify-center transition-colors"
                 >
-                  <Code2 className="size-3.5 text-[#1868db]" />
+                  <Code2 className="size-3.5 text-slate-500" />
                   Embed Script
                 </button>
 
@@ -282,9 +282,9 @@ export function SettingsView() {
             className="fixed inset-0"
             onClick={() => setAddModalOpen(false)}
           />
-          <div className="relative z-10 w-full max-w-lg rounded-[8px] border border-[#e0ebf8] bg-white p-6 shadow-2xl animate-in zoom-in-95">
+          <div className="relative z-10 w-full max-w-lg rounded-[8px] border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95">
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#e0ebf8]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="flex size-8 items-center justify-center rounded-[4px] bg-[#1868db] text-white">
                   <Globe className="size-4" />
@@ -303,7 +303,7 @@ export function SettingsView() {
               <button
                 type="button"
                 onClick={() => setAddModalOpen(false)}
-                className="rounded-[4px] p-1.5 text-slate-400 hover:bg-[#eef5fc] hover:text-slate-700 transition-colors"
+                className="rounded-[4px] p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
               >
                 <X className="size-4" />
               </button>
@@ -329,7 +329,7 @@ export function SettingsView() {
                     placeholder="e.g. yourwebsite.com or myblog.io"
                     autoFocus
                     required
-                    className="w-full rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#1868db]"
+                    className="w-full rounded-[4px] border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#1868db] focus:bg-white transition-colors"
                   />
                   <p className="text-[10px] text-slate-400">
                     Enter your root domain or subdomain. No protocols or paths needed.
@@ -343,7 +343,7 @@ export function SettingsView() {
                   <select
                     value={newTimezone}
                     onChange={(e) => setNewTimezone(e.target.value)}
-                    className="w-full rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#1868db]"
+                    className="w-full rounded-[4px] border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#1868db] focus:bg-white transition-colors"
                   >
                     <option value="UTC">UTC (Coordinated Universal Time)</option>
                     <option value="America/New_York">America/New_York (EST/EDT)</option>
@@ -354,11 +354,11 @@ export function SettingsView() {
                   </select>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t border-[#e0ebf8]">
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => setAddModalOpen(false)}
-                    className="text-xs font-semibold px-4 py-2 border border-[#e0ebf8] text-slate-600 hover:bg-[#f8fbff] rounded-[4px]"
+                    className="text-xs font-semibold px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-[4px]"
                   >
                     Cancel
                   </button>
@@ -384,7 +384,7 @@ export function SettingsView() {
                   <label className="text-xs font-semibold text-slate-700">
                     Paste this snippet into your website's &lt;head&gt;
                   </label>
-                  <div className="relative rounded-[6px] border border-[#e0ebf8] bg-slate-950 p-3 text-slate-100 shadow-inner">
+                  <div className="relative rounded-[6px] border border-slate-800 bg-slate-950 p-3 text-slate-100 shadow-inner">
                     <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
                       {`<script defer data-domain="${createdSite?.domain}" src="http://localhost:8000/userly.js"></script>`}
                     </pre>
@@ -414,7 +414,7 @@ export function SettingsView() {
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2 border-t border-[#e0ebf8]">
+                <div className="flex justify-end pt-2 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => setAddModalOpen(false)}
@@ -436,8 +436,8 @@ export function SettingsView() {
             className="fixed inset-0"
             onClick={() => setSelectedSiteForSnippet(null)}
           />
-          <div className="relative z-10 w-full max-w-lg rounded-[8px] border border-[#e0ebf8] bg-white p-6 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-[#e0ebf8]">
+          <div className="relative z-10 w-full max-w-lg rounded-[8px] border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
                 <div className="flex size-8 items-center justify-center rounded-[4px] bg-[#1868db] text-white">
                   <Code2 className="size-4" />
@@ -454,14 +454,14 @@ export function SettingsView() {
               <button
                 type="button"
                 onClick={() => setSelectedSiteForSnippet(null)}
-                className="rounded-[4px] p-1.5 text-slate-400 hover:bg-[#eef5fc] hover:text-slate-700 transition-colors"
+                className="rounded-[4px] p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
               >
                 <X className="size-4" />
               </button>
             </div>
 
             <div className="space-y-4 pt-4">
-              <div className="relative rounded-[6px] border border-[#e0ebf8] bg-slate-950 p-3 text-slate-100 shadow-inner">
+              <div className="relative rounded-[6px] border border-slate-800 bg-slate-950 p-3 text-slate-100 shadow-inner">
                 <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
                   {`<script defer data-domain="${selectedSiteForSnippet.domain}" src="http://localhost:8000/userly.js"></script>`}
                 </pre>
@@ -477,20 +477,20 @@ export function SettingsView() {
                   className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-[4px] bg-[#1868db] hover:bg-[#1559be] px-2.5 py-1 text-xs font-semibold text-white transition-colors"
                 >
                   {copiedSnippet ? (
-                    <>
-                      <Check className="size-3 text-white" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="size-3" />
-                      Copy
-                    </>
-                  )}
+                        <>
+                          <Check className="size-3 text-white" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3" />
+                          Copy
+                        </>
+                      )}
                 </button>
               </div>
 
-              <div className="flex justify-end pt-2 border-t border-[#e0ebf8]">
+              <div className="flex justify-end pt-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setSelectedSiteForSnippet(null)}

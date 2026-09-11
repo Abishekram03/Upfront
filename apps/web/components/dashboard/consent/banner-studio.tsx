@@ -134,11 +134,11 @@ export function BannerStudio() {
   return (
     <div className="space-y-6 max-w-7xl pb-16">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e0ebf8] pb-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-slate-900">Banner Studio</h1>
-            <span className="rounded-[4px] bg-[#eef5fc] px-2.5 py-0.5 text-xs font-bold text-[#1868db] border border-[#cbe0f8]">
+            <span className="rounded-[4px] bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
               CookieYes Design System
             </span>
           </div>
@@ -181,13 +181,13 @@ export function BannerStudio() {
         {/* Left Side: Controls & Customization */}
         <div className="lg:col-span-5 space-y-4">
           {/* Settings Tabs */}
-          <div className="flex items-center bg-[#eef5fc] p-1 rounded-[6px] border border-[#e0ebf8] text-xs">
+          <div className="flex items-center bg-slate-100 p-1 rounded-[4px] border border-slate-200 text-xs">
             <button
               type="button"
               onClick={() => setActiveSettingsTab("layout")}
               className={cn(
                 "flex-1 py-1.5 rounded-[4px] font-bold transition-all text-center",
-                activeSettingsTab === "layout" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                activeSettingsTab === "layout" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               )}
             >
               Layout & Theme
@@ -197,7 +197,7 @@ export function BannerStudio() {
               onClick={() => setActiveSettingsTab("content")}
               className={cn(
                 "flex-1 py-1.5 rounded-[4px] font-bold transition-all text-center",
-                activeSettingsTab === "content" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                activeSettingsTab === "content" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               )}
             >
               Copy & Labels
@@ -207,7 +207,7 @@ export function BannerStudio() {
               onClick={() => setActiveSettingsTab("categories")}
               className={cn(
                 "flex-1 py-1.5 rounded-[4px] font-bold transition-all text-center",
-                activeSettingsTab === "categories" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                activeSettingsTab === "categories" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               )}
             >
               5 Categories
@@ -216,7 +216,7 @@ export function BannerStudio() {
 
           {/* TAB 1: LAYOUT & THEME */}
           {activeSettingsTab === "layout" && (
-            <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 space-y-5 shadow-2xs">
+            <div className="rounded-[4px] border border-slate-200 bg-white p-5 space-y-5 shadow-2xs">
               <div>
                 <label className="text-xs font-bold text-slate-800 block mb-2">Banner Layout</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -233,8 +233,8 @@ export function BannerStudio() {
                       className={cn(
                         "p-3 rounded-[4px] border text-left transition-all",
                         config.layout === l.id
-                          ? "border-[#1868db] bg-[#eef5fc] text-[#1868db] ring-1 ring-[#1868db]/30"
-                          : "border-[#e0ebf8] bg-[#f8fbff] hover:bg-[#eef5fc] text-slate-700"
+                          ? "border-[#1868db] bg-blue-50 text-[#1868db] ring-1 ring-[#1868db]/30"
+                          : "border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-700"
                       )}
                     >
                       <div className="font-bold text-xs">{l.label}</div>
@@ -262,7 +262,7 @@ export function BannerStudio() {
                       {config.primary_color === p.hex && <Check className="size-4 text-white" />}
                     </button>
                   ))}
-                  <div className="flex items-center gap-1.5 ml-auto border border-[#e0ebf8] rounded-[4px] px-2 py-1 bg-[#f8fbff] text-xs">
+                  <div className="flex items-center gap-1.5 ml-auto border border-slate-200 rounded-[4px] px-2 py-1 bg-slate-50 text-xs">
                     <span className="font-mono text-slate-600">{config.primary_color}</span>
                     <input
                       type="color"
@@ -274,7 +274,7 @@ export function BannerStudio() {
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-[#e0ebf8]">
+              <div className="pt-2 border-t border-slate-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-xs font-bold text-slate-800">Floating Revisit Cookie Badge</div>
@@ -293,14 +293,14 @@ export function BannerStudio() {
 
           {/* TAB 2: CONTENT & LABELS */}
           {activeSettingsTab === "content" && (
-            <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 space-y-4 shadow-2xs">
+            <div className="rounded-[4px] border border-slate-200 bg-white p-5 space-y-4 shadow-2xs">
               <div>
                 <label className="text-xs font-bold text-slate-800 block mb-1">Banner Title</label>
                 <input
                   type="text"
                   value={config.title}
                   onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                  className="w-full px-3 py-1.5 text-xs rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] text-slate-900 focus:outline-hidden focus:border-[#1868db]"
+                  className="w-full px-3 py-1.5 text-xs rounded-[4px] border border-slate-200 bg-slate-50/60 text-slate-900 focus:outline-hidden focus:border-[#1868db]"
                 />
               </div>
 
@@ -310,18 +310,18 @@ export function BannerStudio() {
                   rows={3}
                   value={config.description}
                   onChange={(e) => setConfig({ ...config, description: e.target.value })}
-                  className="w-full px-3 py-1.5 text-xs rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] text-slate-900 focus:outline-hidden focus:border-[#1868db] leading-relaxed"
+                  className="w-full px-3 py-1.5 text-xs rounded-[4px] border border-slate-200 bg-slate-50/60 text-slate-900 focus:outline-hidden focus:border-[#1868db] leading-relaxed"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#e0ebf8]">
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200">
                 <div>
                   <label className="text-[11px] font-bold text-slate-700 block mb-1">Accept All</label>
                   <input
                     type="text"
                     value={config.accept_all_label}
                     onChange={(e) => setConfig({ ...config, accept_all_label: e.target.value })}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] text-slate-900 focus:outline-hidden focus:border-[#1868db]"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-[4px] border border-slate-200 bg-slate-50/60 text-slate-900 focus:outline-hidden focus:border-[#1868db]"
                   />
                 </div>
                 <div>
@@ -330,7 +330,7 @@ export function BannerStudio() {
                     type="text"
                     value={config.reject_all_label}
                     onChange={(e) => setConfig({ ...config, reject_all_label: e.target.value })}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] text-slate-900 focus:outline-hidden focus:border-[#1868db]"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-[4px] border border-slate-200 bg-slate-50/60 text-slate-900 focus:outline-hidden focus:border-[#1868db]"
                   />
                 </div>
                 <div>
@@ -339,7 +339,7 @@ export function BannerStudio() {
                     type="text"
                     value={config.preferences_label}
                     onChange={(e) => setConfig({ ...config, preferences_label: e.target.value })}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] text-slate-900 focus:outline-hidden focus:border-[#1868db]"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-[4px] border border-slate-200 bg-slate-50/60 text-slate-900 focus:outline-hidden focus:border-[#1868db]"
                   />
                 </div>
               </div>
@@ -348,21 +348,23 @@ export function BannerStudio() {
 
           {/* TAB 3: 5 CATEGORIES */}
           {activeSettingsTab === "categories" && (
-            <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between pb-2 border-b border-[#e0ebf8]">
+            <div className="rounded-[4px] border border-slate-200 bg-white p-5 space-y-3 shadow-2xs">
+              <div className="text-xs text-slate-500 mb-2">
+                Configure the 5 standard consent categories shown in the preferences modal.
+              </div>
+
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
                 <div>
                   <div className="text-xs font-bold text-slate-900">Necessary</div>
                   <div className="text-[11px] text-slate-500">Essential for login & basic security</div>
                 </div>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-[4px] border border-emerald-200">
-                  Always Active
-                </span>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-[4px]">Always On</span>
               </div>
 
-              <div className="flex items-center justify-between py-1.5">
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
                 <div>
                   <div className="text-xs font-bold text-slate-900">Functional</div>
-                  <div className="text-[11px] text-slate-500">Social shares, user feedback, chat widgets</div>
+                  <div className="text-[11px] text-slate-500">Language, chats, video embeds</div>
                 </div>
                 <input
                   type="checkbox"
@@ -372,10 +374,10 @@ export function BannerStudio() {
                 />
               </div>
 
-              <div className="flex items-center justify-between py-1.5">
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
                 <div>
                   <div className="text-xs font-bold text-slate-900">Analytics</div>
-                  <div className="text-[11px] text-slate-500">Traffic, bounce rate, and page telemetry</div>
+                  <div className="text-[11px] text-slate-500">Traffic analysis & user journeys</div>
                 </div>
                 <input
                   type="checkbox"
@@ -385,10 +387,10 @@ export function BannerStudio() {
                 />
               </div>
 
-              <div className="flex items-center justify-between py-1.5">
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
                 <div>
                   <div className="text-xs font-bold text-slate-900">Performance</div>
-                  <div className="text-[11px] text-slate-500">Load speed, latency, key performance indexes</div>
+                  <div className="text-[11px] text-slate-500">Speed, CDN, error reporting</div>
                 </div>
                 <input
                   type="checkbox"
@@ -417,15 +419,15 @@ export function BannerStudio() {
         {/* Right Side: Live Interactive Mockup Canvas */}
         <div className="lg:col-span-7 space-y-3">
           {/* Canvas Controls */}
-          <div className="flex items-center justify-between bg-white p-2 rounded-[6px] border border-[#e0ebf8] shadow-2xs">
+          <div className="flex items-center justify-between bg-white p-2 rounded-[4px] border border-slate-200 shadow-2xs">
             {/* Preview Mode Selector */}
-            <div className="flex items-center bg-[#eef5fc] p-0.5 rounded-[4px] border border-[#e0ebf8] text-xs">
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-[4px] border border-slate-200 text-xs">
               <button
                 type="button"
                 onClick={() => setPreviewTab("banner")}
                 className={cn(
                   "px-3 py-1 rounded-[4px] font-bold transition-all",
-                  previewTab === "banner" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                  previewTab === "banner" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
                 )}
               >
                 1. Initial Banner
@@ -435,7 +437,7 @@ export function BannerStudio() {
                 onClick={() => setPreviewTab("preferences_modal")}
                 className={cn(
                   "px-3 py-1 rounded-[4px] font-bold transition-all flex items-center gap-1",
-                  previewTab === "preferences_modal" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                  previewTab === "preferences_modal" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
                 )}
               >
                 2. Preferences Modal
@@ -445,7 +447,7 @@ export function BannerStudio() {
                 onClick={() => setPreviewTab("revisit_button")}
                 className={cn(
                   "px-3 py-1 rounded-[4px] font-bold transition-all flex items-center gap-1",
-                  previewTab === "revisit_button" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-[#1868db]"
+                  previewTab === "revisit_button" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
                 )}
               >
                 3. Cookie Button 🍪
@@ -453,7 +455,7 @@ export function BannerStudio() {
             </div>
 
             {/* Device Switcher */}
-            <div className="flex items-center gap-1 bg-[#eef5fc] p-0.5 rounded-[4px] border border-[#e0ebf8]">
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-[4px] border border-slate-200">
               <button
                 type="button"
                 onClick={() => setPreviewDevice("desktop")}
@@ -478,21 +480,21 @@ export function BannerStudio() {
           </div>
 
           {/* Viewport Frame */}
-          <div className="rounded-[8px] border border-[#e0ebf8] bg-[#eef5fc]/40 p-4 flex items-center justify-center min-h-[500px]">
+          <div className="rounded-[4px] border border-slate-200 bg-slate-100/50 p-4 flex items-center justify-center min-h-[500px]">
             <div
               className={cn(
-                "relative bg-white border border-[#e0ebf8] rounded-[6px] overflow-hidden shadow-lg transition-all duration-300 flex flex-col justify-between",
+                "relative bg-white border border-slate-200 rounded-[4px] overflow-hidden shadow-lg transition-all duration-300 flex flex-col justify-between",
                 previewDevice === "desktop" ? "w-full h-[520px]" : "w-[340px] h-[520px]"
               )}
             >
               {/* Fake Website Header */}
-              <div className="h-10 border-b border-[#e0ebf8] bg-[#f8fbff] px-4 flex items-center justify-between">
+              <div className="h-10 border-b border-slate-200 bg-slate-50 px-4 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className="size-2.5 rounded-full bg-rose-400" />
                   <div className="size-2.5 rounded-full bg-amber-400" />
                   <div className="size-2.5 rounded-full bg-emerald-400" />
                 </div>
-                <div className="text-[11px] font-mono text-slate-400 bg-white px-3 py-0.5 rounded-[4px] border border-[#e0ebf8]">
+                <div className="text-[11px] font-mono text-slate-400 bg-white px-3 py-0.5 rounded-[4px] border border-slate-200">
                   {activeDomain || "yourwebsite.com"}
                 </div>
                 <div className="size-4" />
@@ -503,7 +505,7 @@ export function BannerStudio() {
                 <div className="h-5 w-44 bg-slate-300 rounded-[4px]" />
                 <div className="h-3 w-full bg-slate-200 rounded" />
                 <div className="h-3 w-5/6 bg-slate-200 rounded" />
-                <div className="h-28 w-full bg-[#f8fbff] rounded-[6px] border border-[#e0ebf8] mt-4" />
+                <div className="h-28 w-full bg-slate-50 rounded-[4px] border border-slate-200 mt-4" />
               </div>
 
               {/* ======================================================== */}
@@ -512,10 +514,10 @@ export function BannerStudio() {
               {previewTab === "banner" && (
                 <div
                   className={cn(
-                    "p-4 bg-white border-t border-[#e0ebf8] shadow-xl transition-all",
-                    config.layout === "floating_bottom_left" && "m-3 rounded-[6px] border shadow-2xl max-w-sm",
-                    config.layout === "floating_bottom_right" && "m-3 ml-auto rounded-[6px] border shadow-2xl max-w-sm",
-                    config.layout === "center_modal" && "m-auto rounded-[6px] border shadow-2xl max-w-md"
+                    "p-4 bg-white border-t border-slate-200 shadow-xl transition-all",
+                    config.layout === "floating_bottom_left" && "m-3 rounded-[4px] border shadow-2xl max-w-sm",
+                    config.layout === "floating_bottom_right" && "m-3 ml-auto rounded-[4px] border shadow-2xl max-w-sm",
+                    config.layout === "center_modal" && "m-auto rounded-[4px] border shadow-2xl max-w-md"
                   )}
                 >
                   <div className="space-y-3">
@@ -528,7 +530,7 @@ export function BannerStudio() {
                       <button
                         type="button"
                         onClick={() => setPreviewTab("preferences_modal")}
-                        className="px-4 py-2 text-xs font-bold rounded-[4px] border-2 border-[#1868db] text-[#1868db] bg-white hover:bg-[#eef5fc] transition-colors shadow-2xs"
+                        className="px-4 py-2 text-xs font-bold rounded-[4px] border-2 border-[#1868db] text-[#1868db] bg-white hover:bg-slate-50 transition-colors shadow-2xs"
                         style={{ borderColor: config.primary_color, color: config.primary_color }}
                       >
                         {config.preferences_label}
@@ -557,9 +559,9 @@ export function BannerStudio() {
               {/* ======================================================== */}
               {previewTab === "preferences_modal" && (
                 <div className="absolute inset-0 z-20 bg-slate-950/60 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in-0">
-                  <div className="bg-white rounded-[6px] shadow-2xl w-full max-w-[480px] max-h-[460px] flex flex-col overflow-hidden border border-[#e0ebf8]">
+                  <div className="bg-white rounded-[4px] shadow-2xl w-full max-w-[480px] max-h-[460px] flex flex-col overflow-hidden border border-slate-200">
                     {/* Modal Header */}
-                    <div className="px-4 py-3 border-b border-[#e0ebf8] flex items-center justify-between bg-white">
+                    <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-white">
                       <h3 className="text-xs font-bold text-slate-900">Customise Consent Preferences</h3>
                       <button
                         type="button"
@@ -577,7 +579,7 @@ export function BannerStudio() {
                       </p>
 
                       {/* 1. Necessary */}
-                      <div className="border-t border-[#e0ebf8] pt-2">
+                      <div className="border-t border-slate-200 pt-2">
                         <div
                           className="flex items-center justify-between cursor-pointer py-1"
                           onClick={() => toggleMockAccordion("necessary")}
@@ -597,7 +599,7 @@ export function BannerStudio() {
 
                       {/* 2. Functional */}
                       {config.enable_functional_category && (
-                        <div className="border-t border-[#e0ebf8] pt-2">
+                        <div className="border-t border-slate-200 pt-2">
                           <div className="flex items-center justify-between py-1">
                             <div
                               className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer"
@@ -623,7 +625,7 @@ export function BannerStudio() {
 
                       {/* 3. Analytics */}
                       {config.enable_analytics_category && (
-                        <div className="border-t border-[#e0ebf8] pt-2">
+                        <div className="border-t border-slate-200 pt-2">
                           <div className="flex items-center justify-between py-1">
                             <div
                               className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer"
@@ -649,7 +651,7 @@ export function BannerStudio() {
 
                       {/* 4. Performance */}
                       {config.enable_performance_category && (
-                        <div className="border-t border-[#e0ebf8] pt-2">
+                        <div className="border-t border-slate-200 pt-2">
                           <div className="flex items-center justify-between py-1">
                             <div
                               className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer"
@@ -675,7 +677,7 @@ export function BannerStudio() {
 
                       {/* 5. Advertisement */}
                       {config.enable_advertisement_category && (
-                        <div className="border-t border-[#e0ebf8] pt-2">
+                        <div className="border-t border-slate-200 pt-2">
                           <div className="flex items-center justify-between py-1">
                             <div
                               className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer"
@@ -701,7 +703,7 @@ export function BannerStudio() {
                     </div>
 
                     {/* Modal 3-Button Action Row (CookieYes Style) */}
-                    <div className="p-3 border-t border-[#e0ebf8] bg-[#f8fbff] flex gap-2">
+                    <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
                       <button
                         type="button"
                         onClick={() => setPreviewTab("banner")}
@@ -729,7 +731,7 @@ export function BannerStudio() {
                     </div>
 
                     {/* Watermark */}
-                    <div className="px-4 py-1.5 bg-[#eef5fc] border-t border-[#e0ebf8] text-right text-[10px] text-slate-500">
+                    <div className="px-4 py-1.5 bg-slate-100 border-t border-slate-200 text-right text-[10px] text-slate-500">
                       Powered by <strong className="text-slate-900">usrly</strong>
                     </div>
                   </div>
@@ -741,8 +743,8 @@ export function BannerStudio() {
               {/* ======================================================== */}
               {previewTab === "revisit_button" && (
                 <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4">
-                  <div className="bg-[#eef5fc] border border-[#cbe0f8] rounded-[4px] p-3 text-xs text-[#1868db] pointer-events-auto max-w-xs shadow-xs">
-                    <strong>Floating Revisit Widget</strong>
+                  <div className="bg-slate-50 border border-slate-200 rounded-[4px] p-3 text-xs text-slate-700 pointer-events-auto max-w-xs shadow-xs">
+                    <strong className="text-slate-900">Floating Revisit Widget</strong>
                     <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
                       After accepting or saving preferences, this button stays visible on your site so visitors can easily re-open and update consent at any time.
                     </p>

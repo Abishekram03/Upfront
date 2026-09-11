@@ -83,9 +83,9 @@ export function ConsentOverview() {
   if (!isLoadingSites && !activeDomain && sites.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="rounded-[8px] border border-[#e0ebf8] bg-white p-12 text-center shadow-xs">
+        <div className="rounded-[4px] border border-slate-200 bg-white p-12 text-center shadow-xs">
           <div className="mx-auto flex max-w-sm flex-col items-center space-y-3">
-            <div className="flex size-14 items-center justify-center rounded-[8px] bg-[#eef5fc] text-[#1868db]">
+            <div className="flex size-14 items-center justify-center rounded-[4px] bg-slate-100 text-[#1868db]">
               <Globe className="size-7" />
             </div>
             <h3 className="text-base font-bold text-slate-900">No Website Registered</h3>
@@ -107,11 +107,11 @@ export function ConsentOverview() {
   return (
     <div className="space-y-6 max-w-6xl pb-16">
       {/* Top Banner Status Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e0ebf8] pb-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-slate-900">Consent Management</h1>
-            <span className="rounded-[4px] bg-[#eef5fc] px-2.5 py-0.5 text-xs font-bold text-[#1868db] border border-[#cbe0f8]">
+            <span className="rounded-[4px] bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
               CookieYes Standard
             </span>
           </div>
@@ -126,7 +126,7 @@ export function ConsentOverview() {
             type="button"
             onClick={loadData}
             disabled={isLoading}
-            className="inline-flex items-center text-xs font-semibold text-slate-700 bg-white border border-[#e0ebf8] hover:bg-[#f8fbff] rounded-[4px] px-3 py-1.5 shadow-2xs transition-colors"
+            className="inline-flex items-center text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-[4px] px-3 py-1.5 shadow-2xs transition-colors"
           >
             <RefreshCw className={cn("size-3.5 mr-1.5 text-[#1868db]", isLoading && "animate-spin")} />
             Refresh
@@ -162,10 +162,10 @@ export function ConsentOverview() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link
           href="/consent/studio"
-          className="group block rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="flex size-10 items-center justify-center rounded-[4px] bg-[#eef5fc] text-[#1868db] group-hover:scale-105 transition-transform">
+            <div className="flex size-10 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
               <Palette className="size-5" />
             </div>
             <ArrowRight className="size-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
@@ -178,10 +178,10 @@ export function ConsentOverview() {
 
         <Link
           href="/consent/policy"
-          className="group block rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="flex size-10 items-center justify-center rounded-[4px] bg-[#eef5fc] text-[#1868db] group-hover:scale-105 transition-transform">
+            <div className="flex size-10 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
               <FileCode className="size-5" />
             </div>
             <ArrowRight className="size-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
@@ -194,10 +194,10 @@ export function ConsentOverview() {
 
         <Link
           href="/consent/rules"
-          className="group block rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="flex size-10 items-center justify-center rounded-[4px] bg-[#eef5fc] text-[#1868db] group-hover:scale-105 transition-transform">
+            <div className="flex size-10 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
               <Sliders className="size-5" />
             </div>
             <ArrowRight className="size-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
@@ -210,10 +210,10 @@ export function ConsentOverview() {
 
         <Link
           href="/consent/logs"
-          className="group block rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="flex size-10 items-center justify-center rounded-[4px] bg-[#eef5fc] text-[#1868db] group-hover:scale-105 transition-transform">
+            <div className="flex size-10 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
               <FileCheck className="size-5" />
             </div>
             <ArrowRight className="size-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
@@ -227,7 +227,7 @@ export function ConsentOverview() {
 
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs">
+        <div className="rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Consent Receipts</div>
           <div className="text-2xl font-bold text-slate-900 mt-2">
             {isLoading ? "..." : (stats?.total_receipts || 0).toLocaleString()}
@@ -235,7 +235,7 @@ export function ConsentOverview() {
           <div className="text-[11px] text-slate-400 mt-1">Logged proof-of-consents</div>
         </div>
 
-        <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs">
+        <div className="rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Acceptance Rate</div>
           <div className="text-2xl font-bold text-emerald-600 mt-2">
             {isLoading ? "..." : `${stats?.acceptance_rate || 0}%`}
@@ -243,7 +243,7 @@ export function ConsentOverview() {
           <div className="text-[11px] text-emerald-600/80 mt-1">Visitors accepted cookies</div>
         </div>
 
-        <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs">
+        <div className="rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Rejection Rate</div>
           <div className="text-2xl font-bold text-slate-700 mt-2">
             {isLoading ? "..." : `${stats?.rejection_rate || 0}%`}
@@ -251,7 +251,7 @@ export function ConsentOverview() {
           <div className="text-[11px] text-slate-400 mt-1">Rejected non-essential</div>
         </div>
 
-        <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs">
+        <div className="rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Analytics Opt-In</div>
           <div className="text-2xl font-bold text-[#1868db] mt-2">
             {isLoading ? "..." : `${stats?.analytics_accepted_pct || 0}%`}
@@ -261,55 +261,55 @@ export function ConsentOverview() {
       </div>
 
       {/* 5-Category Breakdown Section */}
-      <div className="rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs space-y-4">
+      <div className="rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
         <h3 className="text-sm font-bold text-slate-900">Consent Category Breakdown</h3>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-          <div className="p-3 rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff]">
+          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
               <span className="font-semibold">Necessary</span>
               <span className="text-[10px] font-bold text-emerald-600">100%</span>
             </div>
-            <div className="w-full bg-[#e0ebf8] h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
               <div className="bg-emerald-500 h-full w-full" />
             </div>
           </div>
 
-          <div className="p-3 rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff]">
+          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
               <span className="font-semibold">Functional</span>
               <span className="text-[10px] font-bold text-[#1868db]">{stats?.functional_accepted_pct || 0}%</span>
             </div>
-            <div className="w-full bg-[#e0ebf8] h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
               <div className="bg-[#1868db] h-full" style={{ width: `${stats?.functional_accepted_pct || 0}%` }} />
             </div>
           </div>
 
-          <div className="p-3 rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff]">
+          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
               <span className="font-semibold">Analytics</span>
               <span className="text-[10px] font-bold text-indigo-600">{stats?.analytics_accepted_pct || 0}%</span>
             </div>
-            <div className="w-full bg-[#e0ebf8] h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
               <div className="bg-indigo-600 h-full" style={{ width: `${stats?.analytics_accepted_pct || 0}%` }} />
             </div>
           </div>
 
-          <div className="p-3 rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff]">
+          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
               <span className="font-semibold">Performance</span>
               <span className="text-[10px] font-bold text-purple-600">{stats?.performance_accepted_pct || 0}%</span>
             </div>
-            <div className="w-full bg-[#e0ebf8] h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
               <div className="bg-purple-600 h-full" style={{ width: `${stats?.performance_accepted_pct || 0}%` }} />
             </div>
           </div>
 
-          <div className="p-3 rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff]">
+          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
               <span className="font-semibold">Advertisement</span>
               <span className="text-[10px] font-bold text-rose-600">{stats?.advertisement_accepted_pct || 0}%</span>
             </div>
-            <div className="w-full bg-[#e0ebf8] h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
               <div className="bg-rose-500 h-full" style={{ width: `${stats?.advertisement_accepted_pct || 0}%` }} />
             </div>
           </div>
@@ -317,8 +317,8 @@ export function ConsentOverview() {
       </div>
 
       {/* Recent Receipts Table Preview */}
-      <div className="rounded-[6px] border border-[#e0ebf8] bg-white shadow-2xs overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#e0ebf8] flex items-center justify-between">
+      <div className="rounded-[4px] border border-slate-200 bg-white shadow-2xs overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Recent Proof-of-Consent Receipts</h3>
             <p className="text-xs text-slate-500">Live cryptographic audit trail from visitors</p>
@@ -333,7 +333,7 @@ export function ConsentOverview() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#f8fbff] border-b border-[#e0ebf8] text-slate-500 font-bold uppercase tracking-wider">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-4">Timestamp (UTC)</th>
                 <th className="py-3 px-4">Visitor / Hash</th>
@@ -343,16 +343,16 @@ export function ConsentOverview() {
                 <th className="py-3 px-4 text-right">Receipt ID</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#f0f6fe]">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td className="py-3.5 px-4"><div className="h-3 w-28 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4"><div className="h-3 w-20 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4"><div className="h-3 w-12 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4"><div className="h-4 w-16 bg-[#eef5fc] rounded-full" /></td>
-                    <td className="py-3.5 px-4"><div className="h-4 w-32 bg-[#eef5fc] rounded" /></td>
-                    <td className="py-3.5 px-4 text-right"><div className="h-3 w-16 bg-[#eef5fc] rounded ml-auto" /></td>
+                    <td className="py-3.5 px-4"><div className="h-3 w-28 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="h-3 w-20 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="h-3 w-12 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4"><div className="h-4 w-16 bg-slate-100 rounded-full" /></td>
+                    <td className="py-3.5 px-4"><div className="h-4 w-32 bg-slate-100 rounded" /></td>
+                    <td className="py-3.5 px-4 text-right"><div className="h-3 w-16 bg-slate-100 rounded ml-auto" /></td>
                   </tr>
                 ))
               ) : !stats || stats.recent_receipts.length === 0 ? (
@@ -363,7 +363,7 @@ export function ConsentOverview() {
                 </tr>
               ) : (
                 stats.recent_receipts.map((r) => (
-                  <tr key={r.id} className="hover:bg-[#f8fbff] transition-colors">
+                  <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3 px-4 font-mono text-slate-600">
                       {new Date(r.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </td>
@@ -387,7 +387,7 @@ export function ConsentOverview() {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
                         <span className="px-1.5 py-0.5 rounded-[3px] text-[10px] bg-slate-100 text-slate-700 font-medium">Nec</span>
-                        {r.functional && <span className="px-1.5 py-0.5 rounded-[3px] text-[10px] bg-[#eef5fc] text-[#1868db] border border-[#cbe0f8] font-medium">Func</span>}
+                        {r.functional && <span className="px-1.5 py-0.5 rounded-[3px] text-[10px] bg-blue-50 text-[#1868db] border border-blue-200 font-medium">Func</span>}
                         {r.analytics && <span className="px-1.5 py-0.5 rounded-[3px] text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">Ana</span>}
                         {r.performance && <span className="px-1.5 py-0.5 rounded-[3px] text-[10px] bg-purple-50 text-purple-700 border border-purple-200 font-medium">Perf</span>}
                         {r.advertisement && <span className="px-1.5 py-0.5 rounded-[3px] text-[10px] bg-rose-50 text-rose-700 border border-rose-200 font-medium">Ad</span>}
@@ -406,3 +406,4 @@ export function ConsentOverview() {
     </div>
   )
 }
+

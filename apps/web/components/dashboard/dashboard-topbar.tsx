@@ -35,14 +35,14 @@ export function DashboardTopbar({
   const [domainDropdown, setDomainDropdown] = useState(false)
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-[#e0ebf8] bg-white/95 px-4 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md">
       {/* Left side: Mobile Toggle & Domain Switcher */}
       <div className="flex items-center gap-3">
         {onToggleSidebar && (
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="flex size-8 items-center justify-center rounded-[4px] border border-[#e0ebf8] text-slate-600 hover:bg-[#eef5fc] md:hidden"
+            className="flex size-8 items-center justify-center rounded-[4px] border border-slate-200 text-slate-600 hover:bg-slate-100 md:hidden"
           >
             <Menu className="size-4" />
           </button>
@@ -50,11 +50,11 @@ export function DashboardTopbar({
 
         {/* Domain Switcher Pill / Skeleton / Empty */}
         {isLoadingSites ? (
-          <div className="h-8 w-36 bg-[#eef5fc] rounded-[4px] animate-pulse border border-[#e0ebf8]" />
+          <div className="h-8 w-36 bg-slate-100 rounded-[4px] animate-pulse border border-slate-200" />
         ) : sites.length === 0 ? (
           <Link
             href="/settings"
-            className="inline-flex items-center gap-1.5 rounded-[4px] border border-dashed border-[#1868db]/40 bg-[#eef5fc]/60 px-3 py-1.5 text-xs font-semibold text-[#1868db] hover:bg-[#eef5fc] transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-[4px] border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <Plus className="size-3.5 text-[#1868db]" />
             <span>Add Website</span>
@@ -64,11 +64,11 @@ export function DashboardTopbar({
             <button
               type="button"
               onClick={() => setDomainDropdown(!domainDropdown)}
-              className="flex items-center gap-2 rounded-[4px] border border-[#cbe0f8] bg-[#eef5fc] px-3 py-1.5 text-xs font-semibold text-[#1868db] hover:bg-[#e2eefb] transition-colors shadow-2xs"
+              className="flex items-center gap-2 rounded-[4px] border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors shadow-2xs"
             >
               <Globe className="size-3.5 text-[#1868db]" />
               <span>{activeDomain || sites[0]?.domain || "Select Site"}</span>
-              <ChevronDown className="size-3 text-[#1868db]/70" />
+              <ChevronDown className="size-3 text-slate-400" />
             </button>
 
             {domainDropdown && (
@@ -77,7 +77,7 @@ export function DashboardTopbar({
                   className="fixed inset-0 z-40"
                   onClick={() => setDomainDropdown(false)}
                 />
-                <div className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-[6px] border border-[#e0ebf8] bg-white p-1.5 shadow-xl animate-in fade-in-0 zoom-in-95">
+                <div className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-[6px] border border-slate-200 bg-white p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95">
                   <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     Your Websites
                   </div>
@@ -92,8 +92,8 @@ export function DashboardTopbar({
                       className={cn(
                         "w-full flex items-center justify-between rounded-[4px] px-2.5 py-1.5 text-xs text-left transition-colors",
                         activeDomain === s.domain
-                          ? "bg-[#eef5fc] text-[#1868db] font-bold"
-                          : "text-slate-600 hover:bg-[#f8fbff] hover:text-[#1868db]"
+                          ? "bg-blue-50 text-[#1868db] font-bold"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
                       <span className="truncate">{s.domain}</span>
@@ -103,12 +103,12 @@ export function DashboardTopbar({
                     </button>
                   ))}
 
-                  <div className="my-1 border-t border-[#e0ebf8]" />
+                  <div className="my-1 border-t border-slate-200" />
 
                   <Link
                     href="/settings"
                     onClick={() => setDomainDropdown(false)}
-                    className="flex w-full items-center gap-1.5 rounded-[4px] px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-[#eef5fc] hover:text-[#1868db] transition-colors"
+                    className="flex w-full items-center gap-1.5 rounded-[4px] px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#1868db] transition-colors"
                   >
                     <Plus className="size-3 text-[#1868db]" />
                     <span>Manage Sites</span>
@@ -150,3 +150,4 @@ export function DashboardTopbar({
     </header>
   )
 }
+
