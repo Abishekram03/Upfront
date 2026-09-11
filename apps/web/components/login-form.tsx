@@ -40,13 +40,22 @@ export function LoginForm({
       })
 
       if (err) {
-        // If two-factor required, redirect handled automatically by plugin or manual
-        if (err.status === 403 || err.message?.toLowerCase().includes("two factor")) {
+        // Only redirect if two factor is specifically required
+        if (
+          err.message?.toLowerCase().includes("two-factor") ||
+          err.message?.toLowerCase().includes("two_factor") ||
+          err.message?.toLowerCase().includes("totp") ||
+          (data as any)?.twoFactorRedirect
+        ) {
           router.push("/two-factor")
           return
         }
-        setError(err.message || "Invalid email or password.")
+        setError(err.message || "Invalid email or password. If you don't have an account, please sign up.")
       } else if (data) {
+        if ((data as any)?.twoFactorRedirect) {
+          router.push("/two-factor")
+          return
+        }
         router.push("/analytics")
       }
     } catch (e: any) {

@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useDomain } from "@/lib/domain-context"
 import { cn } from "@workspace/ui/lib/utils"
+import { API_BASE } from "@/lib/api"
 
 export function CookiePolicyGenerator() {
   const { activeDomain } = useDomain()
@@ -41,7 +42,7 @@ export function CookiePolicyGenerator() {
   // Dynamic Embed Snippet
   const dynamicSnippet = `<!-- usrly Dynamic Cookie Policy & Declaration -->
 <div id="usrly-cookie-declaration"></div>
-<script defer data-domain="${domain}" src="http://localhost:8000/userly.js"></script>`
+<script defer data-domain="${domain}" src="${API_BASE}/userly.js"></script>`
 
   // Static Full HTML Policy
   const fullHtmlPolicy = `<!-- Cookie Policy for ${domain} -->

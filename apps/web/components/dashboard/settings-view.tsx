@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
-import { fetchSites, createSite, deleteSite, Site } from "@/lib/api"
+import { fetchSites, createSite, deleteSite, Site, API_BASE } from "@/lib/api"
 import { useDomain } from "@/lib/domain-context"
 
 export function SettingsView() {
@@ -396,13 +396,13 @@ export function SettingsView() {
                   </label>
                   <div className="relative rounded-[6px] border border-neutral-800 bg-neutral-950 p-3 text-neutral-100 shadow-inner">
                     <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
-                      {`<script defer data-domain="${createdSite?.domain}" src="http://localhost:8000/userly.js"></script>`}
+                      {`<script defer data-domain="${createdSite?.domain}" src="${API_BASE}/userly.js"></script>`}
                     </pre>
                     <button
                       type="button"
                       onClick={() => {
                         navigator.clipboard.writeText(
-                          `<script defer data-domain="${createdSite?.domain}" src="http://localhost:8000/userly.js"></script>`
+                          `<script defer data-domain="${createdSite?.domain}" src="${API_BASE}/userly.js"></script>`
                         )
                         setCopiedSnippet(true)
                         setTimeout(() => setCopiedSnippet(false), 2000)
@@ -473,13 +473,13 @@ export function SettingsView() {
             <div className="space-y-4 pt-4">
               <div className="relative rounded-[6px] border border-neutral-800 bg-neutral-950 p-3 text-neutral-100 shadow-inner">
                 <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
-                  {`<script defer data-domain="${selectedSiteForSnippet.domain}" src="http://localhost:8000/userly.js"></script>`}
+                  {`<script defer data-domain="${selectedSiteForSnippet.domain}" src="${API_BASE}/userly.js"></script>`}
                 </pre>
                 <button
                   type="button"
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `<script defer data-domain="${selectedSiteForSnippet.domain}" src="http://localhost:8000/userly.js"></script>`
+                      `<script defer data-domain="${selectedSiteForSnippet.domain}" src="${API_BASE}/userly.js"></script>`
                     )
                     setCopiedSnippet(true)
                     setTimeout(() => setCopiedSnippet(false), 2000)

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Copy, Check, X, Code2, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { API_BASE } from "@/lib/api"
 
 interface ScriptModalProps {
   open: boolean
@@ -19,7 +20,7 @@ export function ScriptModal({
 
   if (!open || !domain) return null
 
-  const snippet = `<script defer data-domain="${domain}" src="http://localhost:8000/userly.js"></script>`
+  const snippet = `<script defer data-domain="${domain}" src="${API_BASE}/userly.js"></script>`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(snippet)
