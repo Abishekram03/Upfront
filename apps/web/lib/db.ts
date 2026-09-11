@@ -1,13 +1,27 @@
 import { Pool } from "pg"
 
-const connectionString =
+const rawConnectionString =
   process.env.DATABASE_URL ||
-  "postgresql://postgres:Abishek%40supabase1@db.rdmpzalrmvnqfqlpkrvu.supabase.co:5432/postgres"
+  "postgresql://postgres.rdmpzalrmvnqfqlpkrvu:Abishek%40supabase1@aws-0-eu-central-1.pooler.supabase.com:5432/postgres"
 
-// Clean postgresql+asyncpg:// if provided
-const pgConnectionString = connectionString
-  .replace("postgresql+asyncpg://", "postgresql://")
-  .replace("postgres+asyncpg://", "postgresql://")
+// Function to normalize any Supabase direct IPv6 connection URL into the IPv4 connection pooler
+function normalizeDatabaseUrl(url: string): string {
+  let normalized = url
+    .replace("postgresql+asyncpg://", "postgresql://")
+    .replace("postgres+asyncpg://", "postgresql://")
+
+  // Match: postgresql://[user]:[pass]@db.[project-ref].supabase.co(:[port])/[db]
+  const match = normalized.match(/postgres(?:ql)?:\/\/([^:]+):([^@]+)@db\.([a-z0-9_-]+)\.supabase\.co(?::\d+)?\/(.+)/i)
+  if (match) {
+    const [, user, pass, projectRef, dbName] = match
+    const username = user === "postgres" ? `postgres.${projectRef}` : user
+    normalized = `postgresql://${username}:${pass}@aws-0-eu-central-1.pooler.supabase.com:5432/${dbName}`
+  }
+
+  return normalized
+}
+
+let pgConnectionString = normalizeDatabaseUrl(rawConnectionString)
 
 declare global {
   var _pgPool: Pool | undefined
