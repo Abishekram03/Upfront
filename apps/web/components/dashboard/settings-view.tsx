@@ -1,0 +1,508 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import {
+  Globe,
+  Plus,
+  Code2,
+  Copy,
+  Check,
+  Trash2,
+  BarChart3,
+  X,
+  Sparkles,
+  AlertCircle,
+  RefreshCw,
+  Clock,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@workspace/ui/lib/utils"
+import { fetchSites, createSite, deleteSite, Site } from "@/lib/api"
+
+export function SettingsView() {
+  const [sites, setSites] = useState<Site[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Modals state
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [selectedSiteForSnippet, setSelectedSiteForSnippet] = useState<Site | null>(null)
+
+  // Add Site Form state
+  const [newDomain, setNewDomain] = useState("")
+  const [newTimezone, setNewTimezone] = useState("UTC")
+  const [modalStep, setModalStep] = useState<"input" | "snippet">("input")
+  const [createdSite, setCreatedSite] = useState<Site | null>(null)
+  const [copiedSnippet, setCopiedSnippet] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const loadSites = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const data = await fetchSites()
+      setSites(data)
+    } catch (err: any) {
+      console.error("Failed to load sites:", err)
+      setError(err?.message || "Failed to load sites from analytics backend.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadSites()
+  }, [])
+
+  const handleOpenAddModal = () => {
+    setNewDomain("")
+    setNewTimezone("UTC")
+    setErrorMessage("")
+    setModalStep("input")
+    setCreatedSite(null)
+    setAddModalOpen(true)
+  }
+
+  const handleCreateSite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMessage("")
+
+    // Basic domain cleanup
+    const cleanDomain = newDomain
+      .replace("https://", "")
+      .replace("http://", "")
+      .split("/")[0]
+      .trim()
+
+    if (!cleanDomain) {
+      setErrorMessage("Please enter a valid domain name")
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const created = await createSite(cleanDomain, newTimezone)
+      setCreatedSite(created)
+      setSites((prev) => [created, ...prev])
+      setModalStep("snippet")
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to create site.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteSite = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this site? All analytics and consent data will be purged.")) {
+      return
+    }
+    setDeletingId(id)
+    try {
+      await deleteSite(id)
+      setSites(sites.filter((s) => s.id !== id))
+    } catch (err: any) {
+      alert(err?.message || "Failed to delete site.")
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-6xl pb-16">
+      {/* Header & Add Site Action */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e0ebf8] pb-5">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
+            Site Settings
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Manage your registered websites, embed tracking scripts, and setup domains
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleOpenAddModal}
+          className="inline-flex items-center gap-1.5 bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold px-4 py-2 rounded-[4px] shadow-xs transition-colors"
+        >
+          <Plus className="size-4" />
+          Add Site
+        </button>
+      </div>
+
+      {/* 1. SKELETON LOADING STATE */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="flex flex-col justify-between rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-xs animate-pulse"
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-9 rounded-[4px] bg-[#eef5fc]" />
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 w-28 bg-[#eef5fc] rounded" />
+                      <div className="h-2.5 w-20 bg-[#eef5fc] rounded" />
+                    </div>
+                  </div>
+                  <div className="h-5 w-14 bg-[#eef5fc] rounded-full" />
+                </div>
+              </div>
+              <div className="mt-6 pt-3 border-t border-[#e0ebf8] flex items-center justify-between gap-2">
+                <div className="h-8 flex-1 bg-[#eef5fc] rounded-[4px]" />
+                <div className="h-8 w-20 bg-[#eef5fc] rounded-[4px]" />
+                <div className="size-8 bg-[#eef5fc] rounded-[4px]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        /* 2. ERROR STATE */
+        <div className="rounded-[6px] border border-rose-200 bg-rose-50/50 p-10 text-center shadow-xs">
+          <div className="mx-auto flex max-w-md flex-col items-center space-y-3">
+            <div className="flex size-12 items-center justify-center rounded-[6px] bg-rose-100 text-rose-600">
+              <AlertCircle className="size-6" />
+            </div>
+            <h3 className="text-sm font-semibold text-rose-900">Unable to load websites</h3>
+            <p className="text-xs text-rose-600">{error}</p>
+            <button
+              type="button"
+              onClick={loadSites}
+              className="mt-2 bg-white text-xs font-semibold text-rose-700 border border-rose-200 hover:bg-rose-50 rounded-[4px] px-3 py-1.5 inline-flex items-center gap-1.5"
+            >
+              <RefreshCw className="size-3.5" /> Retry Connection
+            </button>
+          </div>
+        </div>
+      ) : sites.length === 0 ? (
+        /* 3. EMPTY STATE */
+        <div className="rounded-[8px] border border-[#e0ebf8] bg-white p-12 text-center shadow-xs">
+          <div className="mx-auto flex max-w-sm flex-col items-center space-y-3">
+            <div className="flex size-12 items-center justify-center rounded-[6px] bg-[#eef5fc] text-[#1868db]">
+              <Globe className="size-6" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">No sites added yet</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Add your first domain to start tracking privacy-friendly, cookieless web analytics and managing CookieYes consent banners.
+            </p>
+            <button
+              type="button"
+              onClick={handleOpenAddModal}
+              className="mt-2 bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold px-4 py-2 rounded-[4px] shadow-xs inline-flex items-center gap-1.5"
+            >
+              <Plus className="size-3.5" /> Add Your First Site
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* 4. SUCCESS STATE: SITES CARDS GRID */
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {sites.map((site) => (
+            <div
+              key={site.id}
+              className="flex flex-col justify-between rounded-[6px] border border-[#e0ebf8] bg-white p-5 shadow-2xs transition-all hover:border-[#1868db] hover:shadow-md"
+            >
+              <div>
+                {/* Card Top: Domain & Status */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-[4px] bg-[#eef5fc] border border-[#cbe0f8] text-[#1868db]">
+                      <Globe className="size-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 truncate">
+                        {site.domain}
+                      </h3>
+                      <p className="text-[11px] text-slate-400">Timezone: {site.timezone}</p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10px] font-bold border",
+                      site.status === "active"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        site.status === "active" ? "bg-emerald-500" : "bg-amber-500"
+                      )}
+                    />
+                    {site.status === "active" ? "Active" : "Waiting"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card Bottom Actions */}
+              <div className="mt-6 pt-3 border-t border-[#e0ebf8] flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSiteForSnippet(site)}
+                  className="h-8 text-xs font-semibold border border-[#cbe0f8] bg-[#eef5fc] text-[#1868db] hover:bg-[#e2eefb] rounded-[4px] px-3 gap-1.5 flex-1 inline-flex items-center justify-center transition-colors"
+                >
+                  <Code2 className="size-3.5 text-[#1868db]" />
+                  Embed Script
+                </button>
+
+                <Link
+                  href={`/analytics?domain=${encodeURIComponent(site.domain)}`}
+                  className="inline-flex h-8 items-center justify-center rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold px-3 gap-1 shadow-xs transition-colors"
+                >
+                  <BarChart3 className="size-3.5" />
+                  Analytics
+                </Link>
+
+                <button
+                  type="button"
+                  disabled={deletingId === site.id}
+                  onClick={() => handleDeleteSite(site.id)}
+                  title="Remove site"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-[4px] text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors disabled:opacity-50 border border-transparent hover:border-rose-200"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* POPUP MODAL: Add New Site */}
+      {addModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in-0">
+          <div
+            className="fixed inset-0"
+            onClick={() => setAddModalOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-lg rounded-[8px] border border-[#e0ebf8] bg-white p-6 shadow-2xl animate-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#e0ebf8]">
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-[4px] bg-[#1868db] text-white">
+                  <Globe className="size-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {modalStep === "input" ? "Add New Site" : "Site Added Successfully"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {modalStep === "input"
+                      ? "Enter your website domain to start tracking"
+                      : "Install this snippet on your website"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddModalOpen(false)}
+                className="rounded-[4px] p-1.5 text-slate-400 hover:bg-[#eef5fc] hover:text-slate-700 transition-colors"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            {modalStep === "input" ? (
+              <form onSubmit={handleCreateSite} className="space-y-4 pt-4">
+                {errorMessage && (
+                  <div className="p-2.5 rounded-[4px] bg-rose-50 border border-rose-200 text-xs text-rose-600 font-medium">
+                    {errorMessage}
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Website URL / Domain
+                  </label>
+                  <input
+                    type="text"
+                    value={newDomain}
+                    onChange={(e) => setNewDomain(e.target.value)}
+                    placeholder="e.g. yourwebsite.com or myblog.io"
+                    autoFocus
+                    required
+                    className="w-full rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#1868db]"
+                  />
+                  <p className="text-[10px] text-slate-400">
+                    Enter your root domain or subdomain. No protocols or paths needed.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Reporting Timezone
+                  </label>
+                  <select
+                    value={newTimezone}
+                    onChange={(e) => setNewTimezone(e.target.value)}
+                    className="w-full rounded-[4px] border border-[#e0ebf8] bg-[#f8fbff] px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#1868db]"
+                  >
+                    <option value="UTC">UTC (Coordinated Universal Time)</option>
+                    <option value="America/New_York">America/New_York (EST/EDT)</option>
+                    <option value="Europe/London">Europe/London (GMT/BST)</option>
+                    <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                    <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-[#e0ebf8]">
+                  <button
+                    type="button"
+                    onClick={() => setAddModalOpen(false)}
+                    className="text-xs font-semibold px-4 py-2 border border-[#e0ebf8] text-slate-600 hover:bg-[#f8fbff] rounded-[4px]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold px-4 py-2 rounded-[4px] shadow-xs inline-flex items-center gap-1.5"
+                  >
+                    {isSubmitting ? "Adding..." : "Add Site"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4 pt-4">
+                <div className="rounded-[6px] border border-emerald-200 bg-emerald-50/60 p-3 text-xs text-emerald-900 flex items-start gap-2">
+                  <Sparkles className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">{createdSite?.domain}</span> has been added! Add the snippet below to start tracking.
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Paste this snippet into your website's &lt;head&gt;
+                  </label>
+                  <div className="relative rounded-[6px] border border-[#e0ebf8] bg-slate-950 p-3 text-slate-100 shadow-inner">
+                    <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
+                      {`<script defer data-domain="${createdSite?.domain}" src="http://localhost:8000/userly.js"></script>`}
+                    </pre>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `<script defer data-domain="${createdSite?.domain}" src="http://localhost:8000/userly.js"></script>`
+                        )
+                        setCopiedSnippet(true)
+                        setTimeout(() => setCopiedSnippet(false), 2000)
+                      }}
+                      className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-[4px] bg-[#1868db] hover:bg-[#1559be] px-2.5 py-1 text-xs font-semibold text-white transition-colors"
+                    >
+                      {copiedSnippet ? (
+                        <>
+                          <Check className="size-3 text-white" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3" />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-[#e0ebf8]">
+                  <button
+                    type="button"
+                    onClick={() => setAddModalOpen(false)}
+                    className="bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold px-4 py-2 rounded-[4px]"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* POPUP MODAL: Embed Snippet on existing site */}
+      {selectedSiteForSnippet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in-0">
+          <div
+            className="fixed inset-0"
+            onClick={() => setSelectedSiteForSnippet(null)}
+          />
+          <div className="relative z-10 w-full max-w-lg rounded-[8px] border border-[#e0ebf8] bg-white p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#e0ebf8]">
+              <div className="flex items-center gap-2">
+                <div className="flex size-8 items-center justify-center rounded-[4px] bg-[#1868db] text-white">
+                  <Code2 className="size-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Tracking Code — {selectedSiteForSnippet.domain}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Paste this snippet in the &lt;head&gt; tag of your site
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedSiteForSnippet(null)}
+                className="rounded-[4px] p-1.5 text-slate-400 hover:bg-[#eef5fc] hover:text-slate-700 transition-colors"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 pt-4">
+              <div className="relative rounded-[6px] border border-[#e0ebf8] bg-slate-950 p-3 text-slate-100 shadow-inner">
+                <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
+                  {`<script defer data-domain="${selectedSiteForSnippet.domain}" src="http://localhost:8000/userly.js"></script>`}
+                </pre>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `<script defer data-domain="${selectedSiteForSnippet.domain}" src="http://localhost:8000/userly.js"></script>`
+                    )
+                    setCopiedSnippet(true)
+                    setTimeout(() => setCopiedSnippet(false), 2000)
+                  }}
+                  className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-[4px] bg-[#1868db] hover:bg-[#1559be] px-2.5 py-1 text-xs font-semibold text-white transition-colors"
+                >
+                  {copiedSnippet ? (
+                    <>
+                      <Check className="size-3 text-white" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3" />
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-[#e0ebf8]">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSiteForSnippet(null)}
+                  className="bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold px-4 py-2 rounded-[4px]"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
