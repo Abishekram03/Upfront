@@ -3,8 +3,11 @@ import { twoFactor } from "better-auth/plugins"
 import { memoryAdapter } from "better-auth/adapters/memory"
 import fs from "node:fs"
 import path from "node:path"
+import os from "node:os"
 
-const DB_PATH = path.resolve(process.cwd(), "usrly_auth_store.json")
+const DB_PATH = process.env.NODE_ENV === "production"
+  ? path.join(os.tmpdir(), "usrly_auth_store.json")
+  : path.resolve(process.cwd(), "usrly_auth_store.json")
 
 function loadStore(): Record<string, any[]> {
   try {
@@ -34,8 +37,15 @@ function persistStore() {
   try {
     fs.writeFileSync(DB_PATH, JSON.stringify(store, null, 2), "utf-8")
   } catch (err) {
-    console.error("[Better Auth] Failed to save auth store to disk:", err)
+    console.warn("[Better Auth] Failed to save auth store to disk:", err)
   }
+}
+
+const getBaseURL = () => {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return "http://localhost:3000"
 }
 
 export const auth: any = betterAuth({
@@ -86,14 +96,22 @@ export const auth: any = betterAuth({
       },
     },
   },
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  baseURL: getBaseURL(),
+  trustedOrigins: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "https://usrly-five.vercel.app",
+    process.env.NEXT_PUBLIC_APP_URL || "",
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "",
+  ].filter(Boolean),
   secret: process.env.BETTER_AUTH_SECRET || "usrly_super_secret_auth_key_2026_dev",
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
     async sendResetPassword({ user, url }) {
       console.log(`[Better Auth] Password reset request for ${user.email}: ${url}`)
-      // In production, integrate Resend or SMTP to email the reset URL
     },
   },
   plugins: [

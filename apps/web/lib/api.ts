@@ -58,7 +58,7 @@ export interface Site {
   status?: "active" | "waiting"
 }
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || ""
 
 export async function fetchStats(domain: string, period: string = "30d"): Promise<StatsResponse> {
   const res = await fetch(`${API_BASE}/api/v1/stats?domain=${encodeURIComponent(domain)}&period=${period}`, {
