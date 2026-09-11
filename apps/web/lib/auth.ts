@@ -1,10 +1,21 @@
 import { betterAuth } from "better-auth"
 import { twoFactor } from "better-auth/plugins"
+import { DatabaseSync } from "node:sqlite"
+import path from "path"
+
+let db: any = undefined
+try {
+  const dbPath = path.resolve(process.cwd(), "usrly_auth.db")
+  db = new DatabaseSync(dbPath)
+} catch (err) {
+  console.warn("[Better Auth] Could not initialize node:sqlite DatabaseSync, falling back to memory:", err)
+}
 
 export const auth = betterAuth({
-  appName: "Userly",
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  secret: process.env.BETTER_AUTH_SECRET || "userly_super_secret_auth_key_2026_dev",
+  appName: "usrly",
+  ...(db ? { database: db } : {}),
+  baseURL: process.env.NEXT_PUBLIC_APP_URL || undefined,
+  secret: process.env.BETTER_AUTH_SECRET || "usrly_super_secret_auth_key_2026_dev",
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
@@ -15,7 +26,7 @@ export const auth = betterAuth({
   },
   plugins: [
     twoFactor({
-      issuer: "Userly",
+      issuer: "usrly",
       otpOptions: {
         async sendOTP({ user, otp }) {
           console.log(`[Better Auth] MFA OTP for ${user.email}: ${otp}`)
@@ -24,3 +35,4 @@ export const auth = betterAuth({
     }),
   ],
 })
+
