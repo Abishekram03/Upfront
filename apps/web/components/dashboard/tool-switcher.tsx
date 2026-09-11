@@ -39,7 +39,15 @@ export function ToolSwitcher({
   isCollapsed = false,
 }: ToolSwitcherProps) {
   const [open, setOpen] = useState(false)
-  const current = tools.find((t) => t.id === activeTool) || tools[0]
+  const current = tools.find((t) => t.id === activeTool) ?? tools[0] ?? {
+    id: "analytics" as const,
+    name: "Web Analytics",
+    shortName: "Analytics",
+    icon: BarChart3,
+    description: "Cookieless Traffic & Events",
+    badge: "Active",
+    badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
+  }
   const Icon = current.icon
 
   return (

@@ -46,7 +46,7 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
         // If current active domain is still in the list, keep it; otherwise select first
         setActiveDomainState((prev) => {
           if (prev && data.some((s) => s.domain === prev)) return prev
-          return data[0].domain
+          return data[0]?.domain ?? null
         })
       } else {
         setActiveDomainState(null)

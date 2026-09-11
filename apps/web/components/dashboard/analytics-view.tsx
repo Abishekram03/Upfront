@@ -132,7 +132,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
     ]
   }, [stats])
 
-  const currentMetric = metricsConfig.find((m) => m.key === selectedMetric) || metricsConfig[1]
+  const currentMetric = metricsConfig.find((m) => m.key === selectedMetric) ?? metricsConfig[1] ?? metricsConfig[0]
 
   // Time series computation for SVG line chart
   const timeSeriesData = stats?.time_series || []
@@ -635,7 +635,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
                     fill="#737373"
                     fontFamily="sans-serif"
                   >
-                    {pt.data.label.includes(", ") ? pt.data.label.split(", ")[1] : pt.data.label}
+                    {pt.data.label.includes(", ") ? (pt.data.label.split(", ")[1] ?? pt.data.label) : pt.data.label}
                   </text>
                 ))}
 

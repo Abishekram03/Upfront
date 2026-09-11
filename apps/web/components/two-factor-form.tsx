@@ -39,7 +39,7 @@ export function TwoFactorForm({
         if (err) setError(err.message || "Invalid backup code.")
         else router.push("/analytics")
       } else {
-        const { error: err } = await authClient.twoFactor.verifyTOTP({
+        const { error: err } = await authClient.twoFactor.verifyTotp({
           code,
         })
         if (err) setError(err.message || "Invalid authentication code.")

@@ -71,10 +71,10 @@ export function SettingsView() {
     setErrorMessage("")
 
     // Basic domain cleanup
-    const cleanDomain = newDomain
+    const cleanDomain = (newDomain
       .replace("https://", "")
       .replace("http://", "")
-      .split("/")[0]
+      .split("/")[0] || "")
       .trim()
 
     if (!cleanDomain) {

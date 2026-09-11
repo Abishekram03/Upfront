@@ -17,6 +17,13 @@ import {
 } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
 
+interface NavItem {
+  title: string
+  href: string
+  icon: any
+  badge?: string
+}
+
 interface DashboardSidebarProps {
   activeTool: ToolType
   onSelectTool: (tool: ToolType) => void
@@ -31,7 +38,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname()
 
-  const analyticsNavItems = [
+  const analyticsNavItems: NavItem[] = [
     {
       title: "Analytics",
       href: "/analytics",
@@ -44,7 +51,7 @@ export function DashboardSidebar({
     },
   ]
 
-  const consentNavItems = [
+  const consentNavItems: NavItem[] = [
     {
       title: "Overview",
       href: "/consent",

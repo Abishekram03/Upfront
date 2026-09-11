@@ -27,7 +27,7 @@ export function CookiePolicyGenerator() {
   const domain = activeDomain || "yourwebsite.com"
   const [companyName, setCompanyName] = useState(domain)
   const [contactEmail, setContactEmail] = useState(`privacy@${domain}`)
-  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().split("T")[0])
+  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().split("T")[0] ?? "2026-01-01")
 
   const [activeEmbedTab, setActiveEmbedTab] = useState<"dynamic" | "html" | "markdown">("dynamic")
   const [copiedType, setCopiedType] = useState<string | null>(null)

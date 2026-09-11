@@ -27,10 +27,10 @@ export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
 
   const userName = session?.user?.name || "Account"
   const userEmail = session?.user?.email || "Signed in"
-  const initials = session?.user?.name
-    ? session.user.name
+  const initials = typeof session?.user?.name === "string"
+    ? (session.user.name as string)
         .split(" ")
-        .map((n) => n[0])
+        .map((n: string) => n[0] ?? "")
         .join("")
         .slice(0, 2)
         .toUpperCase()

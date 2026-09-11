@@ -38,7 +38,7 @@ function persistStore() {
   }
 }
 
-export const auth = betterAuth({
+export const auth: any = betterAuth({
   appName: "usrly",
   database: memoryAdapter(store),
   databaseHooks: {
