@@ -4,21 +4,57 @@ const rawConnectionString =
   process.env.DATABASE_URL ||
   "postgresql://postgres.rdmpzalrmvnqfqlpkrvu:Abishek%40supabase1@aws-0-eu-central-1.pooler.supabase.com:5432/postgres"
 
-// Function to normalize any Supabase direct IPv6 connection URL into the IPv4 connection pooler
+// Function to normalize any Supabase connection URL (handling IPv6 direct hosts and unencoded @ in password)
 function normalizeDatabaseUrl(url: string): string {
-  let normalized = url
-    .replace("postgresql+asyncpg://", "postgresql://")
-    .replace("postgres+asyncpg://", "postgresql://")
+  let clean = url
+    .trim()
+    .replace(/^postgres\+asyncpg:\/\//, "postgresql://")
+    .replace(/^postgresql\+asyncpg:\/\//, "postgresql://")
 
-  // Match: postgresql://[user]:[pass]@db.[project-ref].supabase.co(:[port])/[db]
-  const match = normalized.match(/postgres(?:ql)?:\/\/([^:]+):([^@]+)@db\.([a-z0-9_-]+)\.supabase\.co(?::\d+)?\/(.+)/i)
-  if (match) {
-    const [, user, pass, projectRef, dbName] = match
-    const username = user === "postgres" ? `postgres.${projectRef}` : user
-    normalized = `postgresql://${username}:${pass}@aws-0-eu-central-1.pooler.supabase.com:5432/${dbName}`
+  try {
+    // Check if URL starts with postgresql:// or postgres://
+    const protoMatch = clean.match(/^postgres(?:ql)?:\/\//)
+    if (!protoMatch) return clean
+
+    const proto = protoMatch[0]
+    const rest = clean.slice(proto.length)
+
+    // Find the last '@' which precedes the host/port/db
+    const lastAtIndex = rest.lastIndexOf("@")
+    if (lastAtIndex === -1) return clean
+
+    const authPart = rest.slice(0, lastAtIndex) // e.g. postgres:Abishek@supabase1 or postgres.rdmpzalrmvnqfqlpkrvu:Abishek%40supabase1
+    const hostDbPart = rest.slice(lastAtIndex + 1) // e.g. db.rdmpzalrmvnqfqlpkrvu.supabase.co:5432/postgres
+
+    // Split user:pass on FIRST ':'
+    const firstColon = authPart.indexOf(":")
+    let user = firstColon !== -1 ? authPart.slice(0, firstColon) : authPart
+    let rawPass = firstColon !== -1 ? authPart.slice(firstColon + 1) : ""
+
+    // Decode first in case partially encoded, then properly encode password
+    let pass = encodeURIComponent(decodeURIComponent(rawPass))
+
+    // Check if host is direct Supabase (IPv6)
+    if (hostDbPart.includes("supabase.co")) {
+      const projectMatch = hostDbPart.match(/(?:db\.)?([a-z0-9_-]+)\.supabase\.co/i)
+      const projectRef = projectMatch ? projectMatch[1] : "rdmpzalrmvnqfqlpkrvu"
+
+      if (user === "postgres") {
+        user = `postgres.${projectRef}`
+      }
+
+      // Extract db name (e.g. /postgres)
+      const slashIndex = hostDbPart.indexOf("/")
+      const dbName = slashIndex !== -1 ? hostDbPart.slice(slashIndex + 1) : "postgres"
+
+      return `postgresql://${user}:${pass}@aws-0-eu-central-1.pooler.supabase.com:5432/${dbName}`
+    }
+
+    return `postgresql://${user}:${pass}@${hostDbPart}`
+  } catch (e) {
+    console.error("[Database] Error normalizing connection URL:", e)
+    return clean
   }
-
-  return normalized
 }
 
 let pgConnectionString = normalizeDatabaseUrl(rawConnectionString)
