@@ -18,6 +18,8 @@ export function ScriptModal({
 }: ScriptModalProps) {
   const [copied, setCopied] = useState(false)
 
+  if (!open) return null
+
   const scriptHost = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
   const snippet = `<script defer data-domain="${domain}" src="${scriptHost}/userly.js"></script>`
 
