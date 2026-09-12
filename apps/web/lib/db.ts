@@ -1,8 +1,6 @@
 import { Pool } from "pg"
 
-const rawConnectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres.rdmpzalrmvnqfqlpkrvu:Abishek%40supabase1@aws-0-eu-central-1.pooler.supabase.com:5432/postgres"
+const rawConnectionString = process.env.DATABASE_URL || ""
 
 // Function to normalize any Supabase connection URL (handling IPv6 direct hosts and unencoded @ in password)
 function normalizeDatabaseUrl(url: string): string {
