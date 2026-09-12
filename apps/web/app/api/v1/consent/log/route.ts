@@ -8,6 +8,19 @@ function sanitizeDomain(input?: string | null): string {
   return (first || "").trim().toLowerCase()
 }
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  })
+}
+
 export async function POST(req: Request) {
   try {
     await ensureTables()
@@ -15,7 +28,7 @@ export async function POST(req: Request) {
     const cleanDomain = sanitizeDomain(payload.domain)
 
     if (!cleanDomain) {
-      return NextResponse.json({ detail: "Domain is required" }, { status: 400 })
+      return NextResponse.json({ detail: "Domain is required" }, { status: 400, headers: CORS_HEADERS })
     }
 
     const adConsent = Boolean(payload.advertisement || payload.marketing)
@@ -46,9 +59,9 @@ export async function POST(req: Request) {
       ]
     )
 
-    return NextResponse.json({ ok: true, receipt_id: receiptId })
+    return NextResponse.json({ ok: true, receipt_id: receiptId }, { headers: CORS_HEADERS })
   } catch (err: any) {
     console.error("POST /api/v1/consent/log error:", err)
-    return NextResponse.json({ detail: err.message || "Failed to log consent receipt" }, { status: 500 })
+    return NextResponse.json({ detail: err.message || "Failed to log consent receipt" }, { status: 500, headers: CORS_HEADERS })
   }
 }

@@ -8,6 +8,19 @@ function sanitizeDomain(input?: string | null): string {
   return (first || "").trim().toLowerCase()
 }
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  })
+}
+
 export async function GET(req: Request) {
   try {
     await ensureTables()
@@ -15,12 +28,12 @@ export async function GET(req: Request) {
     const domain = sanitizeDomain(searchParams.get("domain"))
 
     if (!domain) {
-      return NextResponse.json({ detail: "Domain is required" }, { status: 400 })
+      return NextResponse.json({ detail: "Domain is required" }, { status: 400, headers: CORS_HEADERS })
     }
 
     const res = await pool.query("SELECT * FROM consent_configs WHERE domain = $1", [domain])
     if (res.rows.length > 0) {
-      return NextResponse.json(res.rows[0])
+      return NextResponse.json(res.rows[0], { headers: CORS_HEADERS })
     }
 
     // Default configuration
@@ -47,10 +60,10 @@ export async function GET(req: Request) {
       [id, domain]
     )
 
-    return NextResponse.json(insertRes.rows[0])
+    return NextResponse.json(insertRes.rows[0], { headers: CORS_HEADERS })
   } catch (err: any) {
     console.error("GET /api/v1/consent/config error:", err)
-    return NextResponse.json({ detail: err.message || "Failed to fetch consent config" }, { status: 500 })
+    return NextResponse.json({ detail: err.message || "Failed to fetch consent config" }, { status: 500, headers: CORS_HEADERS })
   }
 }
 
@@ -61,7 +74,7 @@ export async function POST(req: Request) {
     const domain = sanitizeDomain(body.domain)
 
     if (!domain) {
-      return NextResponse.json({ detail: "Domain is required" }, { status: 400 })
+      return NextResponse.json({ detail: "Domain is required" }, { status: 400, headers: CORS_HEADERS })
     }
 
     const id = randomUUID()
@@ -130,9 +143,9 @@ export async function POST(req: Request) {
       ]
     )
 
-    return NextResponse.json(upsertRes.rows[0])
+    return NextResponse.json(upsertRes.rows[0], { headers: CORS_HEADERS })
   } catch (err: any) {
     console.error("POST /api/v1/consent/config error:", err)
-    return NextResponse.json({ detail: err.message || "Failed to save consent config" }, { status: 500 })
+    return NextResponse.json({ detail: err.message || "Failed to save consent config" }, { status: 500, headers: CORS_HEADERS })
   }
 }
