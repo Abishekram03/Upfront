@@ -147,6 +147,8 @@ export async function ensureTables() {
           created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL
         );
 
+        ALTER TABLE sites ADD COLUMN IF NOT EXISTS user_id VARCHAR(64);
+
         CREATE TABLE IF NOT EXISTS sessions (
           id VARCHAR(36) PRIMARY KEY,
           site_id VARCHAR(36) NOT NULL,
