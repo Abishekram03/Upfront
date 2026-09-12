@@ -55,12 +55,25 @@ function parseReferrer(refUrl: string | null, siteDomain: string) {
   }
 }
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  })
+}
+
 export async function POST(req: Request) {
   try {
     await ensureTables()
     const body = await req.json()
     const rawDomain = sanitizeDomain(body.domain)
-    if (!rawDomain) return NextResponse.json({ ok: false }, { status: 400 })
+    if (!rawDomain) return NextResponse.json({ ok: false }, { status: 400, headers: CORS_HEADERS })
 
     const siteRes = await pool.query("SELECT id, domain FROM sites WHERE domain = $1", [rawDomain])
     let siteId: string
@@ -135,9 +148,9 @@ export async function POST(req: Request) {
       [pageviewId, siteId, sessionId, pathname, urlObj.search || null]
     )
 
-    return NextResponse.json({ ok: true, session_id: sessionId })
+    return NextResponse.json({ ok: true, session_id: sessionId }, { headers: CORS_HEADERS })
   } catch (err: any) {
     console.error("POST /api/v1/event error:", err)
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
+    return NextResponse.json({ ok: false, error: err.message }, { status: 500, headers: CORS_HEADERS })
   }
 }

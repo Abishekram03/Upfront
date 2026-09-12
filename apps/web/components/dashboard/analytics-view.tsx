@@ -421,13 +421,14 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
             {/* Script Box */}
             <div className="w-full relative rounded-xl border border-neutral-200 bg-neutral-950 p-4 text-neutral-100 text-left shadow-inner">
               <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all pr-16">
-                {`<script defer data-domain="${activeDomain}" src="${API_BASE}/userly.js"></script>`}
+                {`<script defer data-domain="${activeDomain}" src="${typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"}/userly.js"></script>`}
               </pre>
               <button
                 type="button"
                 onClick={() => {
+                  const host = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
                   navigator.clipboard.writeText(
-                    `<script defer data-domain="${activeDomain}" src="${API_BASE}/userly.js"></script>`
+                    `<script defer data-domain="${activeDomain}" src="${host}/userly.js"></script>`
                   )
                   setCopiedSnippet(true)
                   setTimeout(() => setCopiedSnippet(false), 2000)

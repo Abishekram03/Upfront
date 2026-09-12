@@ -39,10 +39,12 @@ export function CookiePolicyGenerator() {
     setTimeout(() => setCopiedType(null), 2000)
   }
 
+  const scriptHost = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
+
   // Dynamic Embed Snippet
   const dynamicSnippet = `<!-- usrly Dynamic Cookie Policy & Declaration -->
 <div id="usrly-cookie-declaration"></div>
-<script defer data-domain="${domain}" src="${API_BASE}/userly.js"></script>`
+<script defer data-domain="${domain}" src="${scriptHost}/userly.js"></script>`
 
   // Static Full HTML Policy
   const fullHtmlPolicy = `<!-- Cookie Policy for ${domain} -->
