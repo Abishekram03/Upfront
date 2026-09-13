@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useEffect, useRef, useMemo } from "react"
 import Link from "next/link"
@@ -212,7 +212,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
       label: s.label,
       value: s.value >= 1000 ? `${(s.value / 1000).toFixed(1)}k` : s.value.toLocaleString(),
       percentage: s.percentage,
-      icon: s.icon || "🌐",
+      icon: s.icon || "ðŸŒ",
       sublabel: s.sublabel || undefined,
     }))
   }, [stats])
@@ -233,7 +233,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
       label: c.label,
       value: c.value >= 1000 ? `${(c.value / 1000).toFixed(1)}k` : c.value.toLocaleString(),
       percentage: c.percentage,
-      icon: c.icon || "🌐",
+      icon: c.icon || "ðŸŒ",
     }))
   }, [stats])
 
@@ -289,16 +289,16 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
       <div className="space-y-6">
         <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center shadow-xs">
           <div className="mx-auto flex max-w-sm flex-col items-center space-y-3">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-600">
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-blue-50 border border-blue-200 text-[#1868db]">
               <Globe className="size-7" />
             </div>
-            <h3 className="text-base font-bold text-neutral-900">No Website Registered</h3>
-            <p className="text-xs text-neutral-500 leading-relaxed">
+            <h3 className="text-base font-bold text-slate-900">No Website Registered</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
               Add your website to start collecting privacy-friendly, cookieless web analytics and tracking realtime visitors.
             </p>
             <Link
               href="/settings"
-              className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-medium px-4 py-2.5 shadow-xs transition-colors"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold px-4 py-2.5 shadow-xs transition-colors"
             >
               <Plus className="size-3.5" /> Add Your First Website
             </Link>
@@ -397,31 +397,39 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
         {/* Waiting for data banner */}
         <div className="rounded-2xl border border-neutral-200 bg-white p-8 sm:p-12 shadow-xs text-center">
           <div className="mx-auto flex max-w-lg flex-col items-center space-y-4">
-            <div className="relative flex size-14 items-center justify-center rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 shadow-2xs">
+            <div className="relative flex size-14 items-center justify-center rounded-2xl bg-blue-50 border border-blue-200 text-[#1868db] shadow-2xs">
               <span className="absolute -top-1 -right-1 flex size-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex size-3 rounded-full bg-emerald-500"></span>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex size-3 rounded-full bg-[#1868db]"></span>
               </span>
               <Radio className="size-7" />
             </div>
 
             <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-800">
-                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-[#1868db]">
+                <span className="size-2 rounded-full bg-[#1868db] animate-pulse" />
                 Listening for pageviews in real-time...
               </div>
-              <h2 className="text-lg font-bold text-neutral-900 pt-1">
+              <h2 className="text-lg font-bold text-slate-900 pt-1">
                 Waiting for data from {activeDomain}
               </h2>
-              <p className="text-xs text-neutral-500 leading-relaxed max-w-md mx-auto">
-                Your site is registered! To start recording cookieless visitor metrics, paste this tracking snippet into your site's <code className="font-mono bg-neutral-100 px-1 py-0.5 rounded text-neutral-800">&lt;head&gt;</code> tag:
+              <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+                Your site is registered! To start recording cookieless visitor metrics, paste this tracking snippet into your site's <code className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">&lt;head&gt;</code> tag:
               </p>
             </div>
 
-            {/* Script Box */}
-            <div className="w-full relative rounded-xl border border-neutral-200 bg-neutral-950 p-4 text-neutral-100 text-left shadow-inner">
-              <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all pr-16">
-                {`<script defer data-domain="${activeDomain}" src="${typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"}/userly.js"></script>`}
+            {/* Script Box - Light theme with syntax highlighting */}
+            <div className="w-full relative rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-left shadow-2xs">
+              <pre className="font-mono text-xs overflow-x-auto select-all pr-20 leading-relaxed">
+                <code>
+                  <span className="text-blue-700 font-semibold">&lt;script</span>{" "}
+                  <span className="text-purple-700 font-medium">defer</span>{" "}
+                  <span className="text-purple-700 font-medium">data-domain</span>=
+                  <span className="text-emerald-700">&quot;{activeDomain}&quot;</span>{" "}
+                  <span className="text-purple-700 font-medium">src</span>=
+                  <span className="text-emerald-700">&quot;{typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"}/userly.js&quot;</span>
+                  <span className="text-blue-700 font-semibold">&gt;&lt;/script&gt;</span>
+                </code>
               </pre>
               <button
                 type="button"
@@ -433,17 +441,17 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
                   setCopiedSnippet(true)
                   setTimeout(() => setCopiedSnippet(false), 2000)
                 }}
-                className="absolute right-3 top-3 flex items-center gap-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 px-2.5 py-1 text-xs font-medium text-white transition-colors"
+                className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
               >
                 {copiedSnippet ? (
                   <>
-                    <Check className="size-3.5 text-emerald-400" />
-                    Copied!
+                    <Check className="size-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">Copied!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="size-3.5" />
-                    Copy
+                    <Copy className="size-3.5 text-slate-500" />
+                    <span>Copy</span>
                   </>
                 )}
               </button>
@@ -992,3 +1000,4 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
     </div>
   )
 }
+

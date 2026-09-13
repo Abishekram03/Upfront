@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
@@ -70,9 +70,9 @@ export function CookieScannerView() {
     setError(null)
     try {
       const data = await fetchScannerData(activeDomain)
-      setCookies(data.cookies || [])
-      setLatestScan(data.latest_scan || null)
-      setLeaks(data.pre_consent_leaks || [])
+      setCookies(data?.cookies || [])
+      setLatestScan(data?.latest_scan || null)
+      setLeaks(data?.pre_consent_leaks || [])
     } catch (err: any) {
       console.error("Failed to load scanner data:", err)
       setError(err?.message || "Failed to load cookie scanner data.")
@@ -217,7 +217,7 @@ export function CookieScannerView() {
             <div>
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Total Cookies</p>
               <h3 className="text-2xl font-bold text-slate-900 mt-1">
-                {isLoading ? "—" : cookies.length}
+                {isLoading ? "â€”" : cookies.length}
               </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">Discovered on {activeDomain}</p>
             </div>
@@ -233,7 +233,7 @@ export function CookieScannerView() {
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Pre-Consent Leaks</p>
               <h3 className="text-2xl font-bold mt-1 text-slate-900">
                 {isLoading ? (
-                  "—"
+                  "â€”"
                 ) : leaks.length === 0 ? (
                   <span className="text-emerald-600 flex items-center gap-1.5 text-lg font-bold">
                     <CheckCircle2 className="size-5 text-emerald-500" /> 0 Leaks
@@ -264,7 +264,7 @@ export function CookieScannerView() {
             <div>
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Script Signatures</p>
               <h3 className="text-2xl font-bold text-slate-900 mt-1">
-                {isLoading ? "—" : latestScan?.scripts_found || 12}
+                {isLoading ? "â€”" : latestScan?.scripts_found || 12}
               </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">Known vendor signatures</p>
             </div>
@@ -280,7 +280,7 @@ export function CookieScannerView() {
               <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Last Audit Run</p>
               <h3 className="text-sm font-bold text-slate-900 mt-1 truncate">
                 {isLoading ? (
-                  "—"
+                  "â€”"
                 ) : latestScan?.created_at ? (
                   new Date(latestScan.created_at).toLocaleDateString(undefined, {
                     month: "short",
@@ -485,3 +485,4 @@ export function CookieScannerView() {
     </div>
   )
 }
+

@@ -1,21 +1,63 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import {
-  FileCode,
-  Sparkles,
-  Shield,
   Copy,
   Check,
   Code2,
-  Lock,
-  Layers,
-  Info,
   CheckCircle2,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { useDomain } from "@/lib/domain-context"
+
+function HighlightedCode({ code }: { code: string }) {
+  const lines = code.split("\n")
+
+  const highlightLine = (line: string) => {
+    // Split by strings, tags, keywords, attributes, methods
+    const tokens = line.split(/(<\/?[a-zA-Z0-9-]+|"[^"]*"|'[^']*'|\b(?:function|return|if|else|var|let|const|new)\b|\b(?:type|data-category|src|async)\b|\b(?:window|document|fbq|gtag|ttq|hj|apply|push|createElement|getElementsByTagName|parentNode|insertBefore|init|track|config)\b|[<>=!&|;:,{}()\[\]])/g).filter(Boolean)
+
+    return tokens.map((token, i) => {
+      // Tags
+      if (/^<\/?(script|span|div|a)/.test(token)) {
+        return <span key={i} className="text-blue-700 font-semibold">{token}</span>
+      }
+      // Tag closures >
+      if (token === ">" || token === "/>") {
+        return <span key={i} className="text-blue-700 font-semibold">{token}</span>
+      }
+      // Attributes
+      if (/^(type|data-category|src|async)$/.test(token)) {
+        return <span key={i} className="text-purple-700 font-medium">{token}</span>
+      }
+      // Strings
+      if (/^("[^"]*"|'[^']*')$/.test(token)) {
+        return <span key={i} className="text-emerald-700 font-mono">{token}</span>
+      }
+      // Keywords
+      if (/^(function|return|if|else|var|let|const|new)$/.test(token)) {
+        return <span key={i} className="text-blue-600 font-semibold">{token}</span>
+      }
+      // Built-ins and Methods
+      if (/^(window|document|fbq|gtag|ttq|hj|apply|push|createElement|getElementsByTagName|parentNode|insertBefore|init|track|config)$/.test(token)) {
+        return <span key={i} className="text-sky-700 font-medium">{token}</span>
+      }
+      // Punctuation & base text
+      return <span key={i} className="text-slate-800">{token}</span>
+    })
+  }
+
+  return (
+    <pre className="font-mono text-[11px] overflow-x-auto leading-relaxed select-all">
+      <code>
+        {lines.map((line, idx) => (
+          <div key={idx} className="min-h-[1.25rem]">
+            {highlightLine(line)}
+          </div>
+        ))}
+      </code>
+    </pre>
+  )
+}
 
 export function ScriptRules() {
   const { activeDomain } = useDomain()
@@ -100,20 +142,23 @@ export function ScriptRules() {
         </p>
       </div>
 
-      {/* How it Works Banner */}
-      <div className="rounded-[4px] border border-blue-200 bg-blue-50/60 p-4 text-xs text-[#1868db] space-y-2">
-        <div className="flex items-center gap-2 font-bold text-[#1868db]">
-          <Sparkles className="size-4 text-[#1868db]" />
-          How Script Auto-Blocking Works
+      {/* How it Works Banner - Human Enterprise Styled */}
+      <div className="flex items-start gap-3 rounded-lg border border-slate-200/80 bg-slate-50/60 p-4 text-xs text-slate-700">
+        <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-slate-200 bg-white text-slate-600 shadow-2xs">
+          <Code2 className="size-3.5" />
         </div>
-        <p className="text-slate-700 leading-relaxed text-[11px]">
-          Replace <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-blue-200 font-mono text-[#1868db]">type="text/javascript"</code> with <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-blue-200 font-mono text-[#1868db]">type="text/usrly-block"</code> and specify the <code className="bg-white px-1.5 py-0.5 rounded-[3px] border border-blue-200 font-mono text-[#1868db]">data-category="advertisement"</code> attribute.
-          The browser will hold the script until the visitor grants consent, at which point <strong>usrly</strong> will dynamically unblock and execute it.
-        </p>
+        <div className="space-y-1">
+          <div className="font-semibold text-slate-900">
+            How Script Auto-Blocking Works
+          </div>
+          <p className="text-slate-600 leading-relaxed text-xs">
+            Replace <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-slate-800 text-[11px]">type="text/javascript"</code> with <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-blue-600 font-semibold text-[11px]">type="text/usrly-block"</code> and specify the <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-slate-800 text-[11px]">data-category="advertisement"</code> attribute. The browser will hold the script until the visitor grants consent, at which point <strong className="text-slate-900 font-semibold">usrly</strong> will dynamically unblock and execute it.
+          </p>
+        </div>
       </div>
 
       {/* Google Consent Mode v2 Card */}
-      <div className="rounded-[4px] border border-slate-200 bg-white p-5 space-y-3 shadow-2xs">
+      <div className="rounded-lg border border-slate-200 bg-white p-5 space-y-3 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="size-8 rounded-[4px] bg-[#1868db] text-white flex items-center justify-center font-bold text-xs shadow-xs">
@@ -129,7 +174,7 @@ export function ScriptRules() {
           </span>
         </div>
         <p className="text-xs text-slate-600 leading-relaxed">
-          When visitors interact with your banner, <strong>usrly.js</strong> automatically calls <code className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono text-[#1868db]">gtag('consent', 'update', &#123; ... &#125;)</code> with the exact categories chosen. No complex Tag Manager triggers required.
+          When visitors interact with your banner, <strong>usrly.js</strong> automatically calls <code className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded font-mono text-blue-600 font-medium">gtag('consent', 'update', &#123; ... &#125;)</code> with the exact categories chosen. No complex Tag Manager triggers required.
         </p>
       </div>
 
@@ -141,39 +186,41 @@ export function ScriptRules() {
           {trackers.map((tracker, idx) => (
             <div
               key={tracker.name}
-              className="rounded-[4px] border border-slate-200 bg-white p-4 shadow-2xs space-y-3"
+              className="rounded-lg border border-slate-200 bg-white shadow-2xs overflow-hidden"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 px-4 py-3">
                 <div>
                   <h4 className="text-xs font-bold text-slate-900">{tracker.name}</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">{tracker.desc}</p>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-[4px] bg-blue-50 text-[#1868db] border border-blue-200">
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-[4px] bg-slate-100 text-slate-700 border border-slate-200">
                   {tracker.category}
                 </span>
               </div>
 
-              <div className="relative rounded-[4px] border border-slate-800 bg-slate-950 p-3 text-slate-100 shadow-inner">
-                <pre className="font-mono text-[11px] overflow-x-auto whitespace-pre-wrap select-all max-h-36">
-                  {tracker.tag}
-                </pre>
+              {/* Light themed code block with syntax highlighting */}
+              <div className="relative bg-slate-50/70 p-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => copyCode(tracker.tag, idx)}
-                  className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-[4px] bg-[#1868db] hover:bg-[#1559be] px-2.5 py-1 text-[10px] font-bold text-white transition-colors"
+                  className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
                 >
                   {copiedIndex === idx ? (
                     <>
-                      <Check className="size-3 text-white" />
-                      Copied!
+                      <Check className="size-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="size-3" />
-                      Copy Code
+                      <Copy className="size-3.5 text-slate-500" />
+                      <span>Copy Code</span>
                     </>
                   )}
                 </button>
+
+                <div className="pr-24">
+                  <HighlightedCode code={tracker.tag} />
+                </div>
               </div>
             </div>
           ))}
@@ -182,4 +229,3 @@ export function ScriptRules() {
     </div>
   )
 }
-

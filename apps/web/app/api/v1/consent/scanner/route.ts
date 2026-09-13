@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
 import { classifyCookie, KNOWN_COOKIE_SIGNATURES } from "@/lib/cookie-signatures"
 import { randomUUID } from "node:crypto"
@@ -29,9 +29,21 @@ export async function GET(req: Request) {
       [domain]
     )
 
+    const latestScan = latestScanRes.rows[0] || null
+    let findingsList: any[] = []
+    if (latestScan && latestScan.findings) {
+      try {
+        findingsList = typeof latestScan.findings === "string" ? JSON.parse(latestScan.findings) : latestScan.findings
+      } catch {
+        findingsList = []
+      }
+    }
+    const leaks = findingsList.filter((f: any) => f.type === "leak")
+
     return NextResponse.json({
-      latest_scan: latestScanRes.rows[0] || null,
-      cookies: cookiesRes.rows,
+      latest_scan: latestScan,
+      cookies: cookiesRes.rows || [],
+      pre_consent_leaks: leaks,
     })
   } catch (err: any) {
     console.error("GET /api/v1/consent/scanner error:", err)
@@ -173,13 +185,13 @@ export async function POST(req: Request) {
 
     // Create a new scan record
     const scanId = randomUUID()
-    const leakCount = findings.filter((f) => f.type === "leak").length
+    const leakList = findings.filter((f) => f.type === "leak")
 
     await pool.query(
       `INSERT INTO scans (
         id, site_id, domain, status, cookies_found, scripts_found, leaks_found, dark_patterns_found, findings, created_at
       ) VALUES ($1, $2, $3, 'completed', $4, $5, $6, 0, $7, NOW())`,
-      [scanId, siteId, domain, detectedCookieNames.size, detectedScripts.length, leakCount, JSON.stringify(findings)]
+      [scanId, siteId, domain, detectedCookieNames.size, detectedScripts.length, leakList.length, JSON.stringify(findings)]
     )
 
     // Retrieve fresh lists
@@ -196,7 +208,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       latest_scan: latestScan.rows[0],
-      cookies: updatedCookies.rows,
+      cookies: updatedCookies.rows || [],
+      pre_consent_leaks: leakList,
     })
   } catch (err: any) {
     console.error("POST /api/v1/consent/scanner error:", err)

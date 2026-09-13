@@ -1,9 +1,8 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
-import { Copy, Check, X, Code2, Sparkles } from "lucide-react"
+import { Copy, Check, X, Code2, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { API_BASE } from "@/lib/api"
 
 interface ScriptModalProps {
   open: boolean
@@ -37,8 +36,8 @@ export function ScriptModal({
       />
       <div className="relative z-10 w-full max-w-lg rounded-xl border border-neutral-200 bg-white p-6 shadow-2xl animate-in zoom-in-95">
         <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-          <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-md bg-blue-600 text-white shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-8 items-center justify-center rounded-md bg-neutral-900 text-white shadow-xs">
               <Code2 className="size-4" />
             </div>
             <div>
@@ -64,34 +63,44 @@ export function ScriptModal({
             Paste this snippet into the <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-[11px] text-neutral-800">&lt;head&gt;</code> tag of your website. It powers both <strong>Cookieless Web Analytics</strong> and the <strong>Privacy Consent Banner</strong>.
           </p>
 
-          <div className="relative rounded-lg border border-neutral-200 bg-neutral-950 p-3.5 text-neutral-100 shadow-inner">
-            <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap select-all">
-              {snippet}
-            </pre>
+          {/* Light-themed syntax-highlighted code block */}
+          <div className="relative rounded-lg border border-slate-200 bg-slate-50/70 p-3.5 shadow-2xs">
             <button
               type="button"
               onClick={handleCopy}
-              className="absolute right-2.5 top-2.5 flex items-center gap-1.5 rounded-md bg-blue-600 hover:bg-blue-700 px-2.5 py-1 text-xs font-semibold text-white transition-colors"
+              className="absolute right-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
             >
               {copied ? (
                 <>
-                  <Check className="size-3.5 text-white" />
-                  Copied!
+                  <Check className="size-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Copied!</span>
                 </>
               ) : (
                 <>
-                  <Copy className="size-3.5" />
-                  Copy
+                  <Copy className="size-3.5 text-slate-500" />
+                  <span>Copy</span>
                 </>
               )}
             </button>
+
+            <pre className="font-mono text-xs overflow-x-auto pr-20 leading-relaxed select-all">
+              <code>
+                <span className="text-blue-700 font-semibold">&lt;script</span>{" "}
+                <span className="text-purple-700 font-medium">defer</span>{" "}
+                <span className="text-purple-700 font-medium">data-domain</span>=
+                <span className="text-emerald-700">&quot;{domain}&quot;</span>{" "}
+                <span className="text-purple-700 font-medium">src</span>=
+                <span className="text-emerald-700">&quot;{scriptHost}/userly.js&quot;</span>
+                <span className="text-blue-700 font-semibold">&gt;&lt;/script&gt;</span>
+              </code>
+            </pre>
           </div>
 
-          <div className="rounded-lg border border-blue-200/80 bg-blue-50/50 p-3 text-xs text-blue-900 flex items-start gap-2.5">
-            <Sparkles className="size-4 text-blue-600 shrink-0 mt-0.5" />
+          <div className="rounded-lg border border-slate-200/80 bg-slate-50/60 p-3 text-xs text-slate-700 flex items-start gap-2.5">
+            <CheckCircle2 className="size-4 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold">Automatic Verification</p>
-              <p className="text-blue-700 text-[11px] mt-0.5">
+              <p className="font-semibold text-slate-900">Automatic Verification</p>
+              <p className="text-slate-600 text-[11px] mt-0.5">
                 Once you add the code and visit your website, usrly will verify the installation in real-time.
               </p>
             </div>
