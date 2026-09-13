@@ -15,8 +15,11 @@ const TRACKER_SCRIPT = `(function () {
   var consentLogEndpoint = apiHost + "/api/v1/consent/log";
 
   var STORAGE_KEY = "usrly_consent_" + domain;
+  var consentListeners = [];
+  var activeConfig = null;
+  var isGPCSignal = typeof navigator !== "undefined" && Boolean(navigator.globalPrivacyControl);
 
-  // 1. ANALYTICS ENGINE
+  // 1. COOKIELESS ANALYTICS ENGINE
   function sendEvent(name, props) {
     var payload = {
       domain: domain,
@@ -65,11 +68,6 @@ const TRACKER_SCRIPT = `(function () {
     window.addEventListener("popstate", triggerPageview);
   }
 
-  window.usrly = function (eventName, props) {
-    sendEvent(eventName, props);
-  };
-  window.userly = window.usrly;
-
   // 2. CONSENT MANAGEMENT PLATFORM (CMP)
   function getStoredConsent() {
     try {
@@ -86,6 +84,16 @@ const TRACKER_SCRIPT = `(function () {
     } catch (e) {}
   }
 
+  function triggerConsentListeners(consent) {
+    for (var i = 0; i < consentListeners.length; i++) {
+      try {
+        consentListeners[i](consent);
+      } catch (e) {
+        if (typeof console !== "undefined" && console.error) console.error(e);
+      }
+    }
+  }
+
   function dispatchGoogleConsent(consent) {
     window.dataLayer = window.dataLayer || [];
     function gtag() {
@@ -99,13 +107,14 @@ const TRACKER_SCRIPT = `(function () {
       ad_personalization: (consent.advertisement || consent.marketing) ? "granted" : "denied",
       functionality_storage: consent.functional ? "granted" : "denied",
       personalization_storage: consent.performance ? "granted" : "denied",
+      security_storage: "granted",
     };
 
     try {
       gtag("consent", "update", consentPayload);
       window.dataLayer.push({
-        event: "usrly_consent_update",
-        usrly_consent: consent,
+        event: "userly_consent_update",
+        userly_consent: consent,
       });
     } catch (e) {}
   }
@@ -142,7 +151,7 @@ const TRACKER_SCRIPT = `(function () {
     }
   }
 
-  function logConsentReceipt(consent) {
+  function logConsentReceipt(consent, version) {
     var payload = {
       domain: domain,
       consent_given: consent.consent_given,
@@ -152,6 +161,7 @@ const TRACKER_SCRIPT = `(function () {
       performance: !!consent.performance,
       advertisement: !!(consent.advertisement || consent.marketing),
       user_agent_category: /mobile/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
+      consent_version: version || (activeConfig && activeConfig.consent_version) || "1.0",
     };
 
     var body = JSON.stringify(payload);
@@ -180,7 +190,7 @@ const TRACKER_SCRIPT = `(function () {
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e0ebf8; padding-bottom: 16px; margin-bottom: 16px;">
           <div>
             <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Cookie Declaration for \${domain}</h3>
-            <p style="font-size: 12px; color: #64748b; margin: 0;">Verified and updated dynamically by usrly CMP</p>
+            <p style="font-size: 12px; color: #64748b; margin: 0;">Verified and updated dynamically by Userly CMP</p>
           </div>
           <button id="usrly-open-prefs-btn" style="background: #1868db; color: #ffffff; border: none; padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
             Change Consent Preferences
@@ -229,31 +239,32 @@ const TRACKER_SCRIPT = `(function () {
     var btn = declarationEl.querySelector("#usrly-open-prefs-btn");
     if (btn) {
       btn.onclick = function() {
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", consentConfigEndpoint, true);
-        xhr.onload = function () {
-          if (xhr.status === 200) {
-            renderCMP(JSON.parse(xhr.responseText), true);
-          }
-        };
-        xhr.send();
+        if (activeConfig) {
+          renderCMP(activeConfig, true);
+        } else {
+          fetchConfigAndRender(true);
+        }
       };
     }
+  }
+
+  function fetchConfigAndRender(openPreferencesDirectly) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", consentConfigEndpoint, true);
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        try {
+          activeConfig = JSON.parse(xhr.responseText);
+          renderCMP(activeConfig, openPreferencesDirectly);
+        } catch (e) {}
+      }
+    };
+    xhr.send();
   }
 
   function initCMP() {
     var stored = getStoredConsent();
     checkAndRenderPolicyDeclaration(stored);
-
-    if (stored) {
-      if (stored.analytics) {
-        triggerPageview();
-      }
-      dispatchGoogleConsent(stored);
-      unblockGatedScripts(stored);
-      renderRevisitButtonOnly(stored);
-      return;
-    }
 
     var xhr = new XMLHttpRequest();
     xhr.open("GET", consentConfigEndpoint, true);
@@ -262,10 +273,51 @@ const TRACKER_SCRIPT = `(function () {
         if (xhr.status === 200) {
           try {
             var config = JSON.parse(xhr.responseText);
-            if (config.is_enabled) {
-              renderCMP(config);
-            } else {
+            activeConfig = config;
+
+            if (!config.is_enabled) {
               triggerPageview();
+              return;
+            }
+
+            // GPC Signal Check: if GPC enabled & signal present & no explicit storage yet
+            if (config.enable_gpc && isGPCSignal && !stored) {
+              var gpcConsent = {
+                consent_given: false,
+                necessary: true,
+                functional: false,
+                analytics: false,
+                performance: false,
+                advertisement: false,
+                gpc_applied: true,
+                consent_version: config.consent_version || "1.0",
+                timestamp: new Date().toISOString(),
+              };
+              setStoredConsent(gpcConsent);
+              dispatchGoogleConsent(gpcConsent);
+              triggerConsentListeners(gpcConsent);
+              renderRevisitButtonOnly(gpcConsent);
+              return;
+            }
+
+            // Version check: re-prompt if consent_version upgraded
+            if (stored && config.consent_version && stored.consent_version && stored.consent_version !== config.consent_version) {
+              renderCMP(config);
+              return;
+            }
+
+            if (stored) {
+              if (stored.analytics) {
+                triggerPageview();
+              }
+              dispatchGoogleConsent(stored);
+              unblockGatedScripts(stored);
+              triggerConsentListeners(stored);
+              if (config.show_revisit_button) {
+                renderRevisitButtonOnly(stored);
+              }
+            } else {
+              renderCMP(config);
             }
           } catch (e) {
             triggerPageview();
@@ -279,22 +331,30 @@ const TRACKER_SCRIPT = `(function () {
   }
 
   function renderRevisitButtonOnly(storedConsent) {
+    var existingRevisit = document.getElementById("usrly-revisit-root");
+    if (existingRevisit) existingRevisit.remove();
+
     var host = document.createElement("div");
     host.id = "usrly-revisit-root";
     document.body.appendChild(host);
     var shadow = host.attachShadow({ mode: "open" });
 
+    var posClass = "pos-bottom-left";
+    var posStyle = "bottom: 18px; left: 18px;";
+    if (activeConfig && activeConfig.revisit_button_position === "bottom_right") {
+      posStyle = "bottom: 18px; right: 18px;";
+    }
+
     var style = document.createElement("style");
     style.textContent = \`
       .usrly-revisit-btn {
         position: fixed;
-        bottom: 18px;
-        left: 18px;
+        \${posStyle}
         z-index: 2147483645;
         width: 44px;
         height: 44px;
         border-radius: 50%;
-        background: #1868db;
+        background: \${(activeConfig && activeConfig.primary_color) || "#1868db"};
         color: #ffffff;
         border: none;
         cursor: pointer;
@@ -323,6 +383,7 @@ const TRACKER_SCRIPT = `(function () {
     var btn = document.createElement("button");
     btn.className = "usrly-revisit-btn";
     btn.title = "Consent Preferences";
+    btn.setAttribute("aria-label", "Cookie Consent Preferences");
     btn.innerHTML = \`
       <svg viewBox="0 0 24 24">
         <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
@@ -334,45 +395,132 @@ const TRACKER_SCRIPT = `(function () {
     \`;
     btn.onclick = function () {
       host.remove();
-      var xhr = new XMLHttpRequest();
-      xhr.open("GET", consentConfigEndpoint, true);
-      xhr.onload = function () {
-        if (xhr.status === 200) {
-          renderCMP(JSON.parse(xhr.responseText), true);
-        }
-      };
-      xhr.send();
+      if (activeConfig) {
+        renderCMP(activeConfig, true);
+      } else {
+        fetchConfigAndRender(true);
+      }
     };
     shadow.appendChild(btn);
   }
 
   function renderCMP(config, openPreferencesDirectly) {
+    var existingRoot = document.getElementById("usrly-cmp-root");
+    if (existingRoot) existingRoot.remove();
+
     var host = document.createElement("div");
     host.id = "usrly-cmp-root";
     document.body.appendChild(host);
 
     var shadow = host.attachShadow({ mode: "open" });
     var primaryColor = config.primary_color || "#1868db";
+    var isDark = config.theme === "dark";
+    var layout = config.layout || "bottom_bar";
+
+    var radiusMap = {
+      "rounded-none": "0px",
+      "rounded-sm": "4px",
+      "rounded-md": "8px",
+      "rounded-lg": "12px",
+      "rounded-full": "24px",
+    };
+    var borderRadius = radiusMap[config.border_radius] || "8px";
+
+    var bgCard = isDark ? "#0f172a" : "#ffffff";
+    var textPrimary = isDark ? "#f8fafc" : "#0f172a";
+    var textMuted = isDark ? "#94a3b8" : "#475569";
+    var borderCard = isDark ? "#334155" : "#e2e8f0";
+
+    var layoutStyles = "";
+    if (layout === "top_bar") {
+      layoutStyles = \`
+        .usrly-banner-wrapper {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          border-bottom: 1px solid \${borderCard};
+          border-radius: 0;
+        }
+      \`;
+    } else if (layout === "box" || layout === "floating_box") {
+      var isRight = config.revisit_button_position === "bottom_right";
+      layoutStyles = \`
+        .usrly-banner-wrapper {
+          position: fixed;
+          bottom: 24px;
+          \${isRight ? "right: 24px;" : "left: 24px;"}
+          max-width: 440px;
+          border-radius: \${borderRadius};
+          border: 1px solid \${borderCard};
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2);
+        }
+        .usrly-banner-inner {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+        }
+        .usrly-btn-group {
+          width: 100%;
+          justify-content: stretch;
+        }
+        .usrly-btn-group .usrly-btn {
+          flex: 1;
+        }
+      \`;
+    } else if (layout === "popup" || layout === "modal") {
+      layoutStyles = \`
+        .usrly-banner-wrapper {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          max-width: 520px;
+          width: 90%;
+          border-radius: \${borderRadius};
+          border: 1px solid \${borderCard};
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+        }
+        .usrly-banner-inner {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+        }
+        .usrly-btn-group {
+          width: 100%;
+          justify-content: stretch;
+        }
+        .usrly-btn-group .usrly-btn {
+          flex: 1;
+        }
+      \`;
+    } else {
+      // Default bottom_bar
+      layoutStyles = \`
+        .usrly-banner-wrapper {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          border-top: 1px solid \${borderCard};
+          border-radius: 0;
+        }
+      \`;
+    }
 
     var style = document.createElement("style");
     style.textContent = \`
       * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
       
       .usrly-banner-wrapper {
-        position: fixed;
         z-index: 2147483646;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #ffffff;
-        border-top: 1px solid #e2e8f0;
+        background: \${bgCard};
         box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
         padding: 20px 24px;
-        color: #1e293b;
+        color: \${textPrimary};
         animation: usrlySlideUp 0.3s ease-out;
       }
+      \${layoutStyles}
       @keyframes usrlySlideUp {
-        from { transform: translateY(100%); opacity: 0; }
+        from { transform: translateY(30px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
       .usrly-banner-inner {
@@ -395,12 +543,12 @@ const TRACKER_SCRIPT = `(function () {
       .usrly-banner-title {
         font-size: 15px;
         font-weight: 700;
-        color: #0f172a;
+        color: \${textPrimary};
         margin-bottom: 4px;
       }
       .usrly-banner-desc {
         font-size: 13px;
-        color: #475569;
+        color: \${textMuted};
         line-height: 1.5;
       }
       .usrly-banner-desc a {
@@ -421,7 +569,7 @@ const TRACKER_SCRIPT = `(function () {
         padding: 9px 18px;
         font-size: 13px;
         font-weight: 600;
-        border-radius: 6px;
+        border-radius: \${borderRadius};
         cursor: pointer;
         transition: all 0.15s ease;
         border: 1px solid transparent;
@@ -437,21 +585,20 @@ const TRACKER_SCRIPT = `(function () {
         filter: brightness(0.92);
       }
       .usrly-btn-outline {
-        background: #ffffff;
+        background: transparent;
         color: \${primaryColor};
         border-color: \${primaryColor};
       }
       .usrly-btn-outline:hover {
-        background: #eff6ff;
+        background: \${isDark ? "rgba(24, 104, 219, 0.15)" : "#eff6ff"};
       }
       .usrly-btn-secondary {
-        background: #ffffff;
-        color: #334155;
-        border-color: #cbd5e1;
+        background: \${isDark ? "#1e293b" : "#ffffff"};
+        color: \${textPrimary};
+        border-color: \${borderCard};
       }
       .usrly-btn-secondary:hover {
-        background: #f8fafc;
-        border-color: #94a3b8;
+        background: \${isDark ? "#334155" : "#f8fafc"};
       }
 
       .usrly-modal-overlay {
@@ -471,55 +618,56 @@ const TRACKER_SCRIPT = `(function () {
         to { opacity: 1; }
       }
       .usrly-modal-card {
-        background: #ffffff;
+        background: \${bgCard};
         width: 100%;
         max-width: 680px;
         max-height: 90vh;
-        border-radius: 8px;
-        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
+        border-radius: \${borderRadius};
+        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.35);
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        border: 1px solid \${borderCard};
       }
       .usrly-modal-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 18px 24px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid \${borderCard};
       }
       .usrly-modal-title {
         font-size: 17px;
         font-weight: 700;
-        color: #0f172a;
+        color: \${textPrimary};
       }
       .usrly-modal-close {
         background: transparent;
         border: none;
         cursor: pointer;
-        color: #64748b;
+        color: \${textMuted};
         font-size: 20px;
         line-height: 1;
         padding: 4px;
       }
       .usrly-modal-close:hover {
-        color: #0f172a;
+        color: \${textPrimary};
       }
       .usrly-modal-body {
         padding: 20px 24px;
         overflow-y: auto;
         flex: 1;
         font-size: 13px;
-        color: #334155;
+        color: \${textMuted};
         line-height: 1.55;
       }
       .usrly-intro-text {
         margin-bottom: 18px;
-        color: #475569;
+        color: \${textMuted};
       }
 
       .usrly-category-item {
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid \${borderCard};
         padding: 14px 0;
       }
       .usrly-cat-header {
@@ -535,7 +683,7 @@ const TRACKER_SCRIPT = `(function () {
       }
       .usrly-cat-arrow {
         font-size: 12px;
-        color: #64748b;
+        color: \${textMuted};
         transition: transform 0.2s;
       }
       .usrly-cat-arrow.expanded {
@@ -544,7 +692,7 @@ const TRACKER_SCRIPT = `(function () {
       .usrly-cat-title {
         font-size: 14px;
         font-weight: 700;
-        color: #0f172a;
+        color: \${textPrimary};
       }
       .usrly-cat-always-active {
         color: #16a34a;
@@ -554,7 +702,7 @@ const TRACKER_SCRIPT = `(function () {
       .usrly-cat-desc {
         padding: 10px 0 4px 20px;
         font-size: 12.5px;
-        color: #64748b;
+        color: \${textMuted};
         line-height: 1.5;
         display: none;
       }
@@ -577,7 +725,7 @@ const TRACKER_SCRIPT = `(function () {
         position: absolute;
         cursor: pointer;
         inset: 0;
-        background-color: #cbd5e1;
+        background-color: \${isDark ? "#334155" : "#cbd5e1"};
         transition: 0.2s;
         border-radius: 24px;
       }
@@ -602,7 +750,7 @@ const TRACKER_SCRIPT = `(function () {
 
       .usrly-modal-footer {
         padding: 16px 24px;
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid \${borderCard};
         display: flex;
         gap: 10px;
       }
@@ -612,36 +760,42 @@ const TRACKER_SCRIPT = `(function () {
         font-size: 13.5px;
       }
       .usrly-powered-bar {
-        background: #f8fafc;
+        background: \${isDark ? "#0b1120" : "#f8fafc"};
         padding: 8px 24px;
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid \${borderCard};
         text-align: right;
         font-size: 11px;
-        color: #64748b;
+        color: \${textMuted};
       }
       .usrly-powered-bar strong {
-        color: #0f172a;
+        color: \${textPrimary};
       }
     \`;
     shadow.appendChild(style);
 
-    var functionalChecked = true;
-    var analyticsChecked = true;
-    var performanceChecked = true;
-    var adChecked = true;
+    var functionalChecked = !isGPCSignal;
+    var analyticsChecked = !isGPCSignal;
+    var performanceChecked = !isGPCSignal;
+    var adChecked = !isGPCSignal;
 
     function applyAndClose(consentData) {
+      consentData.consent_version = config.consent_version || "1.0";
+      consentData.timestamp = new Date().toISOString();
       setStoredConsent(consentData);
       dispatchGoogleConsent(consentData);
       unblockGatedScripts(consentData);
-      logConsentReceipt(consentData);
+      logConsentReceipt(consentData, config.consent_version);
+      triggerConsentListeners(consentData);
+      checkAndRenderPolicyDeclaration(consentData);
 
       if (consentData.analytics) {
         triggerPageview();
       }
 
       host.remove();
-      renderRevisitButtonOnly(consentData);
+      if (config.show_revisit_button) {
+        renderRevisitButtonOnly(consentData);
+      }
     }
 
     function showPreferencesModal() {
@@ -655,11 +809,11 @@ const TRACKER_SCRIPT = `(function () {
         <div class="usrly-modal-card">
           <div class="usrly-modal-header">
             <h3 class="usrly-modal-title">Customise Consent Preferences</h3>
-            <button class="usrly-modal-close" id="usrly-close-modal">✕</button>
+            <button class="usrly-modal-close" id="usrly-close-modal" aria-label="Close">✕</button>
           </div>
           <div class="usrly-modal-body">
             <p class="usrly-intro-text">
-              We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.
+              We respect your privacy preferences. You can customize which category of cookies or tracking scripts you permit on \${domain}. Essential cookies cannot be turned off.
             </p>
 
             <div class="usrly-category-item">
@@ -671,10 +825,11 @@ const TRACKER_SCRIPT = `(function () {
                 <span class="usrly-cat-always-active">Always Active</span>
               </div>
               <div class="usrly-cat-desc visible" id="desc-nec">
-                Necessary cookies are required to enable basic features of this site. These cookies do not store any personally identifiable data.
+                Necessary cookies are essential for page rendering, session management, and storing your consent preferences.
               </div>
             </div>
 
+            \${config.enable_functional_category !== false ? \`
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-func">
                 <div class="usrly-cat-left">
@@ -687,10 +842,12 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-func">
-                Functional cookies help perform certain functionalities like sharing content on social media.
+                Functional features enable live chat widgets, video embeds, language selectors, and interactive tools.
               </div>
             </div>
+            \` : ""}
 
+            \${config.enable_analytics_category !== false ? \`
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-ana">
                 <div class="usrly-cat-left">
@@ -703,10 +860,12 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-ana">
-                Analytical cookies are used to understand how visitors interact with the website.
+                Analytical cookies help measure traffic, bounce rates, and popular pages to improve website performance.
               </div>
             </div>
+            \` : ""}
 
+            \${config.enable_performance_category !== false ? \`
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-perf">
                 <div class="usrly-cat-left">
@@ -719,15 +878,17 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-perf">
-                Performance cookies are used to understand and analyse key performance indexes of the website.
+                Performance cookies monitor site speed, server response times, and frontend error telemetry.
               </div>
             </div>
+            \` : ""}
 
+            \${config.enable_advertisement_category !== false ? \`
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-ad">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Advertisement</span>
+                  <span class="usrly-cat-title">Advertisement & Marketing</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-ad" \${adChecked ? "checked" : ""}>
@@ -735,19 +896,20 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-ad">
-                Advertisement cookies are used to provide visitors with customised advertisements.
+                Marketing cookies enable personalized advertising and attribution tracking across third-party platforms.
               </div>
             </div>
+            \` : ""}
           </div>
 
           <div class="usrly-modal-footer">
-            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-reject">Reject All</button>
-            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-save">Save Preferences</button>
-            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-accept">Accept All</button>
+            <button class="usrly-btn usrly-btn-secondary" id="usrly-modal-reject">\${config.reject_all_label || "Reject All"}</button>
+            <button class="usrly-btn usrly-btn-outline" id="usrly-modal-save">Save Preferences</button>
+            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-accept">\${config.accept_all_label || "Accept All"}</button>
           </div>
 
           <div class="usrly-powered-bar">
-            Powered by <strong>usrly</strong>
+            Powered by <strong>Userly CMP</strong>
           </div>
         </div>
       \`;
@@ -798,10 +960,15 @@ const TRACKER_SCRIPT = `(function () {
       };
 
       overlay.querySelector("#usrly-modal-save").onclick = function () {
-        var funcVal = overlay.querySelector("#usrly-toggle-func").checked;
-        var anaVal = overlay.querySelector("#usrly-toggle-ana").checked;
-        var perfVal = overlay.querySelector("#usrly-toggle-perf").checked;
-        var adVal = overlay.querySelector("#usrly-toggle-ad").checked;
+        var funcEl = overlay.querySelector("#usrly-toggle-func");
+        var anaEl = overlay.querySelector("#usrly-toggle-ana");
+        var perfEl = overlay.querySelector("#usrly-toggle-perf");
+        var adEl = overlay.querySelector("#usrly-toggle-ad");
+
+        var funcVal = funcEl ? funcEl.checked : false;
+        var anaVal = anaEl ? anaEl.checked : false;
+        var perfVal = perfEl ? perfEl.checked : false;
+        var adVal = adEl ? adEl.checked : false;
 
         applyAndClose({
           consent_given: funcVal || anaVal || perfVal || adVal,
@@ -826,13 +993,13 @@ const TRACKER_SCRIPT = `(function () {
         <div class="usrly-banner-text">
           <div class="usrly-banner-title">\${config.title || "We value your privacy"}</div>
           <div class="usrly-banner-desc">
-            \${config.description || "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies."}
-            \${config.privacy_policy_url ? \`<a href="\${config.privacy_policy_url}" target="_blank">Read More</a>\` : ""}
+            \${config.description || "We use cookies and privacy-friendly telemetry to analyze site traffic and enhance your browsing experience. Choose your preferences below."}
+            \${config.privacy_policy_url ? \`<a href="\${config.privacy_policy_url}" target="_blank" rel="noopener noreferrer">Read Privacy Policy</a>\` : ""}
           </div>
         </div>
         <div class="usrly-btn-group">
           <button class="usrly-btn usrly-btn-outline" id="usrly-btn-customise">\${config.preferences_label || "Customise"}</button>
-          <button class="usrly-btn usrly-btn-primary" id="usrly-btn-reject">\${config.reject_all_label || "Reject All"}</button>
+          <button class="usrly-btn usrly-btn-secondary" id="usrly-btn-reject">\${config.reject_all_label || "Reject All"}</button>
           <button class="usrly-btn usrly-btn-primary" id="usrly-btn-accept">\${config.accept_all_label || "Accept All"}</button>
         </div>
       </div>
@@ -865,6 +1032,72 @@ const TRACKER_SCRIPT = `(function () {
       showPreferencesModal();
     };
   }
+
+  // 3. EXPOSE DEVELOPER SDK ON window.Userly & window.usrly
+  window.Userly = {
+    track: function (eventName, props) {
+      sendEvent(eventName, props);
+    },
+    showBanner: function () {
+      if (activeConfig) {
+        renderCMP(activeConfig, false);
+      } else {
+        fetchConfigAndRender(false);
+      }
+    },
+    hideBanner: function () {
+      var root = document.getElementById("usrly-cmp-root");
+      if (root) root.remove();
+    },
+    showPreferences: function () {
+      if (activeConfig) {
+        renderCMP(activeConfig, true);
+      } else {
+        fetchConfigAndRender(true);
+      }
+    },
+    getConsent: function () {
+      return getStoredConsent();
+    },
+    hasConsent: function (category) {
+      var c = getStoredConsent();
+      if (!c) return false;
+      if (category) return Boolean(c[category]);
+      return Boolean(c.consent_given);
+    },
+    onConsent: function (callback) {
+      if (typeof callback === "function") {
+        consentListeners.push(callback);
+        var current = getStoredConsent();
+        if (current) {
+          try { callback(current); } catch (e) {}
+        }
+      }
+    },
+    updateConsent: function (categories) {
+      var stored = getStoredConsent() || { necessary: true };
+      var merged = Object.assign({}, stored, categories);
+      merged.consent_given = Boolean(merged.functional || merged.analytics || merged.performance || merged.advertisement);
+      setStoredConsent(merged);
+      dispatchGoogleConsent(merged);
+      unblockGatedScripts(merged);
+      logConsentReceipt(merged);
+      triggerConsentListeners(merged);
+    },
+    resetConsent: function () {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      initCMP();
+    },
+    isGPC: function () {
+      return isGPCSignal;
+    },
+    version: "2.1.0",
+  };
+
+  window.usrly = function (eventName, props) {
+    sendEvent(eventName, props);
+  };
+  window.userly = window.usrly;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initCMP);

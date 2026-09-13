@@ -164,12 +164,7 @@ export function ConsentLogs() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900">Proof of Consent Vault</h1>
-            <span className="inline-flex items-center gap-1 rounded-[4px] bg-neutral-100 px-2.5 py-0.5 text-xs font-bold text-neutral-700 border border-neutral-200">
-              <Shield className="size-3 text-[#1868db]" /> GDPR Article 7(1) Audit Ready
-            </span>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-neutral-900">Proof of Consent Vault</h1>
           <p className="text-xs text-neutral-500 mt-1">
             Tamper-proof cryptographic receipt log for visitors on <strong className="text-neutral-800">{activeDomain || "your site"}</strong>.
           </p>

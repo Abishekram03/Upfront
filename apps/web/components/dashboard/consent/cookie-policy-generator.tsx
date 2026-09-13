@@ -134,12 +134,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900">Cookie Policy Generator</h1>
-            <span className="rounded-[4px] bg-neutral-100 px-2.5 py-0.5 text-xs font-bold text-neutral-700 border border-neutral-200">
-              GDPR & CCPA Compliant
-            </span>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-neutral-900">Cookie Policy Generator</h1>
           <p className="text-xs text-neutral-500 mt-1">
             Auto-generate and embed a comprehensive, live-updating cookie policy for <strong className="text-neutral-800">{domain}</strong>.
           </p>
@@ -209,7 +204,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
               <Sparkles className="size-4" /> Why Embed the Policy?
             </div>
             <p className="text-[11px] text-slate-600 leading-relaxed">
-              GDPR Article 13 & 14 requires websites to provide a comprehensive explanation of all cookie categories. Embedding this page fulfills European and US state requirements.
+              Privacy regulations recommend providing a transparent explanation of all cookie categories. Embedding this policy gives your visitors full visibility and clarity.
             </p>
           </div>
         </div>
@@ -373,7 +368,7 @@ For any inquiries regarding this policy, contact: [${contactEmail}](mailto:${con
           <div className="space-y-2">
             <h3 className="text-sm font-bold text-slate-900">4. Managing & Withdrawing Your Consent</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Under GDPR Article 7(3), you have the right to withdraw or modify your consent at any time. You can do so easily by clicking the floating cookie icon 🍪 in the bottom corner of our website.
+              You have the right to withdraw or modify your cookie consent at any time. You can do so easily by clicking the floating cookie icon 🍪 in the bottom corner of our website.
             </p>
           </div>
 

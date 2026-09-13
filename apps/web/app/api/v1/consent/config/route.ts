@@ -45,6 +45,7 @@ export async function GET(req: Request) {
         preferences_label, enable_necessary_category, enable_functional_category,
         enable_analytics_category, enable_performance_category, enable_advertisement_category,
         show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
+        enable_gpc, consent_version,
         created_at, updated_at
       ) VALUES (
         $1, $2, TRUE, 'bottom_bar', 'light', '#1868db', 'rounded-md',
@@ -53,6 +54,7 @@ export async function GET(req: Request) {
         '/privacy', 'Accept All', 'Reject All', 'Customise',
         TRUE, TRUE, TRUE, TRUE, TRUE,
         TRUE, 'bottom_left', TRUE, 'all',
+        TRUE, '1.0',
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET updated_at = NOW()
@@ -85,6 +87,7 @@ export async function POST(req: Request) {
         preferences_label, enable_necessary_category, enable_functional_category,
         enable_analytics_category, enable_performance_category, enable_advertisement_category,
         show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
+        enable_gpc, consent_version,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
@@ -92,6 +95,7 @@ export async function POST(req: Request) {
         $13, $14, $15,
         $16, $17, $18,
         $19, $20, $21, $22,
+        $23, $24,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -115,6 +119,8 @@ export async function POST(req: Request) {
         revisit_button_position = EXCLUDED.revisit_button_position,
         enable_consent_mode_v2 = EXCLUDED.enable_consent_mode_v2,
         geo_targeting = EXCLUDED.geo_targeting,
+        enable_gpc = EXCLUDED.enable_gpc,
+        consent_version = EXCLUDED.consent_version,
         updated_at = NOW()
       RETURNING *`,
       [
@@ -140,6 +146,8 @@ export async function POST(req: Request) {
         body.revisit_button_position || "bottom_left",
         body.enable_consent_mode_v2 !== undefined ? body.enable_consent_mode_v2 : true,
         body.geo_targeting || "all",
+        body.enable_gpc !== undefined ? body.enable_gpc : true,
+        body.consent_version || "1.0",
       ]
     )
 

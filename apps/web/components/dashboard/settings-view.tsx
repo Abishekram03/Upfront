@@ -196,7 +196,7 @@ export function SettingsView() {
             </div>
             <h3 className="text-sm font-bold text-neutral-900">No sites added yet</h3>
             <p className="text-xs text-neutral-500 leading-relaxed">
-              Add your first domain to start tracking privacy-friendly, cookieless web analytics and managing CookieYes consent banners.
+              Add your first domain to start tracking privacy-friendly, cookieless web analytics and managing privacy consent banners.
             </p>
             <button
               type="button"
@@ -545,7 +545,7 @@ export function SettingsView() {
                 Are you sure you want to delete <strong className="text-neutral-900">{siteToDelete.domain}</strong>?
               </p>
               <div className="rounded-[4px] bg-rose-50 border border-rose-200/80 p-3 text-[11px] text-rose-800 leading-normal">
-                All traffic sessions, pageview metrics, historical trends, and CookieYes consent receipts associated with this domain will be permanently purged.
+                All traffic sessions, pageview metrics, historical trends, and privacy consent receipts associated with this domain will be permanently purged.
               </div>
 
               {deleteError && (

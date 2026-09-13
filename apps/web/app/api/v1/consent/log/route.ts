@@ -38,11 +38,11 @@ export async function POST(req: Request) {
       `INSERT INTO consent_receipts (
         id, domain, visitor_hash, country, consent_given,
         necessary, functional, analytics, performance, advertisement,
-        user_agent_category, created_at
+        user_agent_category, consent_version, created_at
       ) VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, $9, $10,
-        $11, NOW()
+        $11, $12, NOW()
       )`,
       [
         receiptId,
@@ -56,6 +56,7 @@ export async function POST(req: Request) {
         Boolean(payload.performance),
         adConsent,
         payload.user_agent_category || "Desktop",
+        payload.consent_version || "1.0",
       ]
     )
 

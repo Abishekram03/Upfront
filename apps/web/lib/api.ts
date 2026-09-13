@@ -143,6 +143,8 @@ export interface ConsentConfig {
   revisit_button_position: "bottom_left" | "bottom_right"
   enable_consent_mode_v2: boolean
   geo_targeting: "all" | "eu_uk_only" | "eu_uk_us_only"
+  enable_gpc?: boolean
+  consent_version?: string
   created_at?: string
   updated_at?: string
 }
@@ -223,6 +225,89 @@ export async function fetchConsentStats(domain: string): Promise<ConsentStatsSum
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}))
     throw new Error(errData.detail || "Failed to fetch consent statistics")
+  }
+  return await res.json()
+}
+
+export interface DiscoveredCookie {
+  id: string
+  site_id?: string
+  domain: string
+  name: string
+  category: "necessary" | "functional" | "analytics" | "performance" | "advertisement"
+  service_name?: string
+  duration?: string
+  description?: string
+  confidence?: "high" | "medium" | "low"
+  status?: string
+  first_detected_at?: string
+  last_detected_at?: string
+}
+
+export interface PreConsentLeak {
+  type: string
+  url?: string
+  description?: string
+  severity?: "critical" | "warning" | "info"
+}
+
+export interface ScanRun {
+  id: string
+  domain: string
+  status: string
+  cookies_found: number
+  scripts_found: number
+  leaks_found: number
+  dark_patterns_found: number
+  findings: PreConsentLeak[]
+  created_at: string
+}
+
+export interface ScannerResponse {
+  domain: string
+  total_cookies: number
+  latest_scan: ScanRun | null
+  cookies: DiscoveredCookie[]
+  pre_consent_leaks: PreConsentLeak[]
+}
+
+export async function fetchScannerData(domain: string): Promise<ScannerResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/scanner?domain=${encodeURIComponent(domain)}`, {
+    cache: "no-store",
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to fetch cookie scanner data")
+  }
+  return await res.json()
+}
+
+export async function triggerCookieScan(domain: string): Promise<ScannerResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/scanner`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ domain }),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to run scanner")
+  }
+  return await res.json()
+}
+
+export async function updateDiscoveredCookie(
+  cookieId: string,
+  category: string,
+  status?: string
+): Promise<{ ok: boolean; cookie: DiscoveredCookie }> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/scanner`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: cookieId, category, status }),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to update cookie category")
   }
   return await res.json()
 }

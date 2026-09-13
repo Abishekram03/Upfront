@@ -27,8 +27,8 @@ export const tools = [
     name: "Consent Manager",
     shortName: "Consent",
     icon: ShieldCheck,
-    description: "CookieYes CMP & Script Gating",
-    badge: "CookieYes",
+    description: "Cookie Banner & Script Gating",
+    badge: "CMP",
     badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
   },
 ]

@@ -14,6 +14,7 @@ import {
   FileCheck,
   FileText,
   ExternalLink,
+  Cookie,
 } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -62,6 +63,12 @@ export function DashboardSidebar({
       href: "/consent/studio",
       icon: Palette,
       badge: "Live",
+    },
+    {
+      title: "Cookie Scanner",
+      href: "/consent/scanner",
+      icon: Cookie,
+      badge: "Audit",
     },
     {
       title: "Cookie Policy",

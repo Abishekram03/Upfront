@@ -1,8 +1,8 @@
 import { CookiePolicyGenerator } from "@/components/dashboard/consent/cookie-policy-generator"
 
 export const metadata = {
-  title: "Cookie Policy Generator — usrly CMP",
-  description: "Generate and embed a GDPR & ePrivacy compliant cookie declaration page",
+  title: "Cookie Policy Generator — Userly CMP",
+  description: "Generate and embed a clean, transparent cookie declaration policy for your website",
 }
 
 export default function CookiePolicyPage() {

@@ -92,7 +92,7 @@ export function ScriptRules() {
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold tracking-tight text-neutral-900">Script Rules & Auto-Blocking</h1>
           <span className="rounded-[4px] bg-neutral-100 px-2.5 py-0.5 text-xs font-bold text-neutral-700 border border-neutral-200">
-            CookieYes Gating Standard
+            Privacy CMP Standard
           </span>
         </div>
         <p className="text-xs text-neutral-500 mt-1">

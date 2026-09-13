@@ -24,6 +24,7 @@ import {
   SlidersHorizontal,
   Eye,
   CheckCircle2,
+  AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
@@ -31,7 +32,7 @@ import { useDomain } from "@/lib/domain-context"
 import { fetchConsentConfig, saveConsentConfig, ConsentConfig } from "@/lib/api"
 
 const COLOR_PRESETS = [
-  { name: "CookieYes Blue", hex: "#1868db" },
+  { name: "Userly Blue", hex: "#1868db" },
   { name: "Indigo", hex: "#4f46e5" },
   { name: "Emerald", hex: "#059669" },
   { name: "Violet", hex: "#7c3aed" },
@@ -63,6 +64,8 @@ export function BannerStudio() {
     revisit_button_position: "bottom_left",
     enable_consent_mode_v2: true,
     geo_targeting: "all",
+    enable_gpc: true,
+    consent_version: "1.0",
   })
 
   const [isLoading, setIsLoading] = useState(true)
@@ -70,7 +73,7 @@ export function BannerStudio() {
   const [savedSuccess, setSavedSuccess] = useState(false)
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop")
   const [previewTab, setPreviewTab] = useState<"banner" | "preferences_modal" | "revisit_button">("banner")
-  const [activeSettingsTab, setActiveSettingsTab] = useState<"layout" | "content" | "categories">("layout")
+  const [activeSettingsTab, setActiveSettingsTab] = useState<"layout" | "content" | "categories" | "checks">("layout")
 
   // Interactive mock state for preferences preview
   const [mockExpanded, setMockExpanded] = useState<Record<string, boolean>>({
@@ -100,6 +103,8 @@ export function BannerStudio() {
           ...prev,
           ...data,
           primary_color: data.primary_color || "#1868db",
+          enable_gpc: data.enable_gpc !== undefined ? data.enable_gpc : true,
+          consent_version: data.consent_version || "1.0",
         }))
       })
       .catch((err) => {
@@ -119,9 +124,9 @@ export function BannerStudio() {
         domain: activeDomain,
       })
       setSavedSuccess(true)
-      setTimeout(() => setSavedSuccess(false), 2500)
+      setTimeout(() => setSavedSuccess(false), 3000)
     } catch (err: any) {
-      alert(err?.message || "Failed to save consent settings.")
+      alert(err?.message || "Failed to save consent configuration.")
     } finally {
       setIsSaving(false)
     }
@@ -131,33 +136,39 @@ export function BannerStudio() {
     setMockExpanded((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
+  // Dark pattern & compliance analysis
+  const hasEqualProminence = Boolean(config.reject_all_label && config.reject_all_label.trim().length > 0)
+  const hasRevisitButton = Boolean(config.show_revisit_button)
+  const hasGPC = Boolean(config.enable_gpc)
+  const complianceScore = (hasEqualProminence ? 35 : 0) + (hasRevisitButton ? 30 : 0) + (hasGPC ? 35 : 0)
+
   return (
     <div className="space-y-6 max-w-7xl pb-16">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Top Header Bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-neutral-900">Banner Studio</h1>
-            <span className="rounded-[4px] bg-neutral-100 px-2.5 py-0.5 text-xs font-bold text-neutral-700 border border-neutral-200">
-              Interactive Customizer
+            <span className="rounded-[4px] bg-blue-50 px-2 py-0.5 text-xs font-bold text-[#1868db] border border-blue-200">
+              Live Preview
             </span>
           </div>
           <p className="text-xs text-neutral-500 mt-1">
-            Real-time visual editor for your CookieYes compliance banner on <strong className="text-neutral-800">{activeDomain || "your site"}</strong>.
+            Customize banner aesthetics, 5-category preferences modal, and verify compliance best practices for <strong className="text-neutral-800">{activeDomain || "your site"}</strong>.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
+        <div className="flex items-center gap-2">
+          {savedSuccess && (
+            <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in">
+              <Check className="size-3.5" /> Saved & Published
+            </span>
+          )}
+
+          <Button
             onClick={handleSave}
             disabled={isSaving || !activeDomain}
-            className={cn(
-              "text-xs font-bold px-4 py-2 rounded-[4px] shadow-xs transition-all inline-flex items-center gap-1.5",
-              savedSuccess
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                : "bg-[#1868db] hover:bg-[#1559be] text-white"
-            )}
+            className="rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold px-4 py-2 h-9 shadow-xs transition-all flex items-center gap-1.5"
           >
             {savedSuccess ? (
               <>
@@ -172,7 +183,7 @@ export function BannerStudio() {
                 Publish Changes
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -221,7 +232,7 @@ export function BannerStudio() {
                 <label className="text-xs font-bold text-slate-800 block mb-2">Banner Layout</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { id: "bottom_bar", label: "Bottom Bar", desc: "Classic CookieYes full bar" },
+                    { id: "bottom_bar", label: "Bottom Bar", desc: "Classic full-width bar" },
                     { id: "floating_bottom_left", label: "Bottom Left", desc: "Compact floating box" },
                     { id: "floating_bottom_right", label: "Bottom Right", desc: "Compact floating box" },
                     { id: "center_modal", label: "Center Popup", desc: "High-focus modal" },
@@ -411,6 +422,104 @@ export function BannerStudio() {
                   onChange={(e) => setConfig({ ...config, enable_advertisement_category: e.target.checked })}
                   className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
                 />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: COMPLIANCE & GPC CHECKS */}
+          {activeSettingsTab === "checks" && (
+            <div className="rounded-[4px] border border-slate-200 bg-white p-5 space-y-4 shadow-2xs">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Compliance Health Check</div>
+                  <div className="text-[11px] text-slate-500">Anti-Dark Pattern & Best Practice Audit</div>
+                </div>
+                <span className={cn(
+                  "text-xs font-bold px-2.5 py-1 rounded-[4px] border",
+                  complianceScore === 100
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                    : "bg-amber-50 text-amber-700 border-amber-300"
+                )}>
+                  {complianceScore}% Score
+                </span>
+              </div>
+
+              {/* Check 1: Equal Prominence */}
+              <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/50 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    {hasEqualProminence ? (
+                      <CheckCircle2 className="size-3.5 text-emerald-600" />
+                    ) : (
+                      <AlertTriangle className="size-3.5 text-amber-600" />
+                    )}
+                    Equal Prominence (Reject Button)
+                  </span>
+                  <span className={cn(
+                    "text-[10px] font-bold px-1.5 py-0.5 rounded-[4px]",
+                    hasEqualProminence ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                  )}>
+                    {hasEqualProminence ? "Pass" : "Missing Label"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Clear, single-click &quot;Reject All&quot; button ensures parity with &quot;Accept All&quot; across European EDPB guidelines.
+                </p>
+              </div>
+
+              {/* Check 2: Global Privacy Control (GPC) */}
+              <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800">Global Privacy Control (GPC)</span>
+                    <p className="text-[11px] text-slate-500">Auto-reject ad trackers when browser sends GPC signal</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={config.enable_gpc !== false}
+                    onChange={(e) => setConfig({ ...config, enable_gpc: e.target.checked })}
+                    className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
+                  />
+                </div>
+              </div>
+
+              {/* Check 3: Consent Versioning */}
+              <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800">Consent Version</span>
+                    <p className="text-[11px] text-slate-500">Incrementing version triggers automatic re-consent across visitors</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={config.consent_version || "1.0"}
+                      onChange={(e) => setConfig({ ...config, consent_version: e.target.value })}
+                      className="w-14 px-2 py-1 text-xs font-mono font-bold text-center rounded-[4px] border border-slate-300 bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = parseFloat(config.consent_version || "1.0") || 1.0
+                        setConfig({ ...config, consent_version: (current + 0.1).toFixed(1) })
+                      }}
+                      className="px-2 py-1 text-[10px] font-bold bg-[#1868db] text-white rounded-[4px] hover:bg-[#1559be]"
+                    >
+                      +0.1
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Link to Cookie Scanner */}
+              <div className="pt-2">
+                <Link
+                  href="/consent/scanner"
+                  className="w-full inline-flex items-center justify-center gap-1.5 p-2 rounded-[4px] border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors shadow-2xs"
+                >
+                  <Cookie className="size-3.5 text-[#1868db]" />
+                  Run Cookie & Pre-Consent Leak Scanner
+                </Link>
               </div>
             </div>
           )}
@@ -702,7 +811,7 @@ export function BannerStudio() {
                       )}
                     </div>
 
-                    {/* Modal 3-Button Action Row (CookieYes Style) */}
+                    {/* Modal 3-Button Action Row */}
                     <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
                       <button
                         type="button"

@@ -226,10 +226,48 @@ export async function ensureTables() {
           performance BOOLEAN DEFAULT FALSE,
           advertisement BOOLEAN DEFAULT FALSE,
           user_agent_category VARCHAR(50) DEFAULT 'Desktop',
+          consent_version VARCHAR(20) DEFAULT '1.0',
           created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
         );
 
         CREATE INDEX IF NOT EXISTS ix_consent_receipts_domain_created ON consent_receipts(domain, created_at);
+
+        -- Safe Schema Migrations
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_gpc BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_receipts ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
+
+        -- Discovered Cookies from Scanner
+        CREATE TABLE IF NOT EXISTS discovered_cookies (
+          id VARCHAR(36) PRIMARY KEY,
+          site_id VARCHAR(36),
+          domain VARCHAR(255) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          category VARCHAR(50) NOT NULL,
+          service_name VARCHAR(100),
+          duration VARCHAR(50),
+          description TEXT,
+          confidence VARCHAR(20) DEFAULT 'high',
+          status VARCHAR(50) DEFAULT 'detected',
+          first_detected_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          last_detected_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS ix_discovered_cookies_domain ON discovered_cookies(domain);
+
+        -- Scan Run Audit History
+        CREATE TABLE IF NOT EXISTS scans (
+          id VARCHAR(36) PRIMARY KEY,
+          site_id VARCHAR(36),
+          domain VARCHAR(255) NOT NULL,
+          status VARCHAR(50) DEFAULT 'completed',
+          cookies_found INTEGER DEFAULT 0,
+          scripts_found INTEGER DEFAULT 0,
+          leaks_found INTEGER DEFAULT 0,
+          dark_patterns_found INTEGER DEFAULT 0,
+          findings JSONB DEFAULT '[]'::jsonb,
+          created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS ix_scans_domain_created ON scans(domain, created_at);
       `)
       tablesInitialized = true
     } finally {

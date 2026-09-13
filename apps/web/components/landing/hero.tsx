@@ -61,7 +61,7 @@ export function LandingHero() {
             </div>
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="size-4 text-blue-600" />
-              <span>100% GDPR, CCPA & PECR compliant</span>
+              <span>Privacy-first & cookieless by design</span>
             </div>
           </div>
         </div>

@@ -46,7 +46,7 @@ export function ScriptModal({
                 Install usrly Script
               </h3>
               <p className="text-xs text-neutral-500">
-                Lightweight (&lt; 4KB), cookieless, and CookieYes CMP ready
+                Lightweight (&lt; 4KB), cookieless, and Privacy Consent ready
               </p>
             </div>
           </div>
@@ -61,7 +61,7 @@ export function ScriptModal({
 
         <div className="space-y-4 pt-4">
           <p className="text-xs text-neutral-600 leading-relaxed">
-            Paste this snippet into the <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-[11px] text-neutral-800">&lt;head&gt;</code> tag of your website. It powers both <strong>Cookieless Web Analytics</strong> and the <strong>CookieYes-style Consent Banner</strong>.
+            Paste this snippet into the <code className="rounded bg-neutral-100 px-1 py-0.5 font-mono text-[11px] text-neutral-800">&lt;head&gt;</code> tag of your website. It powers both <strong>Cookieless Web Analytics</strong> and the <strong>Privacy Consent Banner</strong>.
           </p>
 
           <div className="relative rounded-lg border border-neutral-200 bg-neutral-950 p-3.5 text-neutral-100 shadow-inner">

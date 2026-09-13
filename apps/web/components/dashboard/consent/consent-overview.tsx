@@ -90,7 +90,7 @@ export function ConsentOverview() {
             </div>
             <h3 className="text-base font-bold text-slate-900">No Website Registered</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Add your website to start customizing cookie banners, gating 3rd-party scripts, and capturing GDPR audit logs.
+              Add your website to start customizing cookie banners, gating 3rd-party scripts, and capturing proof-of-consent audit logs.
             </p>
             <Link
               href="/settings"
@@ -112,7 +112,7 @@ export function ConsentOverview() {
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-neutral-900">Consent Management</h1>
             <span className="rounded-[4px] bg-neutral-100 px-2.5 py-0.5 text-xs font-bold text-neutral-700 border border-neutral-200">
-              CookieYes Standard
+              CMP Engine
             </span>
           </div>
           <p className="text-xs text-neutral-500 mt-1">
@@ -159,68 +159,84 @@ export function ConsentOverview() {
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Link
           href="/consent/studio"
-          className="group block rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="flex size-10 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
-              <Palette className="size-5" />
+            <div className="flex size-9 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
+              <Palette className="size-4.5" />
             </div>
-            <ArrowRight className="size-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
+            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">Banner Studio</h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Customize layout, colors, and live 5-category preferences modal preview.
+          <h3 className="text-xs font-bold text-slate-900">Banner Studio</h3>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            Customize layout, theme, and 5-category modal preview.
+          </p>
+        </Link>
+
+        <Link
+          href="/consent/scanner"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex size-9 items-center justify-center rounded-[4px] bg-emerald-50 text-emerald-600 group-hover:scale-105 transition-transform">
+              <Cookie className="size-4.5" />
+            </div>
+            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
+          </div>
+          <h3 className="text-xs font-bold text-slate-900">Cookie Scanner</h3>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            Audit 3rd-party cookies & detect pre-consent data leaks.
           </p>
         </Link>
 
         <Link
           href="/consent/policy"
-          className="group block rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="flex size-10 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
-              <FileCode className="size-5" />
+            <div className="flex size-9 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
+              <FileCode className="size-4.5" />
             </div>
-            <ArrowRight className="size-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
+            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">Cookie Policy</h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Generate and embed compliant cookie declaration tables for your website.
+          <h3 className="text-xs font-bold text-slate-900">Cookie Policy</h3>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            Generate and embed compliant cookie declaration tables.
           </p>
         </Link>
 
         <Link
           href="/consent/rules"
-          className="group block rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="flex size-10 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
-              <Sliders className="size-5" />
+            <div className="flex size-9 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
+              <Sliders className="size-4.5" />
             </div>
-            <ArrowRight className="size-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
+            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">Script Rules & GCM v2</h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Auto-sync Google Consent Mode v2 signals and gate Meta Pixel, TikTok, and GA4 scripts.
+          <h3 className="text-xs font-bold text-slate-900">Script Rules & GCM</h3>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            Sync Google Consent Mode v2 & gate marketing scripts.
           </p>
         </Link>
 
         <Link
           href="/consent/logs"
-          className="group block rounded-[4px] border border-slate-200 bg-white p-5 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
+          className="group block rounded-[4px] border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="flex size-10 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
-              <FileCheck className="size-5" />
+            <div className="flex size-9 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
+              <FileCheck className="size-4.5" />
             </div>
-            <ArrowRight className="size-4 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
+            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">Proof-of-Consent Vault</h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            GDPR Article 7(1) cryptographic receipt logs, search filters, and one-click CSV export.
+          <h3 className="text-xs font-bold text-slate-900">Proof Vault</h3>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            Audit trail logs with CSV export.
           </p>
         </Link>
       </div>
