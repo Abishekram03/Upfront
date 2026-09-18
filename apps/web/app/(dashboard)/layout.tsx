@@ -2,8 +2,8 @@
 
 import { Suspense, useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
-import { DashboardTopbar } from "@/components/dashboard/dashboard-topbar"
+import { TablerHeader } from "@/components/dashboard/tabler-header"
+import { TablerNavbar } from "@/components/dashboard/tabler-navbar"
 import { ScriptModal } from "@/components/dashboard/script-modal"
 import { ToolType } from "@/components/dashboard/tool-switcher"
 import { DomainProvider, useDomain } from "@/lib/domain-context"
@@ -26,6 +26,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       setActiveTool("analytics")
     }
   }, [pathname])
+
   const [snippetModalOpen, setSnippetModalOpen] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
@@ -39,57 +40,34 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-white text-neutral-900">
-      {/* Sidebar for Desktop */}
-      <div className="hidden md:flex h-full shrink-0">
-        <Suspense fallback={<div className="w-64 border-r border-neutral-200 bg-[#fafafa]" />}>
-          <DashboardSidebar
-            activeTool={activeTool}
-            onSelectTool={handleSelectTool}
-          />
-        </Suspense>
-      </div>
+    <div className="min-h-screen w-full bg-[#f8fafc] text-slate-900 flex flex-col">
+      {/* Tabler Top Header */}
+      <TablerHeader
+        activeTool={activeTool}
+        onSelectTool={handleSelectTool}
+        sites={sites}
+        activeDomain={activeDomain}
+        onChangeDomain={setActiveDomain}
+        onOpenSnippetModal={() => setSnippetModalOpen(true)}
+        realtimeVisitors={realtimeVisitors}
+        isLoadingSites={isLoadingSites}
+        isMobileOpen={isMobileOpen}
+        onToggleMobile={() => setIsMobileOpen(!isMobileOpen)}
+      />
 
-      {/* Mobile Drawer Sidebar */}
-      {isMobileOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
-            onClick={() => setIsMobileOpen(false)}
-          />
-          <div className="relative z-10 h-full w-64 bg-[#fafafa] shadow-xl">
-            <Suspense fallback={<div className="w-64 bg-[#fafafa] h-full" />}>
-              <DashboardSidebar
-                activeTool={activeTool}
-                onSelectTool={(tool) => {
-                  handleSelectTool(tool)
-                  setIsMobileOpen(false)
-                }}
-              />
-            </Suspense>
-          </div>
+      {/* Tabler Horizontal Navigation Bar */}
+      <TablerNavbar
+        activeTool={activeTool}
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-1 py-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {children}
         </div>
-      )}
-
-
-      {/* Main Content Area with Topbar */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <DashboardTopbar
-          onToggleSidebar={() => setIsMobileOpen(!isMobileOpen)}
-          sites={sites}
-          activeDomain={activeDomain}
-          onChangeDomain={setActiveDomain}
-          onOpenSnippetModal={() => setSnippetModalOpen(true)}
-          realtimeVisitors={realtimeVisitors}
-          isLoadingSites={isLoadingSites}
-        />
-
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          <div className="mx-auto max-w-6xl">
-            {children}
-          </div>
-        </main>
-      </div>
+      </main>
 
       {/* Tracking Script Modal */}
       {activeDomain && (
@@ -109,11 +87,12 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-neutral-50" />}>
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-slate-50" />}>
       <DomainProvider>
         <DashboardInner>{children}</DashboardInner>
       </DomainProvider>
     </Suspense>
   )
 }
+
 
