@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { X, Search, Download, ExternalLink } from "lucide-react"
+import { SourceFavicon } from "./source-favicon"
 
 export interface DetailItem {
   id: string
@@ -20,6 +21,7 @@ interface DetailsModalProps {
   subtitle?: string
   columns: { label: string; key: string; align?: "left" | "right" }[]
   items: DetailItem[]
+  onSelectItem?: (item: DetailItem) => void
 }
 
 export function DetailsModal({
@@ -28,10 +30,13 @@ export function DetailsModal({
   title,
   columns,
   items,
+  onSelectItem,
 }: DetailsModalProps) {
   const [search, setSearch] = useState("")
 
   if (!open) return null
+
+  const isSourcesModal = title.toLowerCase().includes("source") || title.toLowerCase().includes("referrer")
 
   const filtered = items.filter((item) =>
     item.label.toLowerCase().includes(search.toLowerCase()) ||
@@ -53,7 +58,7 @@ export function DetailsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors cursor-pointer"
           >
             <X className="size-5" />
           </button>
@@ -79,23 +84,31 @@ export function DetailsModal({
               return (
                 <div
                   key={item.id || index}
-                  className="group relative flex items-center justify-between py-2 px-3 rounded-lg hover:bg-neutral-50/80 transition-colors text-xs font-medium overflow-hidden my-0.5"
+                  onClick={() => onSelectItem?.(item)}
+                  title="Double-click or click to filter by this record"
+                  className="group relative flex items-center justify-between py-2 px-3 rounded-lg hover:bg-neutral-100/80 cursor-pointer transition-colors text-xs font-medium overflow-hidden my-0.5"
                 >
                   {/* Background Progress Bar (Light Indigo/Blue tint) */}
                   {pct > 0 && (
                     <div
                       style={{ width: `${pct}%` }}
-                      className="absolute inset-y-0 left-0 bg-indigo-50/70 -z-10 rounded transition-all group-hover:bg-indigo-100/60"
+                      className="absolute inset-y-0 left-0 bg-blue-50/70 -z-10 rounded transition-all group-hover:bg-blue-100/60"
                     />
                   )}
 
                   {/* Left Column (Icon + Flag + Label) */}
                   <div className="flex items-center gap-2.5 min-w-0 pr-4 z-10 truncate">
-                    {typeof item.icon === "string" && (
-                      <span className="text-sm shrink-0 leading-none">{item.icon}</span>
-                    )}
-                    {Icon && typeof Icon === "function" && (
-                      <Icon className="size-4 text-neutral-600 shrink-0" />
+                    {isSourcesModal ? (
+                      <SourceFavicon label={item.label} />
+                    ) : (
+                      <>
+                        {typeof item.icon === "string" && (
+                          <span className="text-sm shrink-0 leading-none">{item.icon}</span>
+                        )}
+                        {Icon && typeof Icon === "function" && (
+                          <Icon className="size-4 text-neutral-600 shrink-0" />
+                        )}
+                      </>
                     )}
                     <span className="font-medium text-neutral-900 truncate">
                       {item.label}
@@ -105,6 +118,7 @@ export function DetailsModal({
                         href={item.link}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         className="text-neutral-400 hover:text-neutral-700 inline-flex shrink-0"
                       >
                         <ExternalLink className="size-3" />

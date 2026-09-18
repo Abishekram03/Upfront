@@ -58,10 +58,34 @@ export interface Site {
   status?: "active" | "waiting"
 }
 
+export interface StatsFilters {
+  source?: string
+  page?: string
+  country?: string
+  browser?: string
+  device?: string
+  os?: string
+}
+
 export const API_BASE = ""
 
-export async function fetchStats(domain: string, period: string = "30d"): Promise<StatsResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/stats?domain=${encodeURIComponent(domain)}&period=${period}`, {
+export async function fetchStats(
+  domain: string,
+  period: string = "30d",
+  filters?: StatsFilters
+): Promise<StatsResponse> {
+  const params = new URLSearchParams({
+    domain,
+    period,
+  })
+  if (filters?.source) params.append("source", filters.source)
+  if (filters?.page) params.append("page", filters.page)
+  if (filters?.country) params.append("country", filters.country)
+  if (filters?.browser) params.append("browser", filters.browser)
+  if (filters?.device) params.append("device", filters.device)
+  if (filters?.os) params.append("os", filters.os)
+
+  const res = await fetch(`${API_BASE}/api/v1/stats?${params.toString()}`, {
     cache: "no-store",
   })
   if (!res.ok) {

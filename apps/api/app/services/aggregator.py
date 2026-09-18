@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from sqlalchemy import select, func, and_, desc, distinct, cast, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.site import Site
@@ -30,10 +30,18 @@ COUNTRY_NAMES = {
     "SE": "Sweden",
 }
 
+COUNTRY_CODES = {v.lower(): k for k, v in COUNTRY_NAMES.items()}
+
 async def get_site_stats(
     db: AsyncSession,
     domain: str,
     period: str = "30d",
+    source: Optional[str] = None,
+    page: Optional[str] = None,
+    country: Optional[str] = None,
+    browser: Optional[str] = None,
+    device: Optional[str] = None,
+    os_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     # 1. Look up site
     site_query = select(Site).where(Site.domain == domain)
@@ -62,11 +70,35 @@ async def get_site_stats(
 
     site_id = site.id if site else "demo_fallback"
 
+    # Base session filter criteria
+    def build_session_filters():
+        clauses = [Session.site_id == site_id]
+        if source:
+            clauses.append(Session.referrer_source == source)
+        if country:
+            country_clean = country.strip().lower()
+            code = COUNTRY_CODES.get(country_clean, country.upper())
+            clauses.append(Session.country == code)
+        if browser:
+            clauses.append(Session.browser == browser)
+        if device:
+            clauses.append(Session.device == device)
+        if os_name:
+            clauses.append(Session.os == os_name)
+        if page:
+            page_subquery = select(Pageview.session_id).where(
+                and_(Pageview.site_id == site_id, Pageview.pathname == page)
+            ).distinct()
+            clauses.append(Session.id.in_(page_subquery))
+        return clauses
+
+    common_session_filters = build_session_filters()
+
     # 2. Realtime Active Visitors (Last 5 minutes)
     five_min_ago = now - timedelta(minutes=5)
     rt_query = select(func.count(distinct(Session.visitor_hash))).where(
         and_(
-            Session.site_id == site_id,
+            *common_session_filters,
             Session.last_activity_at >= five_min_ago
         )
     )
@@ -82,7 +114,7 @@ async def get_site_stats(
         func.count(Session.id).label("total_sessions"),
     ).where(
         and_(
-            Session.site_id == site_id,
+            *common_session_filters,
             Session.started_at >= start_date,
             Session.started_at <= now
         )
@@ -105,7 +137,7 @@ async def get_site_stats(
         func.count(Session.id).label("prev_sessions"),
     ).where(
         and_(
-            Session.site_id == site_id,
+            *common_session_filters,
             Session.started_at >= prev_start_date,
             Session.started_at < prev_end_date
         )
@@ -144,7 +176,6 @@ async def get_site_stats(
 
     # 5. Time Series (Daily Buckets)
     time_series = []
-    # Build daily slots
     step = 1 if days <= 30 else (days // 30)
     for i in range(days, -1, -step):
         d = now - timedelta(days=i)
@@ -160,7 +191,7 @@ async def get_site_stats(
             func.count(Session.id).label("tot"),
         ).where(
             and_(
-                Session.site_id == site_id,
+                *common_session_filters,
                 Session.started_at >= day_start,
                 Session.started_at <= day_end
             )
@@ -189,7 +220,7 @@ async def get_site_stats(
         func.count(distinct(Session.visitor_hash)).label("cnt")
     ).where(
         and_(
-            Session.site_id == site_id,
+            *common_session_filters,
             Session.started_at >= start_date,
             Session.referrer_source.is_not(None)
         )
@@ -208,15 +239,28 @@ async def get_site_stats(
     ]
 
     # 7. Top Pages
-    pages_q = select(
-        Pageview.pathname.label("path"),
-        func.count(Pageview.id).label("cnt")
-    ).where(
-        and_(
-            Pageview.site_id == site_id,
-            Pageview.timestamp >= start_date
-        )
-    ).group_by(Pageview.pathname).order_by(desc("cnt")).limit(20)
+    if source or country or browser or device or os_name:
+        pages_q = select(
+            Pageview.pathname.label("path"),
+            func.count(Pageview.id).label("cnt")
+        ).join(Session, Pageview.session_id == Session.id).where(
+            and_(
+                *common_session_filters,
+                Pageview.timestamp >= start_date,
+                (Pageview.pathname == page) if page else True
+            )
+        ).group_by(Pageview.pathname).order_by(desc("cnt")).limit(20)
+    else:
+        pages_q = select(
+            Pageview.pathname.label("path"),
+            func.count(Pageview.id).label("cnt")
+        ).where(
+            and_(
+                Pageview.site_id == site_id,
+                Pageview.timestamp >= start_date,
+                (Pageview.pathname == page) if page else True
+            )
+        ).group_by(Pageview.pathname).order_by(desc("cnt")).limit(20)
 
     pages_res = (await db.execute(pages_q)).all()
     top_pages = [
@@ -236,7 +280,7 @@ async def get_site_stats(
         func.count(distinct(Session.visitor_hash)).label("cnt")
     ).where(
         and_(
-            Session.site_id == site_id,
+            *common_session_filters,
             Session.started_at >= start_date,
             Session.country.is_not(None)
         )
@@ -261,7 +305,7 @@ async def get_site_stats(
             func.count(distinct(Session.visitor_hash)).label("cnt")
         ).where(
             and_(
-                Session.site_id == site_id,
+                *common_session_filters,
                 Session.started_at >= start_date,
                 column.is_not(None)
             )
@@ -296,3 +340,4 @@ async def get_site_stats(
             "os": os_list,
         }
     }
+

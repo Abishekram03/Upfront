@@ -10,8 +10,6 @@ import {
   ShieldCheck,
   User,
   ChevronsUpDown,
-  Laptop,
-  Check,
 } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -50,33 +48,34 @@ export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
   }
 
   return (
-    <div className="relative w-full">
+    <div className="relative">
       <button
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          "w-full flex items-center gap-2.5 rounded-xl border border-neutral-200 bg-white p-2 text-left transition-all hover:bg-neutral-50 hover:border-neutral-300 shadow-xs",
-          isCollapsed ? "justify-center p-2" : "justify-between"
+          "flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5 sm:px-2.5 sm:py-1.5 text-left transition-all hover:bg-slate-50 hover:border-slate-300 shadow-2xs",
+          isCollapsed ? "justify-center p-1.5" : "justify-between"
         )}
         aria-expanded={open}
+        aria-label="User account menu"
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 border border-neutral-200 text-xs font-semibold text-neutral-800">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[#1868db]/10 border border-[#1868db]/20 text-xs font-bold text-[#1868db]">
             {initials}
           </div>
           {!isCollapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-neutral-900 truncate">
+            <div className="hidden sm:flex flex-col min-w-0 text-left">
+              <span className="text-xs font-semibold text-slate-800 truncate max-w-[100px]">
                 {userName}
               </span>
-              <span className="text-[10px] text-neutral-500 truncate">
+              <span className="text-[10px] text-slate-400 truncate max-w-[100px]">
                 {userEmail}
               </span>
             </div>
           )}
         </div>
         {!isCollapsed && (
-          <ChevronsUpDown className="size-3.5 shrink-0 text-neutral-400" />
+          <ChevronsUpDown className="size-3.5 shrink-0 text-slate-400 hidden sm:block" />
         )}
       </button>
 
@@ -86,12 +85,13 @@ export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
             className="fixed inset-0 z-40"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute bottom-full left-0 z-50 mb-1.5 w-full min-w-[240px] rounded-xl border border-neutral-200 bg-white p-1.5 shadow-lg animate-in fade-in-0 zoom-in-95">
+          {/* Opens downward, aligned to the right edge */}
+          <div className="absolute top-full right-0 z-50 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl animate-in fade-in-0 zoom-in-95">
             {/* Header info */}
-            <div className="px-2.5 py-2 border-b border-neutral-100">
-              <p className="text-xs font-semibold text-neutral-900 truncate">{userName}</p>
-              <p className="text-[11px] text-neutral-500 truncate">{userEmail}</p>
-              <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200/60">
+            <div className="px-2.5 py-2 border-b border-slate-100">
+              <p className="text-xs font-bold text-slate-900 truncate">{userName}</p>
+              <p className="text-[11px] text-slate-500 truncate">{userEmail}</p>
+              <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/60">
                 <ShieldCheck className="size-3" />
                 MFA Protected
               </div>
@@ -102,29 +102,29 @@ export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
               <Link
                 href="/settings"
                 onClick={() => setOpen(false)}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
               >
-                <User className="size-3.5 text-neutral-500" />
+                <User className="size-3.5 text-slate-400" />
                 Account & Security
               </Link>
               <Link
                 href="/settings#two-factor"
                 onClick={() => setOpen(false)}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
               >
-                <Shield className="size-3.5 text-neutral-500" />
+                <Shield className="size-3.5 text-slate-400" />
                 Two-Factor (2FA) Setup
               </Link>
             </div>
 
-            <div className="my-1 border-t border-neutral-100" />
+            <div className="my-1 border-t border-slate-100" />
 
             {/* Sign Out Button */}
             <button
               type="button"
               disabled={loggingOut}
               onClick={handleSignOut}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 transition-colors"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors"
             >
               <LogOut className="size-3.5 text-rose-500" />
               {loggingOut ? "Signing out..." : "Sign Out"}
@@ -135,3 +135,4 @@ export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
     </div>
   )
 }
+

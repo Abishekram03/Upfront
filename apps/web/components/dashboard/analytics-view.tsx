@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { useState, useEffect, useRef, useMemo } from "react"
 import Link from "next/link"
@@ -15,16 +15,16 @@ import {
   AlertCircle,
   RefreshCw,
   Plus,
-  Check,
-  Copy,
-  Radio,
+  X,
+  Filter,
 } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DetailsModal, DetailItem } from "./details-modal"
 import { WorldMap } from "./world-map"
+import { SourceFavicon } from "./source-favicon"
 import { cn } from "@workspace/ui/lib/utils"
-import { fetchStats, StatsResponse, API_BASE } from "@/lib/api"
+import { fetchStats, StatsResponse, StatsFilters, API_BASE } from "@/lib/api"
 import { useDomain } from "@/lib/domain-context"
 
 type MetricKey = "visitors" | "pageviews" | "bounceRate" | "duration"
@@ -38,11 +38,13 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
   const chartContainerRef = useRef<HTMLDivElement>(null)
 
+  // Dimensional Filters state
+  const [filters, setFilters] = useState<StatsFilters>({})
+
   // Data states
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
-  const [copiedSnippet, setCopiedSnippet] = useState(false)
 
   // Breakdown Tabs State
   const [sourcesTab, setSourcesTab] = useState<"all">("all")
@@ -55,6 +57,30 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
   const [modalTitle, setModalTitle] = useState("")
   const [modalSubtitle, setModalSubtitle] = useState("")
   const [modalItems, setModalItems] = useState<DetailItem[]>([])
+  const [modalFilterKey, setModalFilterKey] = useState<keyof StatsFilters | null>(null)
+
+  const toggleFilter = (key: keyof StatsFilters, value: string) => {
+    setFilters((prev) => {
+      if (prev[key] === value) {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      }
+      return { ...prev, [key]: value }
+    })
+  }
+
+  const removeFilter = (key: keyof StatsFilters) => {
+    setFilters((prev) => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  const clearAllFilters = () => {
+    setFilters({})
+  }
 
   const loadData = async () => {
     if (!activeDomain) {
@@ -67,7 +93,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
     setError(null)
 
     try {
-      const data = await fetchStats(activeDomain, period)
+      const data = await fetchStats(activeDomain, period, filters)
       setStats(data)
       setRealtimeVisitors(data.realtime_visitors || 0)
     } catch (err: any) {
@@ -81,7 +107,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
 
   useEffect(() => {
     loadData()
-  }, [activeDomain, period])
+  }, [activeDomain, period, filters])
 
   // Metric definitions mapped from real API stats
   const metricsConfig = useMemo(() => {
@@ -212,7 +238,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
       label: s.label,
       value: s.value >= 1000 ? `${(s.value / 1000).toFixed(1)}k` : s.value.toLocaleString(),
       percentage: s.percentage,
-      icon: s.icon || "ðŸŒ",
+      icon: s.icon,
       sublabel: s.sublabel || undefined,
     }))
   }, [stats])
@@ -233,7 +259,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
       label: c.label,
       value: c.value >= 1000 ? `${(c.value / 1000).toFixed(1)}k` : c.value.toLocaleString(),
       percentage: c.percentage,
-      icon: c.icon || "ðŸŒ",
+      icon: c.icon || "🌐",
     }))
   }, [stats])
 
@@ -276,10 +302,16 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
   const activeDeviceItems =
     devicesTab === "size" ? screenSizesData : devicesTab === "browser" ? browsersData : osData
 
-  const openDetailsModal = (title: string, subtitle: string, items: DetailItem[]) => {
+  const openDetailsModal = (
+    title: string,
+    subtitle: string,
+    items: DetailItem[],
+    filterKey?: keyof StatsFilters
+  ) => {
     setModalTitle(title)
     setModalSubtitle(subtitle)
     setModalItems(items)
+    setModalFilterKey(filterKey || null)
     setModalOpen(true)
   }
 
@@ -387,103 +419,61 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
     )
   }
 
-  // 4. EMPTY STATE: SITE ADDED BUT 0 DATA / WAITING FOR FIRST EVENT
-  const totalVisitors = stats?.metrics.visitors || 0
-  const totalPageviews = stats?.metrics.pageviews || 0
-
-  if (totalVisitors === 0 && totalPageviews === 0) {
-    return (
-      <div className="space-y-6">
-        {/* Waiting for data banner */}
-        <div className="rounded-2xl border border-neutral-200 bg-white p-8 sm:p-12 shadow-xs text-center">
-          <div className="mx-auto flex max-w-lg flex-col items-center space-y-4">
-            <div className="relative flex size-14 items-center justify-center rounded-2xl bg-blue-50 border border-blue-200 text-[#1868db] shadow-2xs">
-              <span className="absolute -top-1 -right-1 flex size-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex size-3 rounded-full bg-[#1868db]"></span>
-              </span>
-              <Radio className="size-7" />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-[#1868db]">
-                <span className="size-2 rounded-full bg-[#1868db] animate-pulse" />
-                Listening for pageviews in real-time...
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 pt-1">
-                Waiting for data from {activeDomain}
-              </h2>
-              <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
-                Your site is registered! To start recording cookieless visitor metrics, paste this tracking snippet into your site's <code className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">&lt;head&gt;</code> tag:
-              </p>
-            </div>
-
-            {/* Script Box - Light theme with syntax highlighting */}
-            <div className="w-full relative rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-left shadow-2xs">
-              <pre className="font-mono text-xs overflow-x-auto select-all pr-20 leading-relaxed">
-                <code>
-                  <span className="text-blue-700 font-semibold">&lt;script</span>{" "}
-                  <span className="text-purple-700 font-medium">defer</span>{" "}
-                  <span className="text-purple-700 font-medium">data-domain</span>=
-                  <span className="text-emerald-700">&quot;{activeDomain}&quot;</span>{" "}
-                  <span className="text-purple-700 font-medium">src</span>=
-                  <span className="text-emerald-700">&quot;{typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"}/userly.js&quot;</span>
-                  <span className="text-blue-700 font-semibold">&gt;&lt;/script&gt;</span>
-                </code>
-              </pre>
-              <button
-                type="button"
-                onClick={() => {
-                  const host = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
-                  navigator.clipboard.writeText(
-                    `<script defer data-domain="${activeDomain}" src="${host}/userly.js"></script>`
-                  )
-                  setCopiedSnippet(true)
-                  setTimeout(() => setCopiedSnippet(false), 2000)
-                }}
-                className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
-              >
-                {copiedSnippet ? (
-                  <>
-                    <Check className="size-3.5 text-emerald-600" />
-                    <span className="text-emerald-700">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="size-3.5 text-slate-500" />
-                    <span>Copy</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <Button
-                variant="outline"
-                onClick={loadData}
-                className="text-xs text-neutral-700 border-neutral-200 hover:bg-neutral-50 gap-1.5"
-              >
-                <RefreshCw className="size-3.5" /> Check Again
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // 5. SUCCESS STATE: REAL DATA VISUALIZATIONS
+  // 4. MAIN ANALYTICS DASHBOARD (Always renders full dashboard, metrics, charts, and period controls)
   return (
     <div className="space-y-6">
-      {/* Period Filter Selector */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-bold text-neutral-900 tracking-tight">
-            Dashboard for <span className="text-indigo-600">{activeDomain}</span>
+      {/* Period Filter Selector + Active Filter Badges */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5 shrink-0">
+            <span>Dashboard for</span>
+            <span className="text-[#1868db] underline decoration-blue-300 underline-offset-4 font-semibold">{activeDomain}</span>
           </h2>
+
+          {/* Active Filter Badges */}
+          {Object.keys(filters).length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 ml-0 sm:ml-2">
+              {Object.entries(filters).map(([key, val]) => {
+                if (!val) return null
+                const filterKey = key as keyof StatsFilters
+                const labelMap: Record<keyof StatsFilters, string> = {
+                  source: "Source",
+                  page: "Page",
+                  country: "Country",
+                  browser: "Browser",
+                  device: "Device",
+                  os: "OS",
+                }
+                return (
+                  <span
+                    key={key}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200/90 pl-2.5 pr-1.5 py-0.5 text-xs font-semibold text-[#1868db] shadow-2xs animate-in fade-in-0"
+                  >
+                    <span className="text-slate-500 font-medium text-[11px]">{labelMap[filterKey]}:</span>
+                    <span className="font-bold">{val}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFilter(filterKey)}
+                      className="rounded-full p-0.5 hover:bg-blue-200/80 text-blue-600 hover:text-blue-900 transition-colors cursor-pointer"
+                      title={`Remove ${labelMap[filterKey]} filter`}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                )
+              })}
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 transition-colors underline px-1 cursor-pointer"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-[4px] p-1 shadow-xs">
+        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-[4px] p-1 shadow-xs self-start md:self-auto">
           {[
             { key: "24h", label: "24 Hours" },
             { key: "7d", label: "7 Days" },
@@ -735,26 +725,40 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
               </div>
             ) : (
               <div className="space-y-1.5 pt-1">
-                {sourcesData.slice(0, 7).map((item) => (
-                  <div
-                    key={item.id}
-                    className="group relative flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium overflow-hidden hover:bg-neutral-50 transition-colors"
-                  >
+                {sourcesData.slice(0, 7).map((item) => {
+                  const isFiltered = filters.source === item.label
+                  return (
                     <div
-                      style={{ width: `${item.percentage}%` }}
-                      className="absolute inset-y-0 left-0 bg-neutral-100/80 rounded -z-10 transition-all group-hover:bg-neutral-200/60"
-                    />
+                      key={item.id}
+                      onClick={() => toggleFilter("source", item.label)}
+                      onDoubleClick={() => toggleFilter("source", item.label)}
+                      title="Click or double-click to filter by this referrer source"
+                      className={cn(
+                        "group relative flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium overflow-hidden transition-all cursor-pointer select-none",
+                        isFiltered
+                          ? "ring-1.5 ring-[#1868db] bg-blue-50/80 font-bold"
+                          : "hover:bg-neutral-50"
+                      )}
+                    >
+                      <div
+                        style={{ width: `${item.percentage}%` }}
+                        className={cn(
+                          "absolute inset-y-0 left-0 rounded -z-10 transition-all",
+                          isFiltered ? "bg-blue-100/70" : "bg-neutral-100/80 group-hover:bg-neutral-200/60"
+                        )}
+                      />
 
-                    <div className="flex items-center gap-2 z-10 truncate">
-                      <span className="text-sm shrink-0">{item.icon}</span>
-                      <span className="text-neutral-900 font-semibold truncate">{item.label}</span>
+                      <div className="flex items-center gap-2 z-10 truncate">
+                        <SourceFavicon label={item.label} />
+                        <span className="text-neutral-900 font-semibold truncate">{item.label}</span>
+                      </div>
+
+                      <span className="text-neutral-800 font-bold font-mono z-10 shrink-0">
+                        {item.value}
+                      </span>
                     </div>
-
-                    <span className="text-neutral-800 font-bold font-mono z-10 shrink-0">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -763,7 +767,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
             <div className="mt-4 pt-3 border-t border-neutral-100 flex justify-center">
               <button
                 type="button"
-                onClick={() => openDetailsModal("Top Traffic Sources", "Referrers and campaign origins", sourcesData)}
+                onClick={() => openDetailsModal("Top Traffic Sources", "Referrers and campaign origins", sourcesData, "source")}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-indigo-600 transition-colors"
               >
                 <Maximize2 className="size-3" /> Details
@@ -802,30 +806,52 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
               </div>
             ) : (
               <div className="space-y-1.5 pt-1">
-                {pagesData.slice(0, 7).map((item) => (
-                  <div
-                    key={item.id}
-                    className="group relative flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium overflow-hidden hover:bg-neutral-50 transition-colors"
-                  >
+                {pagesData.slice(0, 7).map((item) => {
+                  const isFiltered = filters.page === item.label
+                  return (
                     <div
-                      style={{ width: `${item.percentage}%` }}
-                      className="absolute inset-y-0 left-0 bg-amber-50/80 rounded -z-10 transition-all group-hover:bg-amber-100/70"
-                    />
-
-                    <div className="flex items-center gap-1.5 z-10 truncate max-w-[80%]">
-                      <span className="text-neutral-900 font-mono text-[11px] truncate">
-                        {item.label}
-                      </span>
-                      {item.link && (
-                        <ExternalLink className="size-3 text-neutral-400 shrink-0 group-hover:text-neutral-700" />
+                      key={item.id}
+                      onClick={() => toggleFilter("page", item.label)}
+                      onDoubleClick={() => toggleFilter("page", item.label)}
+                      title="Click or double-click to filter by this page"
+                      className={cn(
+                        "group relative flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium overflow-hidden transition-all cursor-pointer select-none",
+                        isFiltered
+                          ? "ring-1.5 ring-[#1868db] bg-blue-50/80 font-bold"
+                          : "hover:bg-neutral-50"
                       )}
-                    </div>
+                    >
+                      <div
+                        style={{ width: `${item.percentage}%` }}
+                        className={cn(
+                          "absolute inset-y-0 left-0 rounded -z-10 transition-all",
+                          isFiltered ? "bg-blue-100/70" : "bg-amber-50/80 group-hover:bg-amber-100/70"
+                        )}
+                      />
 
-                    <span className="text-neutral-800 font-bold font-mono z-10 shrink-0">
-                      {item.value}
-                    </span>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-1.5 z-10 truncate max-w-[80%]">
+                        <span className="text-neutral-900 font-mono text-[11px] truncate">
+                          {item.label}
+                        </span>
+                        {item.link && (
+                          <a
+                            href={item.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-neutral-400 hover:text-neutral-700 inline-flex shrink-0"
+                          >
+                            <ExternalLink className="size-3" />
+                          </a>
+                        )}
+                      </div>
+
+                      <span className="text-neutral-800 font-bold font-mono z-10 shrink-0">
+                        {item.value}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -834,7 +860,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
             <div className="mt-4 pt-3 border-t border-neutral-100 flex justify-center">
               <button
                 type="button"
-                onClick={() => openDetailsModal("Top Pages & Screens", "Visited paths and entry points", pagesData)}
+                onClick={() => openDetailsModal("Top Pages & Screens", "Visited paths and entry points", pagesData, "page")}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-indigo-600 transition-colors"
               >
                 <Maximize2 className="size-3" /> Details
@@ -870,7 +896,10 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
 
             {locationsTab === "map" ? (
               <div className="pt-2">
-                <WorldMap locations={stats?.locations || []} />
+                <WorldMap
+                  locations={stats?.locations || []}
+                  onSelectCountry={(country) => toggleFilter("country", country)}
+                />
               </div>
             ) : countriesData.length === 0 ? (
               <div className="py-8 text-center text-xs text-neutral-400">
@@ -878,21 +907,32 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
               </div>
             ) : (
               <div className="space-y-1.5 pt-2">
-                {countriesData.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium hover:bg-neutral-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{item.icon}</span>
-                      <span className="text-neutral-900">{item.label}</span>
+                {countriesData.map((item) => {
+                  const isFiltered = filters.country === item.label
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleFilter("country", item.label)}
+                      onDoubleClick={() => toggleFilter("country", item.label)}
+                      title="Click or double-click to filter by this country"
+                      className={cn(
+                        "flex items-center justify-between py-1.5 px-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer select-none",
+                        isFiltered
+                          ? "ring-1.5 ring-[#1868db] bg-blue-50/80 font-bold"
+                          : "hover:bg-neutral-50"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{item.icon}</span>
+                        <span className="text-neutral-900">{item.label}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-neutral-800 font-bold">{item.value}</span>
+                        <span className="text-[11px] text-neutral-400 w-8 text-right">{item.percentage}%</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-neutral-800 font-bold">{item.value}</span>
-                      <span className="text-[11px] text-neutral-400 w-8 text-right">{item.percentage}%</span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
@@ -901,7 +941,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
             <div className="mt-4 pt-3 border-t border-neutral-100 flex justify-center">
               <button
                 type="button"
-                onClick={() => openDetailsModal("Visitor Locations", "Geographic breakdown by countries", countriesData)}
+                onClick={() => openDetailsModal("Visitor Locations", "Geographic breakdown by countries", countriesData, "country")}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-indigo-600 transition-colors"
               >
                 <Maximize2 className="size-3" /> Details
@@ -944,15 +984,29 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
             ) : (
               <div className="space-y-2 pt-1">
                 {activeDeviceItems.map((item) => {
+                  const currentFilterKey: keyof StatsFilters =
+                    devicesTab === "size" ? "device" : devicesTab === "browser" ? "browser" : "os"
+                  const isFiltered = filters[currentFilterKey] === item.label
                   const Icon = item.icon
                   return (
                     <div
                       key={item.id}
-                      className="group relative flex items-center justify-between py-2 px-2.5 rounded-lg text-xs font-medium overflow-hidden hover:bg-neutral-50 transition-colors"
+                      onClick={() => toggleFilter(currentFilterKey, item.label)}
+                      onDoubleClick={() => toggleFilter(currentFilterKey, item.label)}
+                      title={`Click or double-click to filter by ${item.label}`}
+                      className={cn(
+                        "group relative flex items-center justify-between py-2 px-2.5 rounded-lg text-xs font-medium overflow-hidden transition-all cursor-pointer select-none",
+                        isFiltered
+                          ? "ring-1.5 ring-[#1868db] bg-blue-50/80 font-bold"
+                          : "hover:bg-neutral-50"
+                      )}
                     >
                       <div
                         style={{ width: `${item.percentage}%` }}
-                        className="absolute inset-y-0 left-0 bg-emerald-50 rounded -z-10 transition-all group-hover:bg-emerald-100/70"
+                        className={cn(
+                          "absolute inset-y-0 left-0 rounded -z-10 transition-all",
+                          isFiltered ? "bg-blue-100/70" : "bg-emerald-50 group-hover:bg-emerald-100/70"
+                        )}
                       />
 
                       <div className="flex items-center gap-2 z-10">
@@ -975,7 +1029,11 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
             <div className="mt-4 pt-3 border-t border-neutral-100 flex justify-center">
               <button
                 type="button"
-                onClick={() => openDetailsModal("Device Breakdowns", "Screen sizes, browsers, and operating systems", activeDeviceItems)}
+                onClick={() => {
+                  const currentFilterKey: keyof StatsFilters =
+                    devicesTab === "size" ? "device" : devicesTab === "browser" ? "browser" : "os"
+                  openDetailsModal("Device Breakdowns", "Screen sizes, browsers, and operating systems", activeDeviceItems, currentFilterKey)
+                }}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-indigo-600 transition-colors"
               >
                 <Maximize2 className="size-3" /> Details
@@ -996,8 +1054,16 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
           { label: "Visitors", key: "value", align: "right" },
         ]}
         items={modalItems}
+        onSelectItem={(item) => {
+          if (modalFilterKey) {
+            toggleFilter(modalFilterKey, item.label)
+          }
+          setModalOpen(false)
+        }}
       />
     </div>
   )
 }
+
+
 

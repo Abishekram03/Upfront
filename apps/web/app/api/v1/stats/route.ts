@@ -30,6 +30,11 @@ const COUNTRY_NAMES: Record<string, string> = {
   SE: "Sweden",
 }
 
+const COUNTRY_CODES: Record<string, string> = Object.entries(COUNTRY_NAMES).reduce(
+  (acc, [k, v]) => ({ ...acc, [v.toLowerCase()]: k }),
+  {}
+)
+
 function countryCodeToFlag(countryCode?: string | null): string {
   if (!countryCode || countryCode.length !== 2) return "🌍"
   const code = countryCode.toUpperCase()
@@ -43,6 +48,17 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const domain = sanitizeDomain(searchParams.get("domain"))
     const period = searchParams.get("period") || "30d"
+
+    const filterSource = searchParams.get("source")
+    const filterPage = searchParams.get("page")
+    const filterCountry = searchParams.get("country")
+    const filterBrowser = searchParams.get("browser")
+    const filterDevice = searchParams.get("device")
+    const filterOs = searchParams.get("os")
+
+    const countryCode = filterCountry
+      ? COUNTRY_CODES[filterCountry.toLowerCase()] || filterCountry.toUpperCase()
+      : null
 
     if (!domain) {
       return NextResponse.json({ detail: "Domain parameter is required" }, { status: 400 })
@@ -58,28 +74,69 @@ export async function GET(req: Request) {
     else if (period === "7d") days = 7
     else if (period === "12m") days = 365
 
+    // Helper to build dynamic session SQL conditions
+    const buildSessionConditions = (paramStartIndex: number) => {
+      const conditions: string[] = []
+      const params: any[] = []
+      let idx = paramStartIndex
+
+      if (filterSource) {
+        conditions.push(`s.referrer_source = $${idx++}`)
+        params.push(filterSource)
+      }
+      if (countryCode) {
+        conditions.push(`s.country = $${idx++}`)
+        params.push(countryCode)
+      }
+      if (filterBrowser) {
+        conditions.push(`s.browser = $${idx++}`)
+        params.push(filterBrowser)
+      }
+      if (filterDevice) {
+        conditions.push(`s.device = $${idx++}`)
+        params.push(filterDevice)
+      }
+      if (filterOs) {
+        conditions.push(`s.os = $${idx++}`)
+        params.push(filterOs)
+      }
+      if (filterPage) {
+        conditions.push(`s.id IN (SELECT session_id FROM pageviews WHERE site_id = s.site_id AND pathname = $${idx++})`)
+        params.push(filterPage)
+      }
+
+      return {
+        sql: conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "",
+        params,
+      }
+    }
+
     // 3. Realtime active visitors (last 5 min)
+    const rtExtra = buildSessionConditions(2)
     const rtRes = await pool.query(
-      `SELECT COUNT(DISTINCT visitor_hash)::int AS count
-       FROM sessions
-       WHERE site_id = $1 AND last_activity_at >= NOW() - INTERVAL '5 minutes'`,
-      [siteId]
+      `SELECT COUNT(DISTINCT s.visitor_hash)::int AS count
+       FROM sessions s
+       WHERE s.site_id = $1 AND s.last_activity_at >= NOW() - INTERVAL '5 minutes'
+       ${rtExtra.sql}`,
+      [siteId, ...rtExtra.params]
     )
     const realtimeVisitors = rtRes.rows[0]?.count || 0
 
     // 4. Current Period Metrics
+    const currExtra = buildSessionConditions(3)
     const currRes = await pool.query(
       `SELECT
-         COUNT(DISTINCT visitor_hash)::int AS unique_visitors,
-         COALESCE(SUM(pageviews_count), 0)::int AS total_pageviews,
-         COALESCE(AVG(duration), 0)::int AS avg_duration,
-         COALESCE(SUM(CASE WHEN is_bounce THEN 1 ELSE 0 END), 0)::int AS bounces,
-         COUNT(id)::int AS total_sessions
-       FROM sessions
-       WHERE site_id = $1
-         AND started_at >= NOW() - ($2 || ' days')::INTERVAL
-         AND started_at <= NOW()`,
-      [siteId, days]
+         COUNT(DISTINCT s.visitor_hash)::int AS unique_visitors,
+         COALESCE(SUM(s.pageviews_count), 0)::int AS total_pageviews,
+         COALESCE(AVG(s.duration), 0)::int AS avg_duration,
+         COALESCE(SUM(CASE WHEN s.is_bounce THEN 1 ELSE 0 END), 0)::int AS bounces,
+         COUNT(s.id)::int AS total_sessions
+       FROM sessions s
+       WHERE s.site_id = $1
+         AND s.started_at >= NOW() - ($2 || ' days')::INTERVAL
+         AND s.started_at <= NOW()
+         ${currExtra.sql}`,
+      [siteId, days, ...currExtra.params]
     )
     const curr = currRes.rows[0] || {}
     const visitors = curr.unique_visitors || 0
@@ -90,18 +147,20 @@ export async function GET(req: Request) {
     const bounceRate = totalSessions > 0 ? Number(((bounces / totalSessions) * 100).toFixed(1)) : 0
 
     // 5. Previous Period Metrics
+    const prevExtra = buildSessionConditions(4)
     const prevRes = await pool.query(
       `SELECT
-         COUNT(DISTINCT visitor_hash)::int AS prev_visitors,
-         COALESCE(SUM(pageviews_count), 0)::int AS prev_pageviews,
-         COALESCE(AVG(duration), 0)::int AS prev_duration,
-         COALESCE(SUM(CASE WHEN is_bounce THEN 1 ELSE 0 END), 0)::int AS prev_bounces,
-         COUNT(id)::int AS prev_sessions
-       FROM sessions
-       WHERE site_id = $1
-         AND started_at >= NOW() - ($2 || ' days')::INTERVAL
-         AND started_at < NOW() - ($3 || ' days')::INTERVAL`,
-      [siteId, days * 2, days]
+         COUNT(DISTINCT s.visitor_hash)::int AS prev_visitors,
+         COALESCE(SUM(s.pageviews_count), 0)::int AS prev_pageviews,
+         COALESCE(AVG(s.duration), 0)::int AS prev_duration,
+         COALESCE(SUM(CASE WHEN s.is_bounce THEN 1 ELSE 0 END), 0)::int AS prev_bounces,
+         COUNT(s.id)::int AS prev_sessions
+       FROM sessions s
+       WHERE s.site_id = $1
+         AND s.started_at >= NOW() - ($2 || ' days')::INTERVAL
+         AND s.started_at < NOW() - ($3 || ' days')::INTERVAL
+         ${prevExtra.sql}`,
+      [siteId, days * 2, days, ...prevExtra.params]
     )
     const prev = prevRes.rows[0] || {}
     const prevVisitors = prev.prev_visitors || 0
@@ -133,6 +192,7 @@ export async function GET(req: Request) {
 
     // 6. Time Series (Daily points)
     const step = days <= 30 ? 1 : Math.floor(days / 30)
+    const tsExtra = buildSessionConditions(4)
     const timeSeriesRes = await pool.query(
       `SELECT
          TO_CHAR(d, 'YYYY-MM-DD') AS date,
@@ -147,10 +207,10 @@ export async function GET(req: Request) {
          DATE_TRUNC('day', NOW()),
          ($3 || ' day')::INTERVAL
        ) d
-       LEFT JOIN sessions s ON s.site_id = $1 AND DATE_TRUNC('day', s.started_at) = d
+       LEFT JOIN sessions s ON s.site_id = $1 AND DATE_TRUNC('day', s.started_at) = d ${tsExtra.sql}
        GROUP BY d
        ORDER BY d ASC`,
-      [siteId, days, step]
+      [siteId, days, step, ...tsExtra.params]
     )
 
     const timeSeries = timeSeriesRes.rows.map((row: any) => {
@@ -168,16 +228,18 @@ export async function GET(req: Request) {
     })
 
     // 7. Top Sources
+    const sourcesExtra = buildSessionConditions(3)
     const sourcesRes = await pool.query(
       `SELECT
-         COALESCE(referrer_source, 'Direct') AS name,
-         COUNT(DISTINCT visitor_hash)::int AS cnt
-       FROM sessions
-       WHERE site_id = $1 AND started_at >= NOW() - ($2 || ' days')::INTERVAL
-       GROUP BY referrer_source
+         COALESCE(s.referrer_source, 'Direct') AS name,
+         COUNT(DISTINCT s.visitor_hash)::int AS cnt
+       FROM sessions s
+       WHERE s.site_id = $1 AND s.started_at >= NOW() - ($2 || ' days')::INTERVAL
+       ${sourcesExtra.sql}
+       GROUP BY s.referrer_source
        ORDER BY cnt DESC
        LIMIT 20`,
-      [siteId, days]
+      [siteId, days, ...sourcesExtra.params]
     )
     const topSources = sourcesRes.rows.map((row: any, idx: number) => ({
       id: `s_${idx}`,
@@ -188,16 +250,24 @@ export async function GET(req: Request) {
     }))
 
     // 8. Top Pages
+    const pageFilterSql = filterPage ? `AND p.pathname = $3` : ""
+    const pageFilterParams = filterPage ? [filterPage] : []
+    const pagesExtra = buildSessionConditions(filterPage ? 4 : 3)
+
     const pagesRes = await pool.query(
       `SELECT
-         pathname AS path,
-         COUNT(id)::int AS cnt
-       FROM pageviews
-       WHERE site_id = $1 AND timestamp >= NOW() - ($2 || ' days')::INTERVAL
-       GROUP BY pathname
+         p.pathname AS path,
+         COUNT(p.id)::int AS cnt
+       FROM pageviews p
+       JOIN sessions s ON s.id = p.session_id
+       WHERE p.site_id = $1 
+         AND p.timestamp >= NOW() - ($2 || ' days')::INTERVAL
+         ${pageFilterSql}
+         ${pagesExtra.sql}
+       GROUP BY p.pathname
        ORDER BY cnt DESC
        LIMIT 20`,
-      [siteId, days]
+      [siteId, days, ...pageFilterParams, ...pagesExtra.params]
     )
     const topPages = pagesRes.rows.map((row: any, idx: number) => ({
       id: `p_${idx}`,
@@ -208,16 +278,18 @@ export async function GET(req: Request) {
     }))
 
     // 9. Locations
+    const geoExtra = buildSessionConditions(3)
     const geoRes = await pool.query(
       `SELECT
-         COALESCE(country, 'US') AS code,
-         COUNT(DISTINCT visitor_hash)::int AS cnt
-       FROM sessions
-       WHERE site_id = $1 AND started_at >= NOW() - ($2 || ' days')::INTERVAL
-       GROUP BY country
+         COALESCE(s.country, 'US') AS code,
+         COUNT(DISTINCT s.visitor_hash)::int AS cnt
+       FROM sessions s
+       WHERE s.site_id = $1 AND s.started_at >= NOW() - ($2 || ' days')::INTERVAL
+       ${geoExtra.sql}
+       GROUP BY s.country
        ORDER BY cnt DESC
        LIMIT 30`,
-      [siteId, days]
+      [siteId, days, ...geoExtra.params]
     )
     const locations = geoRes.rows.map((row: any, idx: number) => ({
       id: `c_${idx}`,
@@ -229,16 +301,18 @@ export async function GET(req: Request) {
 
     // 10. Devices breakdown
     const getBreakdown = async (column: "device" | "browser" | "os") => {
+      const devExtra = buildSessionConditions(3)
       const res = await pool.query(
         `SELECT
-           COALESCE(${column}, 'Unknown') AS name,
-           COUNT(DISTINCT visitor_hash)::int AS cnt
-         FROM sessions
-         WHERE site_id = $1 AND started_at >= NOW() - ($2 || ' days')::INTERVAL
-         GROUP BY ${column}
+           COALESCE(s.${column}, 'Unknown') AS name,
+           COUNT(DISTINCT s.visitor_hash)::int AS cnt
+         FROM sessions s
+         WHERE s.site_id = $1 AND s.started_at >= NOW() - ($2 || ' days')::INTERVAL
+         ${devExtra.sql}
+         GROUP BY s.${column}
          ORDER BY cnt DESC
          LIMIT 10`,
-        [siteId, days]
+        [siteId, days, ...devExtra.params]
       )
       return res.rows.map((row: any, idx: number) => ({
         id: `dev_${column}_${idx}`,
@@ -274,3 +348,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ detail: err.message || "Failed to fetch stats" }, { status: 500 })
   }
 }
+
