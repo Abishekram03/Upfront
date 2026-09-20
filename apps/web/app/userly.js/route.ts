@@ -443,14 +443,14 @@ const TRACKER_SCRIPT = `(function () {
           border-radius: 0;
         }
       \`;
-    } else if (layout === "box" || layout === "floating_box") {
-      var isRight = config.revisit_button_position === "bottom_right";
+    } else if (layout === "floating_bottom_left" || (layout === "box" && config.revisit_button_position !== "bottom_right")) {
       layoutStyles = \`
         .usrly-banner-wrapper {
           position: fixed;
           bottom: 24px;
-          \${isRight ? "right: 24px;" : "left: 24px;"}
+          left: 24px;
           max-width: 440px;
+          width: calc(100% - 32px);
           border-radius: \${borderRadius};
           border: 1px solid \${borderCard};
           box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2);
@@ -460,36 +460,89 @@ const TRACKER_SCRIPT = `(function () {
           align-items: flex-start !important;
         }
         .usrly-btn-group {
-          width: 100%;
-          justify-content: stretch;
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          width: 100% !important;
+          gap: 6px !important;
         }
         .usrly-btn-group .usrly-btn {
-          flex: 1;
+          width: 100% !important;
+          padding: 8px 4px !important;
+          font-size: 12px !important;
+          text-align: center !important;
+          text-overflow: ellipsis;
+          overflow: hidden;
         }
       \`;
-    } else if (layout === "popup" || layout === "modal") {
+    } else if (layout === "floating_bottom_right" || (layout === "box" && config.revisit_button_position === "bottom_right") || layout === "floating_box") {
       layoutStyles = \`
         .usrly-banner-wrapper {
           position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          max-width: 520px;
-          width: 90%;
+          bottom: 24px;
+          right: 24px;
+          max-width: 440px;
+          width: calc(100% - 32px);
           border-radius: \${borderRadius};
           border: 1px solid \${borderCard};
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2);
         }
         .usrly-banner-inner {
           flex-direction: column !important;
           align-items: flex-start !important;
         }
         .usrly-btn-group {
-          width: 100%;
-          justify-content: stretch;
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          width: 100% !important;
+          gap: 6px !important;
         }
         .usrly-btn-group .usrly-btn {
-          flex: 1;
+          width: 100% !important;
+          padding: 8px 4px !important;
+          font-size: 12px !important;
+          text-align: center !important;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+      \`;
+    } else if (layout === "center_modal" || layout === "popup" || layout === "modal") {
+      layoutStyles = \`
+        .usrly-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.45);
+          backdrop-filter: blur(2px);
+          z-index: 2147483645;
+        }
+        .usrly-banner-wrapper {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          max-width: 440px;
+          width: calc(100% - 32px);
+          border-radius: \${borderRadius};
+          border: 1px solid \${borderCard};
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+          z-index: 2147483646;
+        }
+        .usrly-banner-inner {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+        }
+        .usrly-btn-group {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          width: 100% !important;
+          gap: 6px !important;
+        }
+        .usrly-btn-group .usrly-btn {
+          width: 100% !important;
+          padding: 8px 4px !important;
+          font-size: 12px !important;
+          text-align: center !important;
+          text-overflow: ellipsis;
+          overflow: hidden;
         }
       \`;
     } else {
@@ -599,6 +652,27 @@ const TRACKER_SCRIPT = `(function () {
       }
       .usrly-btn-secondary:hover {
         background: \${isDark ? "#334155" : "#f8fafc"};
+      }
+
+      @media (max-width: 640px) {
+        .usrly-banner-inner {
+          flex-direction: column !important;
+          align-items: stretch !important;
+        }
+        .usrly-btn-group {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          width: 100% !important;
+          gap: 6px !important;
+        }
+        .usrly-btn-group .usrly-btn {
+          width: 100% !important;
+          padding: 8px 4px !important;
+          font-size: 11.5px !important;
+          text-align: center !important;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
       }
 
       .usrly-modal-overlay {
@@ -984,6 +1058,12 @@ const TRACKER_SCRIPT = `(function () {
     if (openPreferencesDirectly) {
       showPreferencesModal();
       return;
+    }
+
+    if (layout === "center_modal" || layout === "popup" || layout === "modal") {
+      var backdrop = document.createElement("div");
+      backdrop.className = "usrly-backdrop";
+      shadow.appendChild(backdrop);
     }
 
     var banner = document.createElement("div");

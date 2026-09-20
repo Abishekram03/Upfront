@@ -621,46 +621,119 @@ export function BannerStudio() {
               {/* PREVIEW 1: PRIMARY BANNER (COOKIE YES RECTANGULAR STYLE) */}
               {/* ======================================================== */}
               {previewTab === "banner" && (
-                <div
-                  className={cn(
-                    "p-4 bg-white border-t border-slate-200 shadow-xl transition-all",
-                    config.layout === "floating_bottom_left" && "m-3 rounded-[4px] border shadow-2xl max-w-sm",
-                    config.layout === "floating_bottom_right" && "m-3 ml-auto rounded-[4px] border shadow-2xl max-w-sm",
-                    config.layout === "center_modal" && "m-auto rounded-[4px] border shadow-2xl max-w-md"
-                  )}
-                >
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">{config.title}</h4>
-                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">{config.description}</p>
-                    </div>
+                <>
+                  {config.layout === "center_modal" ? (
+                    <div className="absolute inset-0 z-20 bg-slate-950/45 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in-0">
+                      <div className="bg-white rounded-[6px] shadow-2xl w-full max-w-[420px] p-4.5 border border-slate-200 space-y-3.5 animate-in zoom-in-95">
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900">{config.title}</h4>
+                          <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">{config.description}</p>
+                        </div>
 
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewTab("preferences_modal")}
-                        className="px-4 py-2 text-xs font-bold rounded-[4px] border-2 border-[#1868db] text-[#1868db] bg-white hover:bg-slate-50 transition-colors shadow-2xs"
-                        style={{ borderColor: config.primary_color, color: config.primary_color }}
-                      >
-                        {config.preferences_label}
-                      </button>
-                      <button
-                        type="button"
-                        className="px-4 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-colors"
-                        style={{ backgroundColor: config.primary_color }}
-                      >
-                        {config.reject_all_label}
-                      </button>
-                      <button
-                        type="button"
-                        className="px-4 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-colors ml-auto"
-                        style={{ backgroundColor: config.primary_color }}
-                      >
-                        {config.accept_all_label}
-                      </button>
+                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 w-full">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewTab("preferences_modal")}
+                            className="w-full px-1.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-colors shadow-2xs text-center truncate"
+                            style={{ borderColor: config.primary_color, color: config.primary_color }}
+                          >
+                            {config.preferences_label}
+                          </button>
+                          <button
+                            type="button"
+                            className="w-full px-1.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-colors text-center truncate"
+                            style={{ backgroundColor: config.primary_color }}
+                          >
+                            {config.reject_all_label}
+                          </button>
+                          <button
+                            type="button"
+                            className="w-full px-1.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-colors text-center truncate"
+                            style={{ backgroundColor: config.primary_color }}
+                          >
+                            {config.accept_all_label}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  ) : config.layout === "bottom_bar" ? (
+                    <div className="p-4 bg-white border-t border-slate-200 shadow-xl transition-all z-10">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div className="space-y-1 flex-1">
+                          <h4 className="text-xs font-bold text-slate-900">{config.title}</h4>
+                          <p className="text-[11px] text-slate-600 leading-relaxed">{config.description}</p>
+                        </div>
+
+                        <div className={cn(
+                          previewDevice === "mobile" 
+                            ? "grid grid-cols-3 gap-2 w-full pt-1" 
+                            : "flex items-center gap-2 shrink-0"
+                        )}>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewTab("preferences_modal")}
+                            className="px-3.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-colors shadow-2xs text-center truncate"
+                            style={{ borderColor: config.primary_color, color: config.primary_color }}
+                          >
+                            {config.preferences_label}
+                          </button>
+                          <button
+                            type="button"
+                            className="px-3.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-colors text-center truncate"
+                            style={{ backgroundColor: config.primary_color }}
+                          >
+                            {config.reject_all_label}
+                          </button>
+                          <button
+                            type="button"
+                            className="px-4 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-colors text-center truncate"
+                            style={{ backgroundColor: config.primary_color }}
+                          >
+                            {config.accept_all_label}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Floating Bottom Left & Floating Bottom Right */
+                    <div
+                      className={cn(
+                        "p-4 bg-white rounded-[6px] border border-slate-200 shadow-2xl transition-all z-10 max-w-sm m-3 space-y-3",
+                        config.layout === "floating_bottom_left" ? "mr-auto" : "ml-auto"
+                      )}
+                    >
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">{config.title}</h4>
+                        <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">{config.description}</p>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 pt-1 w-full">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewTab("preferences_modal")}
+                          className="w-full px-1.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-colors shadow-2xs text-center truncate"
+                          style={{ borderColor: config.primary_color, color: config.primary_color }}
+                        >
+                          {config.preferences_label}
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full px-1.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-colors text-center truncate"
+                          style={{ backgroundColor: config.primary_color }}
+                        >
+                          {config.reject_all_label}
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full px-1.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-colors text-center truncate"
+                          style={{ backgroundColor: config.primary_color }}
+                        >
+                          {config.accept_all_label}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* ======================================================== */}
