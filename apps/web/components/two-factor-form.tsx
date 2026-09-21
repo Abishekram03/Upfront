@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -126,9 +127,14 @@ export function TwoFactorForm({
 
           <div className="relative hidden bg-neutral-50 p-8 md:flex flex-col justify-between border-l border-neutral-200">
             <div className="flex items-center gap-2">
-              <span className="font-[family-name:var(--font-ojuju)] text-3xl font-[800] tracking-tight text-neutral-900">
-                Userly
-              </span>
+              <Image
+                src="/UpFront-Logo-Blue-600.svg"
+                alt="UpFront Logo"
+                width={130}
+                height={36}
+                className="h-8 w-auto object-contain"
+                priority
+              />
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-neutral-900 leading-snug">

@@ -22,7 +22,7 @@ export async function GET() {
     try {
       const dbRes = await client.query("SELECT current_database(), current_user, inet_server_addr(), version()")
       result.database = "connected"
-      result.dbInfo = dbRes.rows[0]
+      result.dbInfo = dbRes.rows[0] || null
 
       // Check tables
       const tableCheck = await client.query(`

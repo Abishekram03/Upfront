@@ -111,7 +111,7 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
 
   // Metric definitions mapped from real API stats
   const metricsConfig = useMemo(() => {
-    if (!stats) return []
+    if (!stats || !stats.metrics) return []
     const m = stats.metrics
     return [
       {

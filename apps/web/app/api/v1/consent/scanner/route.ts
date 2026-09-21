@@ -24,6 +24,11 @@ export async function GET(req: Request) {
       [domain]
     )
 
+    const allScansRes = await pool.query(
+      `SELECT * FROM scans WHERE domain = $1 ORDER BY created_at DESC LIMIT 20`,
+      [domain]
+    )
+
     const cookiesRes = await pool.query(
       `SELECT * FROM discovered_cookies WHERE domain = $1 ORDER BY category ASC, name ASC`,
       [domain]
@@ -42,6 +47,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       latest_scan: latestScan,
+      scan_history: allScansRes.rows || [],
       cookies: cookiesRes.rows || [],
       pre_consent_leaks: leaks,
     })
@@ -146,7 +152,7 @@ export async function POST(req: Request) {
         [domain, cookieName]
       )
 
-      if (existingRes.rows.length > 0) {
+      if (existingRes.rows.length > 0 && existingRes.rows[0]) {
         await pool.query(
           `UPDATE discovered_cookies 
            SET last_detected_at = NOW(),
@@ -203,7 +209,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      latest_scan: latestScan.rows[0],
+      latest_scan: latestScan.rows[0] || null,
       cookies: updatedCookies.rows || [],
       pre_consent_leaks: leakList,
     })
@@ -242,7 +248,7 @@ export async function PATCH(req: Request) {
       [cookieId]
     )
 
-    return NextResponse.json(updated.rows[0])
+    return NextResponse.json(updated.rows[0] || null)
   } catch (err: any) {
     console.error("PATCH /api/v1/consent/scanner error:", err)
     return NextResponse.json({ detail: err.message || "Failed to update cookie category" }, { status: 500 })

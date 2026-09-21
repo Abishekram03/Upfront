@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { ToolSwitcher, ToolType } from "./tool-switcher"
 import { UserProfileMenu } from "./user-profile-menu"
@@ -102,12 +103,17 @@ export function DashboardSidebar({
     >
       {/* Top Section */}
       <div className="flex flex-col gap-4 p-4">
-        {/* Logo — Ojuju Font, Weight 800 */}
+        {/* Logo */}
         <div className="flex items-center justify-between px-1">
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="font-[family-name:var(--font-ojuju)] text-3xl font-[800] tracking-tight text-neutral-900 group-hover:text-[#1868db] transition-colors">
-              usrly
-            </span>
+            <Image
+              src="/UpFront-Logo-Blue-600.svg"
+              alt="UpFront Logo"
+              width={120}
+              height={32}
+              className="h-7 w-auto object-contain"
+              priority
+            />
           </Link>
           <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-600 bg-neutral-100 rounded-[4px] px-2 py-0.5 border border-neutral-200">
             v1.0

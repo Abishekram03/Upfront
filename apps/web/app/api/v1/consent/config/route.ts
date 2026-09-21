@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 
     const res = await pool.query("SELECT * FROM consent_configs WHERE domain = $1", [domain])
     if (res.rows.length > 0) {
-      return NextResponse.json(res.rows[0], { headers: CORS_HEADERS })
+      return NextResponse.json(res.rows[0] || null, { headers: CORS_HEADERS })
     }
 
     // Default configuration
@@ -62,7 +62,7 @@ export async function GET(req: Request) {
       [id, domain]
     )
 
-    return NextResponse.json(insertRes.rows[0], { headers: CORS_HEADERS })
+    return NextResponse.json(insertRes.rows[0] || null, { headers: CORS_HEADERS })
   } catch (err: any) {
     console.error("GET /api/v1/consent/config error:", err)
     return NextResponse.json({ detail: err.message || "Failed to fetch consent config" }, { status: 500, headers: CORS_HEADERS })
@@ -173,7 +173,7 @@ export async function POST(req: Request) {
       ]
     )
 
-    return NextResponse.json(upsertRes.rows[0], { headers: CORS_HEADERS })
+    return NextResponse.json(upsertRes.rows[0] || null, { headers: CORS_HEADERS })
   } catch (err: any) {
     console.error("POST /api/v1/consent/config error:", err)
     return NextResponse.json({ detail: err.message || "Failed to save consent config" }, { status: 500, headers: CORS_HEADERS })

@@ -85,7 +85,7 @@ export async function POST(req: Request) {
         [siteId, rawDomain]
       )
     } else {
-      siteId = siteRes.rows[0].id
+      siteId = siteRes.rows[0]?.id || randomUUID()
     }
 
     const forwarded = req.headers.get("x-forwarded-for") || ""
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     )
 
     let sessionId: string
-    if (sessionRes.rows.length > 0) {
+    if (sessionRes.rows.length > 0 && sessionRes.rows[0]) {
       const sess = sessionRes.rows[0]
       sessionId = sess.id
       const started = new Date(sess.started_at).getTime()

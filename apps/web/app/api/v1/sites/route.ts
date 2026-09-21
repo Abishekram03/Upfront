@@ -58,15 +58,17 @@ export async function POST(req: Request) {
 
     if (existing.rows.length > 0) {
       const site = existing.rows[0]
-      // If site exists but has no user_id (legacy), assign it to this user
-      if (!site.user_id) {
-        await pool.query("UPDATE sites SET user_id = $1 WHERE id = $2", [user.id, site.id])
-        return NextResponse.json({ id: site.id, domain: cleanDomain, timezone, public: false })
+      if (site) {
+        // If site exists but has no user_id (legacy), assign it to this user
+        if (!site.user_id) {
+          await pool.query("UPDATE sites SET user_id = $1 WHERE id = $2", [user.id, site.id])
+          return NextResponse.json({ id: site.id, domain: cleanDomain, timezone, public: false })
+        }
+        if (site.user_id !== user.id) {
+          return NextResponse.json({ detail: "Domain is already registered by another account." }, { status: 400 })
+        }
+        return NextResponse.json(site)
       }
-      if (site.user_id !== user.id) {
-        return NextResponse.json({ detail: "Domain is already registered by another account." }, { status: 400 })
-      }
-      return NextResponse.json(site)
     }
 
     const id = randomUUID()
@@ -77,7 +79,7 @@ export async function POST(req: Request) {
       [id, cleanDomain, timezone, user.id]
     )
 
-    return NextResponse.json(insertRes.rows[0])
+    return NextResponse.json(insertRes.rows[0] || null)
   } catch (err: any) {
     console.error("POST /api/v1/sites error:", err)
     return NextResponse.json({ detail: err.message || "Failed to create site" }, { status: 500 })

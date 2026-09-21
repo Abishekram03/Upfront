@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
 import { Copy, Check, X, Code2, CheckCircle2 } from "lucide-react"
@@ -42,7 +42,7 @@ export function ScriptModal({
             </div>
             <div>
               <h3 className="text-sm font-bold text-neutral-900">
-                Install usrly Script
+                Install UpFront Script
               </h3>
               <p className="text-xs text-neutral-500">
                 Lightweight (&lt; 4KB), cookieless, and Privacy Consent ready

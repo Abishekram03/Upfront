@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -6,11 +7,16 @@ export function LandingNavbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-200/80 bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        {/* Logo — Ojuju Font, Weight 800, Bigger Size */}
+        {/* Logo */}
         <Link href="/" className="flex items-center group">
-          <span className="font-[family-name:var(--font-ojuju)] text-3xl font-[800] tracking-tight text-neutral-900 group-hover:text-neutral-700 transition-colors">
-            Userly
-          </span>
+          <Image
+            src="/UpFront-Logo-Blue-600.svg"
+            alt="UpFront Logo"
+            width={130}
+            height={36}
+            className="h-8 w-auto object-contain"
+            priority
+          />
         </Link>
 
         {/* Navigation Links */}

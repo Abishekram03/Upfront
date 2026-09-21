@@ -24,7 +24,7 @@ export function LandingHero() {
 
           {/* Subtitle */}
           <p className="mt-6 text-lg leading-relaxed text-neutral-600 text-balance">
-            <strong className="font-[family-name:var(--font-ojuju)] text-xl font-bold text-neutral-900 tracking-tight">Userly</strong> is a lightweight, cookieless Google Analytics alternative. Get an intuitive single-page dashboard for free, and toggle on our built-in <strong className="text-neutral-900 font-semibold">$10/mo Consent Manager</strong> whenever you need to gate marketing scripts.
+            <strong className="font-bold text-neutral-900 tracking-tight">UpFront</strong> is a lightweight, cookieless Google Analytics alternative. Get an intuitive single-page dashboard for free, and toggle on our built-in <strong className="text-neutral-900 font-semibold">$10/mo Consent Manager</strong> whenever you need to gate marketing scripts.
           </p>
 
           {/* CTA Buttons */}

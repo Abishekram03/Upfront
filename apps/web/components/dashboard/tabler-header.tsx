@@ -64,9 +64,14 @@ export function TablerHeader({
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 group">
-              <span className="font-[family-name:var(--font-ojuju)] text-2xl font-[800] tracking-tight text-slate-900 group-hover:text-[#1868db] transition-colors">
-                usrly
-              </span>
+              <Image
+                src="/UpFront-Logo-Blue-600.svg"
+                alt="UpFront Logo"
+                width={110}
+                height={28}
+                className="h-6 sm:h-7 w-auto object-contain"
+                priority
+              />
               <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-slate-100 rounded-[4px] px-1.5 py-0.5 border border-slate-200">
                 v1.0
               </span>

@@ -12,7 +12,7 @@ function normalizeDatabaseUrl(url: string): string {
   try {
     // Check if URL starts with postgresql:// or postgres://
     const protoMatch = clean.match(/^postgres(?:ql)?:\/\//)
-    if (!protoMatch) return clean
+    if (!protoMatch || !protoMatch[0]) return clean
 
     const proto = protoMatch[0]
     const rest = clean.slice(proto.length)
@@ -35,7 +35,7 @@ function normalizeDatabaseUrl(url: string): string {
     // Check if host is direct Supabase (IPv6)
     if (hostDbPart.includes("supabase.co")) {
       const projectMatch = hostDbPart.match(/(?:db\.)?([a-z0-9_-]+)\.supabase\.co/i)
-      const projectRef = projectMatch ? projectMatch[1] : "rdmpzalrmvnqfqlpkrvu"
+      const projectRef = (projectMatch && projectMatch[1]) ? projectMatch[1] : "rdmpzalrmvnqfqlpkrvu"
 
       if (user === "postgres") {
         user = `postgres.${projectRef}`

@@ -11,7 +11,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const domain = searchParams.get("domain") || "default"
     const isTest = searchParams.get("test") === "true"
-    const cleanDomain = domain.replace("https://", "").replace("http://", "").split("/")[0].toLowerCase()
+    const firstDomainPart = domain.replace("https://", "").replace("http://", "").split("/")[0]
+    const cleanDomain = (firstDomainPart || domain).toLowerCase()
 
     // 1. Check in-memory cache for ultra high throughput (sub-millisecond response)
     const cacheKey = `${cleanDomain}_${isTest}`
@@ -66,7 +67,7 @@ export async function GET(req: Request) {
         `SELECT * FROM consent_configs WHERE domain = $1 LIMIT 1`,
         [cleanDomain]
       ).catch(() => ({ rows: [] }))
-      if (res.rows.length > 0) {
+      if (res.rows.length > 0 && res.rows[0]) {
         config = { ...config, ...res.rows[0] }
       }
     }

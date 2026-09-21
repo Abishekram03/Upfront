@@ -25,6 +25,9 @@ export async function DELETE(
     }
 
     const site = siteRes.rows[0]
+    if (!site) {
+      return NextResponse.json({ detail: "Site not found" }, { status: 404 })
+    }
     if (site.user_id && site.user_id !== user.id) {
       return NextResponse.json({ detail: "Forbidden. You do not own this site." }, { status: 403 })
     }
@@ -66,6 +69,9 @@ export async function PATCH(
     }
 
     const site = siteRes.rows[0]
+    if (!site) {
+      return NextResponse.json({ detail: "Site not found" }, { status: 404 })
+    }
     if (site.user_id && site.user_id !== user.id) {
       return NextResponse.json({ detail: "Forbidden. You do not own this site." }, { status: 403 })
     }
@@ -82,7 +88,7 @@ export async function PATCH(
       [siteId]
     )
 
-    return NextResponse.json(updated.rows[0])
+    return NextResponse.json(updated.rows[0] || null)
   } catch (err: any) {
     console.error("PATCH /api/v1/sites/[siteId] error:", err)
     return NextResponse.json({ detail: err.message || "Failed to update site" }, { status: 500 })

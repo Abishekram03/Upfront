@@ -66,7 +66,7 @@ export async function GET(req: Request) {
 
     // 1. Site lookup
     const siteRes = await pool.query("SELECT id FROM sites WHERE domain = $1", [domain])
-    const siteId = siteRes.rows.length > 0 ? siteRes.rows[0].id : "demo_fallback"
+    const siteId = siteRes.rows.length > 0 && siteRes.rows[0] ? siteRes.rows[0].id : "demo_fallback"
 
     // 2. Period calculation
     let days = 30

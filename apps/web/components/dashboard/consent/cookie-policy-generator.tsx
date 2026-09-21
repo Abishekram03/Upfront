@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
 import { Copy, Check, Eye, FileText, Code2, ShieldCheck, Layers, ExternalLink } from "lucide-react"
@@ -60,7 +60,7 @@ export function CookiePolicyGenerator() {
   const domain = activeDomain || "yourdomain.com"
   const [companyName, setCompanyName] = useState("Our Company")
   const [contactEmail, setContactEmail] = useState(`privacy@${domain}`)
-  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().split("T")[0])
+  const [effectiveDate, setEffectiveDate] = useState(() => new Date().toISOString().split("T")[0] || "")
   const [activeEmbedTab, setActiveEmbedTab] = useState<"dynamic" | "html" | "markdown">("dynamic")
   const [copiedType, setCopiedType] = useState<string | null>(null)
 

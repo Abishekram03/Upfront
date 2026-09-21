@@ -13,8 +13,17 @@ const ojuju = Ojuju({
 })
 
 export const metadata: Metadata = {
-  title: "Userly — Privacy Web Analytics & Consent Management",
+  title: "UpFront — Privacy Web Analytics & Consent Management",
   description: "Simple, privacy-friendly website analytics with integrated consent management. By Syft Technologies.",
+  icons: {
+    icon: [
+      { url: "/tab-icon-logo.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/tab-icon-logo.svg",
+    apple: "/tab-icon-logo.svg",
+  },
 }
 
 export default function RootLayout({

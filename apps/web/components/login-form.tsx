@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -85,7 +86,7 @@ export function LoginForm({
               <div className="flex flex-col items-center gap-2 text-center">
                 <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Welcome back</h1>
                 <p className="text-balance text-sm text-neutral-500">
-                  Login to your Userly account
+                  Login to your UpFront account
                 </p>
               </div>
 
@@ -193,9 +194,14 @@ export function LoginForm({
 
           <div className="relative hidden bg-slate-50 p-8 md:flex flex-col justify-between border-l border-slate-200">
             <div className="flex items-center gap-2">
-              <span className="font-[family-name:var(--font-ojuju)] text-3xl font-[800] tracking-tight text-[#1868db]">
-                usrly
-              </span>
+              <Image
+                src="/UpFront-Logo-Blue-600.svg"
+                alt="UpFront Logo"
+                width={130}
+                height={36}
+                className="h-8 w-auto object-contain"
+                priority
+              />
             </div>
             <div className="space-y-2">
               <p className="text-sm font-semibold text-slate-800 leading-snug">

@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       [id, siteId, domain, name, category, serviceName, duration, description, scriptPattern]
     )
 
-    return NextResponse.json(res.rows[0], { status: 201 })
+    return NextResponse.json(res.rows[0] || null, { status: 201 })
   } catch (err: any) {
     console.error("POST /api/v1/consent/cookies error:", err)
     return NextResponse.json({ detail: err.message || "Failed to create cookie" }, { status: 500 })
@@ -108,7 +108,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ detail: "Cookie not found" }, { status: 404 })
     }
 
-    return NextResponse.json(res.rows[0])
+    return NextResponse.json(res.rows[0] || null)
   } catch (err: any) {
     console.error("PUT /api/v1/consent/cookies error:", err)
     return NextResponse.json({ detail: err.message || "Failed to update cookie" }, { status: 500 })
