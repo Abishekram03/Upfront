@@ -158,6 +158,21 @@ export interface ConsentConfig {
   accept_all_label: string
   reject_all_label: string
   preferences_label: string
+  preferences_title?: string
+  preferences_description?: string
+  save_preferences_label?: string
+  pref_accept_all_label?: string
+  pref_reject_all_label?: string
+  always_active_label?: string
+  no_cookies_to_display_label?: string
+  cookie_column_label?: string
+  duration_column_label?: string
+  description_column_label?: string
+  show_google_policy?: boolean
+  google_policy_message?: string
+  google_policy_link_text?: string
+  google_policy_url?: string
+  show_cookie_list_on_banner?: boolean
   enable_necessary_category?: boolean
   enable_functional_category: boolean
   enable_analytics_category: boolean

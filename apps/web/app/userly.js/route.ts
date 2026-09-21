@@ -882,24 +882,24 @@ const TRACKER_SCRIPT = `(function () {
       overlay.innerHTML = \`
         <div class="usrly-modal-card">
           <div class="usrly-modal-header">
-            <h3 class="usrly-modal-title">Customise Consent Preferences</h3>
+            <h3 class="usrly-modal-title">\${config.preferences_title || "Customise Consent Preferences"}</h3>
             <button class="usrly-modal-close" id="usrly-close-modal" aria-label="Close">✕</button>
           </div>
           <div class="usrly-modal-body">
             <p class="usrly-intro-text">
-              We respect your privacy preferences. You can customize which category of cookies or tracking scripts you permit on \${domain}. Essential cookies cannot be turned off.
+              \${config.preferences_description || "We respect your privacy preferences. You can customize which category of cookies or tracking scripts you permit on " + domain + ". Essential cookies cannot be turned off."}
             </p>
 
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-nec">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Necessary</span>
+                  <span class="usrly-cat-title">\${config.necessary_title || "Necessary"}</span>
                 </div>
-                <span class="usrly-cat-always-active">Always Active</span>
+                <span class="usrly-cat-always-active">\${config.always_active_label || "Always Active"}</span>
               </div>
               <div class="usrly-cat-desc visible" id="desc-nec">
-                Necessary cookies are essential for page rendering, session management, and storing your consent preferences.
+                \${config.necessary_description || "Necessary cookies are essential for page rendering, session management, and storing your consent preferences."}
               </div>
             </div>
 
@@ -908,7 +908,7 @@ const TRACKER_SCRIPT = `(function () {
               <div class="usrly-cat-header" data-target="desc-func">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Functional</span>
+                  <span class="usrly-cat-title">\${config.functional_title || "Functional"}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-func" \${functionalChecked ? "checked" : ""}>
@@ -916,7 +916,7 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-func">
-                Functional features enable live chat widgets, video embeds, language selectors, and interactive tools.
+                \${config.functional_description || "Functional features enable live chat widgets, video embeds, language selectors, and interactive tools."}
               </div>
             </div>
             \` : ""}
@@ -926,7 +926,7 @@ const TRACKER_SCRIPT = `(function () {
               <div class="usrly-cat-header" data-target="desc-ana">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Analytics</span>
+                  <span class="usrly-cat-title">\${config.analytics_title || "Analytics"}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-ana" \${analyticsChecked ? "checked" : ""}>
@@ -934,7 +934,7 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-ana">
-                Analytical cookies help measure traffic, bounce rates, and popular pages to improve website performance.
+                \${config.analytics_description || "Analytical cookies help measure traffic, bounce rates, and popular pages to improve website performance."}
               </div>
             </div>
             \` : ""}
@@ -944,7 +944,7 @@ const TRACKER_SCRIPT = `(function () {
               <div class="usrly-cat-header" data-target="desc-perf">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Performance</span>
+                  <span class="usrly-cat-title">\${config.performance_title || "Performance"}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-perf" \${performanceChecked ? "checked" : ""}>
@@ -952,7 +952,7 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-perf">
-                Performance cookies monitor site speed, server response times, and frontend error telemetry.
+                \${config.performance_description || "Performance cookies monitor site speed, server response times, and frontend error telemetry."}
               </div>
             </div>
             \` : ""}
@@ -962,7 +962,7 @@ const TRACKER_SCRIPT = `(function () {
               <div class="usrly-cat-header" data-target="desc-ad">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Advertisement & Marketing</span>
+                  <span class="usrly-cat-title">\${config.advertisement_title || "Advertisement"}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-ad" \${adChecked ? "checked" : ""}>
@@ -970,20 +970,20 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-ad">
-                Marketing cookies enable personalized advertising and attribution tracking across third-party platforms.
+                \${config.advertisement_description || "Marketing cookies enable personalized advertising and attribution tracking across third-party platforms."}
               </div>
             </div>
             \` : ""}
           </div>
 
           <div class="usrly-modal-footer">
-            <button class="usrly-btn usrly-btn-secondary" id="usrly-modal-reject">\${config.reject_all_label || "Reject All"}</button>
-            <button class="usrly-btn usrly-btn-outline" id="usrly-modal-save">Save Preferences</button>
-            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-accept">\${config.accept_all_label || "Accept All"}</button>
+            <button class="usrly-btn usrly-btn-secondary" id="usrly-modal-reject">\${config.pref_reject_all_label || config.reject_all_label || "Reject All"}</button>
+            <button class="usrly-btn usrly-btn-outline" id="usrly-modal-save">\${config.save_preferences_label || "Save My Preferences"}</button>
+            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-accept">\${config.pref_accept_all_label || config.accept_all_label || "Accept All"}</button>
           </div>
 
           <div class="usrly-powered-bar">
-            Powered by <strong>Userly CMP</strong>
+            Powered by <strong>Upfront CMP</strong>
           </div>
         </div>
       \`;

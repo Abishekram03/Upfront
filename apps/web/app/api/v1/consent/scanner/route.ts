@@ -1,6 +1,6 @@
-﻿import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
-import { classifyCookie, KNOWN_COOKIE_SIGNATURES } from "@/lib/cookie-signatures"
+import { classifyCookieName } from "@/lib/consentos/open-cookie-db"
 import { randomUUID } from "node:crypto"
 
 function sanitizeDomain(input?: string | null): string {
@@ -61,7 +61,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ detail: "Domain is required" }, { status: 400 })
     }
 
-    // Lookup site_id
     const siteRes = await pool.query("SELECT id FROM sites WHERE domain = $1", [domain])
     const siteId = siteRes.rows[0]?.id || null
 
@@ -80,14 +79,13 @@ export async function POST(req: Request) {
       const response = await fetch(targetUrl, {
         signal: controller.signal,
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; UserlyBot/1.0; +https://usrly-five.vercel.app/bot)",
+          "User-Agent": "Mozilla/5.0 (compatible; ConsentOSBot/2.3; +https://consentos.org)",
         },
       }).catch(() => null)
 
       clearTimeout(timeout)
 
       if (response) {
-        // 1. Inspect Set-Cookie headers
         const setCookieHeaders = response.headers.getSetCookie ? response.headers.getSetCookie() : [response.headers.get("set-cookie") || ""]
         for (const cookieHeader of setCookieHeaders) {
           if (!cookieHeader) continue
@@ -95,20 +93,18 @@ export async function POST(req: Request) {
           if (cookieName) detectedCookieNames.add(cookieName)
         }
 
-        // 2. Inspect HTML scripts
         const html = await response.text().catch(() => "")
         const scriptSrcMatches = html.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)
         for (const match of scriptSrcMatches) {
           if (match[1]) detectedScripts.push(match[1])
         }
 
-        // Check for known tracking scripts in HTML
         if (/google-analytics\.com|googletagmanager\.com\/gtag/i.test(html)) {
           detectedCookieNames.add("_ga")
           detectedCookieNames.add("_gid")
           findings.push({
             type: "info",
-            message: "Google Analytics / Tag Manager detected in page markup.",
+            message: "Google Analytics 4 detected in page markup.",
             severity: "medium",
           })
         }
@@ -116,7 +112,7 @@ export async function POST(req: Request) {
           detectedCookieNames.add("_fbp")
           findings.push({
             type: "leak",
-            message: "Meta Pixel detected. Ensure it is gated behind 'advertisement' category.",
+            message: "Meta Pixel detected before user consent. Gated behind advertisement category.",
             severity: "critical",
           })
         }
@@ -135,17 +131,15 @@ export async function POST(req: Request) {
       console.warn(`[Scanner] Could not crawl ${targetUrl}:`, fetchErr)
     }
 
-    // Default baseline cookies if clean scan
     if (detectedCookieNames.size === 0) {
       detectedCookieNames.add("session")
       detectedCookieNames.add("_ga")
       detectedCookieNames.add("_gid")
     }
 
-    // Classify and persist discovered cookies
     const discoveredList = []
     for (const cookieName of detectedCookieNames) {
-      const classified = classifyCookie(cookieName, domain)
+      const classified = classifyCookieName(cookieName)
 
       const existingRes = await pool.query(
         `SELECT id FROM discovered_cookies WHERE domain = $1 AND name = $2`,
@@ -155,17 +149,18 @@ export async function POST(req: Request) {
       if (existingRes.rows.length > 0) {
         await pool.query(
           `UPDATE discovered_cookies 
-           SET last_detected_at = NOW() 
-           WHERE id = $1`,
-          [existingRes.rows[0].id]
+           SET last_detected_at = NOW(),
+               script_pattern_regex = COALESCE($1, script_pattern_regex)
+           WHERE id = $2`,
+          [classified.script_pattern_regex, existingRes.rows[0].id]
         )
       } else {
         const id = randomUUID()
         await pool.query(
           `INSERT INTO discovered_cookies (
             id, site_id, domain, name, category, service_name, duration,
-            description, confidence, status, first_detected_at, last_detected_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())`,
+            description, confidence, status, script_pattern_regex, first_detected_at, last_detected_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
           [
             id,
             siteId,
@@ -177,6 +172,7 @@ export async function POST(req: Request) {
             classified.description,
             classified.confidence,
             classified.status,
+            classified.script_pattern_regex,
           ]
         )
       }

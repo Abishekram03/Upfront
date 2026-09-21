@@ -1,7 +1,7 @@
 # CookieYes Comprehensive Platform Analysis & Implementation Blueprint
 
-> **Document Version:** 4.0 (Final Complete Edition)  
-> **Source:** Reverse-engineering & architectural analysis of CookieYes CMP Dashboard (Screenshots 1–31)  
+> **Document Version:** 5.0 (Full Master Edition)  
+> **Source:** Reverse-engineering & architectural analysis of CookieYes CMP Dashboard (Screenshots 1–32)  
 > **Platform Target:** Upfront (Unified Analytics & Consent Management Platform)
 
 ---
@@ -17,7 +17,8 @@ Its core architecture consists of:
 4. **Zero-Code Policy Deployment** offering both dynamic `<script>` embeds and static HTML format with 1-click developer sharing.
 5. **Intelligent Cookie Scanner & History Engine** tracking scan runs, URLs crawled, cookies discovered, and associated script origin patterns.
 6. **Script URL Pattern Auto-Blocking** linking each cookie to its originating script URL regex for automatic pre-consent blocking.
-7. **Advanced Enterprise Compliance Engine** including Google Consent Mode v2 (Basic & Advanced modes), Microsoft UET / Clarity API hooks, Subdomain consent sharing, CCPA/CPRA data selling flags, Page-specific exclusion rules, and Static IP firewall whitelisting.
+7. **GDPR Consent Log & Audit Trail (Proof of Consent)** recording every visitor consent event with cryptographic IDs, statuses, timestamps, CSV exports, and 1-click proof-of-consent receipt downloads.
+8. **Advanced Enterprise Compliance Engine** including Google Consent Mode v2 (Basic & Advanced modes), Microsoft UET / Clarity API hooks, Subdomain consent sharing, CCPA/CPRA data selling flags, Page-specific exclusion rules, and Static IP firewall whitelisting.
 
 ---
 
@@ -33,11 +34,11 @@ Its core architecture consists of:
 │  ┌──────────┬─────────────────────────────┬─────────────────────────────────────────┐  │
 │  │ Icon Rail│ 380px Settings Panel        │ Live Website Preview Canvas             │  │
 │  │          │                             │                                         │  │
-│  │ ⚙ Gen   │ • Collapsible Accordions    │ • Simulated Webpage                      │  │
-│  │ ⊞ Layout │ • Form Toggles & Colors     │ • Interactive Banner & Modal           │  │
-│  │ 📄 Content│ • Live Inputs & Copy        │ • [Desktop | Tablet | Mobile] Switcher │  │
-│  │ 🎨 Colors │                             │                                       │ │
-│  │ 💻 CSS    │ [ Publish Changes Button ]  │ [ Revisit Floating Widget Preview ]   | │
+│  │ ⚙ Gen   │ • Collapsible Accordions    │ • Simulated Webpage                     │  │
+│  │ ⊞ Layout │ • Form Toggles & Colors     │ • Interactive Banner & Modal            │  │
+│  │ 📄 Content│ • Live Inputs & Copy        │ • [Desktop | Tablet | Mobile] Switcher  │  │
+│  │ 🎨 Colors │                             │                                         │  │
+│  │ 💻 CSS    │ [ Publish Changes Button ]  │ [ Revisit Floating Widget Preview ]     │  │
 │  └──────────┴─────────────────────────────┴─────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -91,28 +92,34 @@ The `Content` panel is structured into 5 clean collapsible accordions:
   * `"Customise" Button` (Toggle ON/OFF + custom label text).
   * `"Cookie Policy" Link` (Toggle ON/OFF + anchor URL).
 
-#### Accordion 2: Preference Centre (Category Modal)
-* **Title Input:** e.g., `"Customise Consent Preferences"`.
-* **Privacy Overview:** Expandable text explaining categories with `"Show more"` / `"Show less"` toggles.
-* **Google Privacy Policy Disclosure:**
-  * Toggle to enable Google-specific third-party cookie handling disclosures.
-  * Configurable explanation text, link text, and Google safety URL.
-* **Action Buttons:**
-  * `"Save My Preferences"` label.
-  * `"Reject All"` label.
-  * `"Accept All"` label.
+#### Accordion 2: Preference Centre (Preferences Modal Settings)
+* **1. Title:** Text input e.g. `"Customise Consent Preferences"`.
+* **2. Preview message:** Textarea for the introductory overview description.
+* **3. Show Google Privacy Policy (Toggle ON/OFF):**
+  * When toggled ON, exposes:
+    * `Message preview`: Textarea explaining Google's third-party cookie handling.
+    * `Link text`: e.g. `"Google Privacy Policy"`.
+    * `Link URL`: e.g. `"https://business.safety.google/privacy"`.
+* **4. "Save My Preferences" label:** Custom button text input.
+* **5. "Show more" button:** Custom toggle label input (e.g. `"Show more"`, `"Read more"`), displayed when the preview message copy is long to collapse the text into a clean 2-line snippet.
+* **6. "Show less" button:** Custom toggle label input (e.g. `"Show less"`, `"Read less"`), displayed when the preview message is expanded.
 
-#### Accordion 3: Cookie List & Dynamic Audit Table
-* **Table Embed Code:**
-  ```html
-  <div class="upfront-audit-table-element"></div>
-  ```
-* **Column Header Customization:**
-  * `Cookie` (Name/Key label).
-  * `Duration` (Expiry label).
-  * `Description` (Purpose label).
-  * `"Always Active"` label text.
-  * `"No cookies to display"` fallback label text.
+#### Accordion 3: Cookie List & Audit Table Settings
+* **1. Show cookie list on banner:** Toggle switch (ON/OFF).
+  * When **ON**: When a user expands a category in the Preference Centre modal, it renders the full audit table listing the specific cookies, domains, and durations.
+  * When **OFF**: The Preference Centre modal only displays category names and their general descriptions, completely omitting the table rows for a cleaner, ultra-compact banner look.
+* **2. Embed code:**
+  * Subtext: *"Add cookie list to your Cookie/Privacy Policy page with this HTML code."*
+  * Copyable HTML code box with 1-click Copy button:
+    ```html
+    <div class="upfront-audit-table-element"></div>
+    ```
+* **3. "Cookie" column label:** Text input (default `"Cookie"`).
+* **4. "Duration" column label:** Text input (default `"Duration"`).
+* **5. "Description" column label:** Text input (default `"Description"`).
+* **6. "Always Active" label:** Text input (default `"Always Active"`).
+* **7. "No cookies to display" label:** Text input (default `"No cookies to display"`).
+  * **Why CookieYes has this:** When a website has 0 discovered cookies under a particular category (e.g. 0 Advertisement cookies), this string is rendered inside that category's table container to reassure the user that no tracking cookies exist in that group, rather than showing a broken empty table or error state. Also crucial for multi-language translations (e.g., *"No hay cookies para mostrar"*).
 
 #### Accordion 4: Revisit Consent Button
 * **Floating Widget Toggle:** (ON/OFF).
@@ -194,7 +201,47 @@ Result: Policy Preview & Deployment (100%)
 
 ---
 
-### Module E: Advanced Settings, Framework Integrations & Firewall Security
+### Module E: Consent Log & Audit Trail (Proof of Consent)
+
+Under **GDPR Article 7(1)**, website owners must be able to demonstrate that a user provided valid consent. The **Consent Log** provides an immutable compliance ledger:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ Consent Log: "View visitor consents and download proof of consents"                    │
+│ [ Your visitor consents | Export as CSV ]    [ Search log with visitor's Consent ID 🔍]│
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ Consent ID           │ Consent Status  │ Date/Time (UTC ± 00:00) │ Proof of Consent    │
+├──────────────────────┼─────────────────┼─────────────────────────┼─────────────────────┤
+│ ZnFFOTIMZjFOMVFP...  │ Rejected [pill] │ July 25, 2023 10:41:55  │ [📥 Download Icon]  │
+│ SmIFQ1IoRmNGY1N5...  │ Accepted [pill] │ July 25, 2023 10:21:23  │ [📥 Download Icon]  │
+│ U1V1NzczV3JXV1E2...  │ Accepted [pill] │ July 25, 2023 07:15:40  │ [📥 Download Icon]  │
+│ ekxBdWNCUkd3NG...   │ Rejected [pill] │ July 24, 2023 22:49:13  │ [📥 Download Icon]  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Core Components & Schema:
+1. **Consent ID:** Anonymized, pseudonymous cryptographic hash (e.g. `SHA-256(visitor_hash + timestamp)`). No PII is stored.
+2. **Consent Status:**
+   * `Accepted` (All categories granted — green pill).
+   * `Rejected` (Only strictly necessary cookies allowed — rose pill).
+   * `Customized / Partial` (Specific categories selected).
+3. **Date/Time (UTC):** Exact millisecond-precision UTC timestamp.
+4. **Proof of Consent (1-Click Download):**
+   * Generates a downloadable compliance certificate/JSON receipt detailing:
+     - `Consent ID`
+     - `Timestamp (UTC)`
+     - `IP Anonymization Hash & Country`
+     - `Consent Status Breakdown` (Necessary: YES, Functional: YES/NO, Analytics: YES/NO, Ads: YES/NO)
+     - `Banner Version & Active Policy Version`
+     - `User-Agent Category` (Desktop / Mobile / Tablet)
+5. **Search Log by Consent ID:**
+   * Instant search field to quickly pull up records when responding to user privacy requests or data protection inquiries.
+6. **Export as CSV:**
+   * Bulk download of the entire historical consent ledger for legal compliance audits.
+
+---
+
+### Module F: Advanced Settings, Framework Integrations & Firewall Security
 
 #### 1. Banner Display & Exclusions
 * **Banner Display Status:** `Enabled` / `Disabled` (Allows disabling the banner for staging or debugging without removing snippet code).
@@ -247,7 +294,12 @@ Upfront Execution Roadmap
 │   ├── 5-Step interactive policy generator wizard synced with latest scan
 │   └── Dynamic `<script id="upfront-policy">` embed snippet generator + static HTML
 │
-└── Phase 5: Enterprise Frameworks
+├── Phase 5: Consent Log & Audit Trail Ledger
+│   ├── Anonymized Consent ID generator & real-time log ingestion table
+│   ├── 1-Click "Proof of Consent" receipt certificate download
+│   └── Live Consent ID search filter & CSV export
+│
+└── Phase 6: Enterprise Frameworks
     ├── Google Consent Mode v2 (Basic & Advanced modes with debug console)
     ├── Microsoft UET & Clarity Consent API hooks
     └── Subdomain consent propagation & 1-click global re-consent trigger

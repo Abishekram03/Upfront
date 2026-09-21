@@ -39,8 +39,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Check if we are on full-bleed Studio page
+  const isFullBleedStudio = pathname.startsWith("/consent/studio")
+
   return (
-    <div className="min-h-screen w-full bg-[#f8fafc] text-slate-900 flex flex-col">
+    <div className="min-h-screen w-full bg-[#f8fafc] text-slate-900 flex flex-col overflow-x-hidden">
       {/* Tabler Top Header */}
       <TablerHeader
         activeTool={activeTool}
@@ -63,10 +66,14 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 py-6">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {children}
-        </div>
+      <main className={isFullBleedStudio ? "flex-1 w-full h-[calc(100vh-106px)] overflow-hidden flex flex-col" : "flex-1 py-6"}>
+        {isFullBleedStudio ? (
+          children
+        ) : (
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            {children}
+          </div>
+        )}
       </main>
 
       {/* Tracking Script Modal */}

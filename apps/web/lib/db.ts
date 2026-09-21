@@ -235,7 +235,16 @@ export async function ensureTables() {
         -- Safe Schema Migrations
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_gpc BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS preferences_title VARCHAR(255) DEFAULT 'Customise Consent Preferences';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS preferences_description TEXT;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS save_preferences_label VARCHAR(100) DEFAULT 'Save My Preferences';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS always_active_label VARCHAR(100) DEFAULT 'Always Active';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS no_cookies_to_display_label VARCHAR(100) DEFAULT 'No cookies to display';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS cookie_column_label VARCHAR(100) DEFAULT 'Cookie';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS duration_column_label VARCHAR(100) DEFAULT 'Duration';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS description_column_label VARCHAR(100) DEFAULT 'Description';
         ALTER TABLE consent_receipts ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS script_pattern_regex TEXT;
 
         -- Discovered Cookies from Scanner
         CREATE TABLE IF NOT EXISTS discovered_cookies (
