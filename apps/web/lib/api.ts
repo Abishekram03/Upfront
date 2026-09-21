@@ -148,7 +148,16 @@ export interface ConsentConfig {
   id?: string
   domain: string
   is_enabled: boolean
-  layout: "bottom_bar" | "floating_bottom_left" | "floating_bottom_right" | "center_modal"
+  layout:
+    | "bottom_bar"
+    | "top_bar"
+    | "floating_bottom_left"
+    | "floating_bottom_right"
+    | "floating_top_left"
+    | "floating_top_right"
+    | "center_modal"
+    | "box"
+    | "popup"
   theme: "light" | "dark" | "brand"
   primary_color: string
   border_radius: string

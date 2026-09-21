@@ -62,13 +62,11 @@ export function DashboardSidebar({
       title: "Banner Studio",
       href: "/consent/studio",
       icon: Palette,
-      badge: "Live",
     },
     {
-      title: "Cookie Scanner",
+      title: "Cookie Manager",
       href: "/consent/scanner",
       icon: Cookie,
-      badge: "Audit",
     },
     {
       title: "Cookie Policy",
