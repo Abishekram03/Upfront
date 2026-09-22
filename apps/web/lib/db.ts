@@ -137,6 +137,28 @@ export async function ensureTables() {
           "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE
         );
 
+        -- Multi-Tenant Workspaces Tables
+        CREATE TABLE IF NOT EXISTS workspaces (
+          id VARCHAR(36) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          slug VARCHAR(255) UNIQUE NOT NULL,
+          owner_id VARCHAR(64) NOT NULL,
+          created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+          updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS workspace_members (
+          id VARCHAR(36) PRIMARY KEY,
+          workspace_id VARCHAR(36) NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+          user_id VARCHAR(64) NOT NULL,
+          role VARCHAR(50) DEFAULT 'member' NOT NULL,
+          created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+          UNIQUE(workspace_id, user_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS ix_workspace_members_user ON workspace_members(user_id);
+        CREATE INDEX IF NOT EXISTS ix_workspaces_owner ON workspaces(owner_id);
+
         -- Analytics & Consent Tables
         CREATE TABLE IF NOT EXISTS sites (
           id VARCHAR(36) PRIMARY KEY,
@@ -144,10 +166,13 @@ export async function ensureTables() {
           timezone VARCHAR(64) DEFAULT 'UTC' NOT NULL,
           public BOOLEAN DEFAULT FALSE NOT NULL,
           user_id VARCHAR(64),
+          workspace_id VARCHAR(36),
           created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL
         );
 
         ALTER TABLE sites ADD COLUMN IF NOT EXISTS user_id VARCHAR(64);
+        ALTER TABLE sites ADD COLUMN IF NOT EXISTS workspace_id VARCHAR(36);
+        CREATE INDEX IF NOT EXISTS ix_sites_workspace ON sites(workspace_id);
 
         CREATE TABLE IF NOT EXISTS sessions (
           id VARCHAR(36) PRIMARY KEY,

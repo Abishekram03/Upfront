@@ -115,9 +115,6 @@ export function DashboardSidebar({
               priority
             />
           </Link>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-600 bg-neutral-100 rounded-[4px] px-2 py-0.5 border border-neutral-200">
-            v1.0
-          </span>
         </div>
 
         {/* Tool Switcher */}

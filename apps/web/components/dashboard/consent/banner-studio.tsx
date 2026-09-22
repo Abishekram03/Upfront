@@ -13,7 +13,6 @@ import {
   Tablet,
   Monitor,
   Save,
-  Globe,
   Cookie,
   ChevronDown,
   ChevronUp,
@@ -266,7 +265,6 @@ export function BannerStudio() {
   // Live Canvas Viewport Controls
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop")
   const [previewView, setPreviewView] = useState<"notice" | "preferences">("notice")
-  const [canvasMode, setCanvasMode] = useState<"live" | "mock">("live")
   const [iframeLoading, setIframeLoading] = useState(true)
 
   // Interactive accordions inside preference centre preview
@@ -1304,72 +1302,41 @@ export function BannerStudio() {
               </button>
             </div>
 
-            {/* Middle: Canvas Mode (Live Site vs Mock) + Viewport Device Icons */}
-            <div className="flex items-center gap-2">
-              {/* Live Site ↔ Mock Page Switcher */}
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setCanvasMode("live")}
-                  title="Load real live website"
-                  className={cn(
-                    "px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer",
-                    canvasMode === "live" ? "bg-white text-[#1868db] shadow-2xs font-bold" : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  <Globe className="size-3" />
-                  <span className="hidden sm:inline">Live Site</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCanvasMode("mock")}
-                  title="Load wireframe mock page"
-                  className={cn(
-                    "px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer",
-                    canvasMode === "mock" ? "bg-white text-[#1868db] shadow-2xs font-bold" : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  <FileText className="size-3" />
-                  <span className="hidden sm:inline">Mock Page</span>
-                </button>
-              </div>
-
-              {/* Viewport Device Icons */}
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 hidden sm:flex">
-                <button
-                  type="button"
-                  onClick={() => setPreviewDevice("desktop")}
-                  title="Desktop View"
-                  className={cn(
-                    "p-1.5 rounded text-xs transition-colors cursor-pointer",
-                    previewDevice === "desktop" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
-                  )}
-                >
-                  <Monitor className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDevice("tablet")}
-                  title="Tablet View"
-                  className={cn(
-                    "p-1.5 rounded text-xs transition-colors cursor-pointer",
-                    previewDevice === "tablet" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
-                  )}
-                >
-                  <Tablet className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDevice("mobile")}
-                  title="Mobile View"
-                  className={cn(
-                    "p-1.5 rounded text-xs transition-colors cursor-pointer",
-                    previewDevice === "mobile" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
-                  )}
-                >
-                  <Smartphone className="size-3.5" />
-                </button>
-              </div>
+            {/* Middle: Viewport Device Icons */}
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 hidden sm:flex">
+              <button
+                type="button"
+                onClick={() => setPreviewDevice("desktop")}
+                title="Desktop View"
+                className={cn(
+                  "p-1.5 rounded text-xs transition-colors cursor-pointer",
+                  previewDevice === "desktop" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
+                )}
+              >
+                <Monitor className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewDevice("tablet")}
+                title="Tablet View"
+                className={cn(
+                  "p-1.5 rounded text-xs transition-colors cursor-pointer",
+                  previewDevice === "tablet" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
+                )}
+              >
+                <Tablet className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewDevice("mobile")}
+                title="Mobile View"
+                className={cn(
+                  "p-1.5 rounded text-xs transition-colors cursor-pointer",
+                  previewDevice === "mobile" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
+                )}
+              >
+                <Smartphone className="size-3.5" />
+              </button>
             </div>
 
             {/* Right Action: Published status + Publish Changes button */}
@@ -1413,66 +1380,24 @@ export function BannerStudio() {
                   : "w-[350px]"
               )}
             >
-              {/* Browser Window Header */}
-              <div className="h-9 border-b border-slate-200 bg-slate-50 px-3 flex items-center justify-between shrink-0 select-none z-10">
-                <div className="flex items-center gap-1.5">
-                  <div className="size-2 rounded-full bg-rose-400" />
-                  <div className="size-2 rounded-full bg-amber-400" />
-                  <div className="size-2 rounded-full bg-emerald-400" />
-                </div>
-                <div className="text-[10px] font-mono text-slate-500 bg-white px-3 py-0.5 rounded border border-slate-200 max-w-[200px] truncate">
-                  https://{activeDomain || "webdev.how"}
-                </div>
-                <div className="size-3" />
+
+              {/* Webpage Content: Real Live Site via Preview Proxy */}
+              <div className="relative w-full h-full flex-1 overflow-hidden bg-white">
+                {iframeLoading && (
+                  <div className="absolute inset-0 bg-slate-50/90 flex flex-col items-center justify-center text-xs text-slate-500 gap-2 z-5">
+                    <div className="size-5 border-2 border-[#1868db] border-t-transparent rounded-full animate-spin" />
+                    <span>Loading live preview of <strong>{activeDomain || "your website"}</strong>...</span>
+                  </div>
+                )}
+                <iframe
+                  key={activeDomain || "preview"}
+                  src={`/api/v1/consent/preview-proxy?domain=${encodeURIComponent(activeDomain || "")}`}
+                  onLoad={() => setIframeLoading(false)}
+                  className="w-full h-full border-0 pointer-events-none opacity-90 select-none bg-white"
+                  title="Live Website Canvas"
+                  sandbox="allow-same-origin allow-scripts"
+                />
               </div>
-
-              {/* Webpage Content: Real Live Site via Preview Proxy OR Mock Wireframe */}
-              {canvasMode === "live" && activeDomain ? (
-                <div className="relative w-full h-full flex-1 overflow-hidden bg-white">
-                  {iframeLoading && (
-                    <div className="absolute inset-0 bg-slate-50/90 flex flex-col items-center justify-center text-xs text-slate-500 gap-2 z-5">
-                      <div className="size-5 border-2 border-[#1868db] border-t-transparent rounded-full animate-spin" />
-                      <span>Loading live preview of <strong>{activeDomain}</strong>...</span>
-                    </div>
-                  )}
-                  <iframe
-                    key={activeDomain}
-                    src={`/api/v1/consent/preview-proxy?domain=${encodeURIComponent(activeDomain)}`}
-                    onLoad={() => setIframeLoading(false)}
-                    className="w-full h-full border-0 pointer-events-none opacity-90 select-none bg-white"
-                    title="Live Website Canvas"
-                    sandbox="allow-same-origin allow-scripts"
-                  />
-                </div>
-              ) : (
-                /* Mock Webpage Content ("Simple Corporation" Style) */
-                <div className="p-6 space-y-4 overflow-y-auto flex-1 select-none opacity-40">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div className="size-6 rounded-full bg-slate-900" />
-                    <div className="flex gap-3 text-[10px] font-bold text-slate-600">
-                      <span>Frontpage</span>
-                      <span>Blog</span>
-                      <span>Services</span>
-                      <span>Contact</span>
-                    </div>
-                  </div>
-
-                  <div className="text-center py-6 space-y-2">
-                    <h2 className="text-xl font-bold text-slate-900">Simple Corporation</h2>
-                    <p className="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed">
-                      Simple Corporation is a simple corporation — it&apos;s as simple as that. We simplify your workflows and ease your day.
-                    </p>
-                    <button type="button" className="px-3.5 py-1.5 rounded-[4px] bg-slate-900 text-white text-[11px] font-bold mt-2">
-                      Learn more
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div className="h-20 rounded bg-slate-100 border border-slate-200" />
-                    <div className="h-20 rounded bg-slate-100 border border-slate-200" />
-                  </div>
-                </div>
-              )}
 
               {/* LIVE NOTICE BANNER OVERLAY */}
               {previewView === "notice" && (

@@ -18,12 +18,13 @@ export async function GET(req: Request) {
       return NextResponse.json([])
     }
 
-    // Fetch only sites owned by this user
+    // Fetch sites owned by user or in workspaces user belongs to
     const res = await pool.query(
-      `SELECT id, domain, timezone, public, created_at 
-       FROM sites 
-       WHERE user_id = $1 
-       ORDER BY created_at DESC`,
+      `SELECT DISTINCT s.id, s.domain, s.timezone, s.public, s.created_at, s.workspace_id 
+       FROM sites s 
+       LEFT JOIN workspace_members wm ON s.workspace_id = wm.workspace_id 
+       WHERE s.user_id = $1 OR wm.user_id = $1 
+       ORDER BY s.created_at DESC`,
       [user.id]
     )
 
@@ -50,19 +51,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ detail: "Domain is required" }, { status: 400 })
     }
 
+    // Determine target workspace
+    let workspaceId = body.workspace_id || null
+    if (!workspaceId) {
+      // Find default or first workspace for this user
+      const wsRes = await pool.query(
+        `SELECT w.id FROM workspaces w
+         INNER JOIN workspace_members wm ON w.id = wm.workspace_id
+         WHERE wm.user_id = $1
+         ORDER BY w.created_at ASC LIMIT 1`,
+        [user.id]
+      )
+      if (wsRes.rows.length > 0) {
+        workspaceId = wsRes.rows[0]?.id || null
+      }
+    }
+
     const timezone = body.timezone || "UTC"
     const existing = await pool.query(
-      "SELECT id, user_id FROM sites WHERE domain = $1",
+      "SELECT id, user_id, workspace_id FROM sites WHERE domain = $1",
       [cleanDomain]
     )
 
     if (existing.rows.length > 0) {
       const site = existing.rows[0]
       if (site) {
-        // If site exists but has no user_id (legacy), assign it to this user
+        // If site exists but has no user_id (legacy), assign it to this user & workspace
         if (!site.user_id) {
-          await pool.query("UPDATE sites SET user_id = $1 WHERE id = $2", [user.id, site.id])
-          return NextResponse.json({ id: site.id, domain: cleanDomain, timezone, public: false })
+          await pool.query(
+            "UPDATE sites SET user_id = $1, workspace_id = COALESCE($2, workspace_id) WHERE id = $3",
+            [user.id, workspaceId, site.id]
+          )
+          return NextResponse.json({ id: site.id, domain: cleanDomain, timezone, public: false, workspace_id: workspaceId })
         }
         if (site.user_id !== user.id) {
           return NextResponse.json({ detail: "Domain is already registered by another account." }, { status: 400 })
@@ -73,10 +93,10 @@ export async function POST(req: Request) {
 
     const id = randomUUID()
     const insertRes = await pool.query(
-      `INSERT INTO sites (id, domain, timezone, public, user_id, created_at)
-       VALUES ($1, $2, $3, FALSE, $4, NOW())
-       RETURNING id, domain, timezone, public, created_at`,
-      [id, cleanDomain, timezone, user.id]
+      `INSERT INTO sites (id, domain, timezone, public, user_id, workspace_id, created_at)
+       VALUES ($1, $2, $3, FALSE, $4, $5, NOW())
+       RETURNING id, domain, timezone, public, user_id, workspace_id, created_at`,
+      [id, cleanDomain, timezone, user.id, workspaceId]
     )
 
     return NextResponse.json(insertRes.rows[0] || null)

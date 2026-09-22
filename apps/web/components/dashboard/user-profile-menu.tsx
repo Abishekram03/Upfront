@@ -53,30 +53,14 @@ export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-1.5 sm:px-2.5 sm:py-1.5 text-left transition-all hover:bg-slate-50 hover:border-slate-300 shadow-2xs",
-          isCollapsed ? "justify-center p-1.5" : "justify-between"
+          "flex size-8 items-center justify-center rounded-full bg-[#1868db] text-white text-xs font-bold shadow-2xs hover:opacity-90 ring-2 ring-transparent hover:ring-[#1868db]/30 transition-all cursor-pointer focus:outline-hidden",
+          open && "ring-[#1868db]/50 opacity-95"
         )}
         aria-expanded={open}
         aria-label="User account menu"
+        title={userName}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[#1868db]/10 border border-[#1868db]/20 text-xs font-bold text-[#1868db]">
-            {initials}
-          </div>
-          {!isCollapsed && (
-            <div className="hidden sm:flex flex-col min-w-0 text-left">
-              <span className="text-xs font-semibold text-slate-800 truncate max-w-[100px]">
-                {userName}
-              </span>
-              <span className="text-[10px] text-slate-400 truncate max-w-[100px]">
-                {userEmail}
-              </span>
-            </div>
-          )}
-        </div>
-        {!isCollapsed && (
-          <ChevronsUpDown className="size-3.5 shrink-0 text-slate-400 hidden sm:block" />
-        )}
+        {initials}
       </button>
 
       {open && (
@@ -100,20 +84,28 @@ export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
             {/* Menu Items */}
             <div className="space-y-0.5 pt-1.5">
               <Link
-                href="/settings"
+                href="/settings?tab=profile"
                 onClick={() => setOpen(false)}
                 className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
               >
                 <User className="size-3.5 text-slate-400" />
-                Account & Security
+                Profile & Security
               </Link>
               <Link
-                href="/settings#two-factor"
+                href="/settings?tab=workspace"
                 onClick={() => setOpen(false)}
                 className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
               >
                 <Shield className="size-3.5 text-slate-400" />
-                Two-Factor (2FA) Setup
+                Workspace & Team
+              </Link>
+              <Link
+                href="/settings?tab=billing"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+              >
+                <ChevronsUpDown className="size-3.5 text-slate-400" />
+                Billing & Subscription
               </Link>
             </div>
 

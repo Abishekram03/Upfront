@@ -8,6 +8,9 @@ import { ScriptModal } from "@/components/dashboard/script-modal"
 import { ToolType } from "@/components/dashboard/tool-switcher"
 import { DomainProvider, useDomain } from "@/lib/domain-context"
 
+import { WorkspaceProvider } from "@/lib/workspace-context"
+import { WorkspaceWizardModal } from "@/components/dashboard/workspace-wizard-modal"
+
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -44,6 +47,9 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen w-full bg-[#f8fafc] text-slate-900 flex flex-col overflow-x-hidden">
+      {/* Workspace Creation Onboarding Wizard (if user has no workspace) */}
+      <WorkspaceWizardModal />
+
       {/* Tabler Top Header */}
       <TablerHeader
         activeTool={activeTool}
@@ -95,9 +101,11 @@ export default function DashboardLayout({
 }) {
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-slate-50" />}>
-      <DomainProvider>
-        <DashboardInner>{children}</DashboardInner>
-      </DomainProvider>
+      <WorkspaceProvider>
+        <DomainProvider>
+          <DashboardInner>{children}</DashboardInner>
+        </DomainProvider>
+      </WorkspaceProvider>
     </Suspense>
   )
 }

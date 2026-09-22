@@ -63,7 +63,7 @@ export function TablerHeader({
             </button>
 
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
+            <Link href="/" className="flex items-center group">
               <Image
                 src="/UpFront-Logo-Blue-600.svg"
                 alt="UpFront Logo"
@@ -72,9 +72,6 @@ export function TablerHeader({
                 className="h-6 sm:h-7 w-auto object-contain"
                 priority
               />
-              <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-slate-100 rounded-[4px] px-1.5 py-0.5 border border-slate-200">
-                v1.0
-              </span>
             </Link>
 
             <div className="h-5 w-[1px] bg-slate-200 hidden sm:block" />
