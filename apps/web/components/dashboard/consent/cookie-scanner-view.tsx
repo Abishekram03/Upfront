@@ -169,14 +169,9 @@ export function CookieScannerView() {
       {/* HEADER BAR */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Cookie Scanner & Tracker Inventory
-            </h1>
-            <Badge variant="outline" className="text-[11px] font-semibold bg-blue-50 text-[#1868db] border-blue-200">
-              ConsentOS Engine
-            </Badge>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
+            Cookie Scanner & Tracker Inventory
+          </h1>
           <p className="mt-1 text-xs text-slate-500">
             Automatically crawl domain assets, classify tracking scripts, and detect pre-consent data leaks for{" "}
             <span className="font-semibold text-slate-800">{activeDomain || "your domain"}</span>.

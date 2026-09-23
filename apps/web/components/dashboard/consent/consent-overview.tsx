@@ -22,6 +22,7 @@ import {
   Copy,
   Code2,
   Lock,
+  HelpCircle,
 } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@/lib/utils"
@@ -121,12 +122,7 @@ export function ConsentOverview() {
       {/* Top Banner Status Bar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Consent Management Platform</h1>
-            <span className="rounded-[4px] bg-blue-50 px-2 py-0.5 text-xs font-bold text-[#1868db] border border-blue-200">
-              ConsentOS Core v2.3
-            </span>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Consent Management Platform</h1>
           <p className="text-xs text-slate-500 mt-1">
             Privacy-first cookie banner studio, script auto-blocking, and proof-of-consent logs for <strong className="text-slate-800">{activeDomain || "your site"}</strong>.
           </p>
@@ -248,7 +244,15 @@ export function ConsentOverview() {
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Consent Receipts</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Receipts</div>
+            <div className="relative group cursor-pointer inline-flex items-center">
+              <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
+              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                Total cryptographically verified consent decisions recorded in your audit trail.
+              </div>
+            </div>
+          </div>
           <div className="text-2xl font-bold text-slate-900 mt-2">
             {isLoading ? "..." : (stats?.total_receipts || 0).toLocaleString()}
           </div>
@@ -256,7 +260,15 @@ export function ConsentOverview() {
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Acceptance Rate</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Acceptance Rate</div>
+            <div className="relative group cursor-pointer inline-flex items-center">
+              <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
+              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                Percentage of visitors who accepted all or granted non-essential tracking cookies.
+              </div>
+            </div>
+          </div>
           <div className="text-2xl font-bold text-emerald-600 mt-2">
             {isLoading ? "..." : `${stats?.acceptance_rate || 0}%`}
           </div>
@@ -264,7 +276,15 @@ export function ConsentOverview() {
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Rejection Rate</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Rejection Rate</div>
+            <div className="relative group cursor-pointer inline-flex items-center">
+              <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
+              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                Percentage of visitors who declined non-essential analytics and marketing cookies.
+              </div>
+            </div>
+          </div>
           <div className="text-2xl font-bold text-slate-700 mt-2">
             {isLoading ? "..." : `${stats?.rejection_rate || 0}%`}
           </div>
@@ -272,7 +292,15 @@ export function ConsentOverview() {
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Analytics Opt-In</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Analytics Opt-In</div>
+            <div className="relative group cursor-pointer inline-flex items-center">
+              <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
+              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                Percentage of visitors who explicitly enabled the Analytics & Telemetry category.
+              </div>
+            </div>
+          </div>
           <div className="text-2xl font-bold text-[#1868db] mt-2">
             {isLoading ? "..." : `${stats?.analytics_accepted_pct || 0}%`}
           </div>
@@ -282,11 +310,28 @@ export function ConsentOverview() {
 
       {/* 5-Category Breakdown */}
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
-        <h3 className="text-sm font-bold text-slate-900">Consent Decision Breakdown by Category</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-bold text-slate-900">Consent Decision Breakdown by Category</h3>
+          <div className="relative group cursor-pointer inline-flex items-center">
+            <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
+            <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+              Aggregated consent acceptance percentages across the 5 standard compliance cookie categories.
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
           <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold">Necessary</span>
+              <span className="font-semibold flex items-center gap-1">
+                Necessary
+                <div className="relative group cursor-pointer inline-flex items-center">
+                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
+                  <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                    Essential for secure authentication, session management, and site security.
+                  </div>
+                </div>
+              </span>
               <span className="text-[10px] font-bold text-emerald-600">100%</span>
             </div>
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
@@ -296,7 +341,15 @@ export function ConsentOverview() {
 
           <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold">Functional</span>
+              <span className="font-semibold flex items-center gap-1">
+                Functional
+                <div className="relative group cursor-pointer inline-flex items-center">
+                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
+                  <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                    Preserves user preferences, language selection, and interactive widgets.
+                  </div>
+                </div>
+              </span>
               <span className="text-[10px] font-bold text-[#1868db]">{stats?.functional_accepted_pct || 0}%</span>
             </div>
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
@@ -306,7 +359,15 @@ export function ConsentOverview() {
 
           <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold">Analytics</span>
+              <span className="font-semibold flex items-center gap-1">
+                Analytics
+                <div className="relative group cursor-pointer inline-flex items-center">
+                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
+                  <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                    Measures anonymous pageviews, visits, and visitor conversion paths.
+                  </div>
+                </div>
+              </span>
               <span className="text-[10px] font-bold text-indigo-600">{stats?.analytics_accepted_pct || 0}%</span>
             </div>
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
@@ -316,7 +377,15 @@ export function ConsentOverview() {
 
           <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold">Performance</span>
+              <span className="font-semibold flex items-center gap-1">
+                Performance
+                <div className="relative group cursor-pointer inline-flex items-center">
+                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
+                  <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                    Monitors page load times, runtime speed, and asset performance.
+                  </div>
+                </div>
+              </span>
               <span className="text-[10px] font-bold text-purple-600">{stats?.performance_accepted_pct || 0}%</span>
             </div>
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
@@ -326,7 +395,15 @@ export function ConsentOverview() {
 
           <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
             <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold">Advertisement</span>
+              <span className="font-semibold flex items-center gap-1">
+                Advertisement
+                <div className="relative group cursor-pointer inline-flex items-center">
+                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
+                  <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                    Enables advertising networks, retargeting tags, and conversion tracking.
+                  </div>
+                </div>
+              </span>
               <span className="text-[10px] font-bold text-rose-600">{stats?.advertisement_accepted_pct || 0}%</span>
             </div>
             <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
@@ -338,11 +415,43 @@ export function ConsentOverview() {
 
       {/* Installation & SDK Snippet */}
       <div className="bg-white p-6 rounded-lg border border-slate-200 space-y-4 shadow-2xs">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900">Install ConsentOS on {activeDomain || "your site"}</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Paste this single script tag in the <code>&lt;head&gt;</code> of your website. It handles auto-blocking, Google Consent Mode v2, and Shadow DOM banner rendering automatically.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-slate-900">Install Consent Banner on {activeDomain || "your site"}</h3>
+              <div className="relative group cursor-pointer inline-flex items-center">
+                <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
+                <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-72 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                  Paste this single script tag in the &lt;head&gt; of your website. It handles auto-blocking, Google Consent Mode v2, and Shadow DOM banner rendering automatically.
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Single-tag script with automated Google Consent Mode v2 and script blocking.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-slate-600">
+            <span className="inline-flex items-center gap-1 font-medium">
+              Google Consent Mode v2
+              <div className="relative group cursor-pointer inline-flex items-center">
+                <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
+                <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block w-60 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                  Automatically updates ad_storage and analytics_storage in window.dataLayer upon user action.
+                </div>
+              </div>
+            </span>
+
+            <span className="inline-flex items-center gap-1 font-medium">
+              Live Audit Table
+              <div className="relative group cursor-pointer inline-flex items-center">
+                <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
+                <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                  Insert &lt;div id=&quot;usrly-cookie-declaration&quot;&gt;&lt;/div&gt; anywhere on your Privacy page to embed a live cookie table.
+                </div>
+              </div>
+            </span>
+          </div>
         </div>
 
         <div className="relative">
@@ -356,22 +465,6 @@ export function ConsentOverview() {
             {copiedSnippet ? <CheckCircle2 className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
             {copiedSnippet ? "Copied!" : "Copy Tag"}
           </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-xs text-slate-700">
-          <div className="p-3 bg-slate-50 rounded border border-slate-200">
-            <span className="font-bold block text-slate-900 mb-1">Google Consent Mode v2</span>
-            <p className="text-slate-500 text-[11px]">
-              Automatically updates <code>ad_storage</code> and <code>analytics_storage</code> in the <code>window.dataLayer</code> when users grant or deny permissions.
-            </p>
-          </div>
-
-          <div className="p-3 bg-slate-50 rounded border border-slate-200">
-            <span className="font-bold block text-slate-900 mb-1">Live Audit Table Element</span>
-            <p className="text-slate-500 text-[11px]">
-              Insert <code>&lt;div class=&quot;consentos-audit-table&quot;&gt;&lt;/div&gt;</code> anywhere on your Privacy or Cookie Policy page to embed a live cookie table.
-            </p>
-          </div>
         </div>
       </div>
     </div>

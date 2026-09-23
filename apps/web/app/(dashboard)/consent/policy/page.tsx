@@ -1,7 +1,7 @@
 import { PolicyGenerator } from "@/components/dashboard/consent/policy-generator"
 
 export const metadata = {
-  title: "Cookie Policy Generator — ConsentOS CMP",
+  title: "Cookie Policy Generator — Syft",
   description: "Generate and embed a clean, transparent cookie declaration policy for your website",
 }
 

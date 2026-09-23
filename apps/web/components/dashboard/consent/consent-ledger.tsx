@@ -116,9 +116,6 @@ export function ConsentLedger() {
           <div className="flex items-center gap-2">
             <ShieldCheck className="size-5 text-[#1868db]" />
             <h2 className="text-base font-bold text-slate-900">GDPR Proof-of-Consent Audit Trail</h2>
-            <span className="text-xs px-2 py-0.5 rounded-[4px] bg-blue-50 text-[#1868db] font-bold border border-blue-200">
-              Cryptographically Verified
-            </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Immutable log of visitor consent events, regulatory versions, and category preferences for{" "}
@@ -335,8 +332,7 @@ export function ConsentLedger() {
               </div>
             </div>
 
-            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-              <span className="text-[11px] text-slate-500 font-mono">ConsentOS Engine v2.3</span>
+            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-end">
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
