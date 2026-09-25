@@ -302,6 +302,33 @@ export async function ensureTables() {
           created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS ix_scans_domain_created ON scans(domain, created_at);
+
+        -- Consent Working Drafts (Isolated from Production Runtime)
+        CREATE TABLE IF NOT EXISTS consent_drafts (
+          id VARCHAR(36) PRIMARY KEY,
+          domain VARCHAR(255) UNIQUE NOT NULL,
+          site_id VARCHAR(36),
+          base_version VARCHAR(20) DEFAULT '1.0',
+          draft_config JSONB NOT NULL,
+          updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          updated_by VARCHAR(64)
+        );
+        CREATE INDEX IF NOT EXISTS ix_consent_drafts_domain ON consent_drafts(domain);
+
+        -- Consent Immutable Published Versions Audit History
+        CREATE TABLE IF NOT EXISTS consent_versions (
+          id VARCHAR(36) PRIMARY KEY,
+          domain VARCHAR(255) NOT NULL,
+          site_id VARCHAR(36),
+          version VARCHAR(20) NOT NULL,
+          config JSONB NOT NULL,
+          change_summary JSONB DEFAULT '[]'::jsonb,
+          published_by VARCHAR(64),
+          published_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          previous_version VARCHAR(20),
+          UNIQUE(domain, version)
+        );
+        CREATE INDEX IF NOT EXISTS ix_consent_versions_domain_pub ON consent_versions(domain, published_at DESC);
       `)
       tablesInitialized = true
     } finally {

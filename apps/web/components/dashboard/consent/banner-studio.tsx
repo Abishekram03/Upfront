@@ -20,6 +20,7 @@ import {
   Eye,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   Copy,
   ExternalLink,
   Layers,
@@ -27,9 +28,29 @@ import {
   HelpCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@workspace/ui/lib/utils"
+import { cn } from "@/lib/utils"
 import { useDomain } from "@/lib/domain-context"
-import { fetchConsentConfig, saveConsentConfig, ConsentConfig } from "@/lib/api"
+import {
+  fetchConsentConfig,
+  fetchConsentDraft,
+  saveConsentDraft,
+  discardConsentDraft,
+  publishConsentConfig,
+  ConsentConfig,
+} from "@/lib/api"
+import { StudioHeader } from "./studio/studio-header"
+import { PublishModal } from "./studio/publish-modal"
+import { VersionHistoryDrawer } from "./studio/version-history-drawer"
+import { validateAndSanitizeCSS } from "./studio/css-sanitizer"
+import { StudioConfig, ValidationResult } from "./studio/types"
+import {
+  LAW_PRESETS,
+  getPresetById,
+  applyPresetToConfig,
+  LawPreset,
+} from "./studio/presets"
+
+export { LAW_PRESETS }
 
 const COLOR_PRESETS = [
   { name: "Upfront Blue", hex: "#1868db" },
@@ -37,84 +58,6 @@ const COLOR_PRESETS = [
   { name: "Emerald", hex: "#059669" },
   { name: "Violet", hex: "#7c3aed" },
   { name: "Dark Slate", hex: "#0f172a" },
-]
-
-export const LAW_PRESETS = [
-  {
-    id: "gdpr",
-    name: "GDPR (Opt-in)",
-    jurisdiction: "EU & UK",
-    badge: "Strict Opt-in",
-    info: "Mandates explicit affirmative consent before any non-essential cookies or tracking scripts load. Requires equal visual prominence for Accept and Reject buttons.",
-    data: {
-      title: "We value your privacy",
-      description: "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies.",
-      accept_all_label: "Accept All",
-      reject_all_label: "Reject All",
-      preferences_label: "Customise",
-      save_preferences_label: "Save My Preferences",
-    },
-  },
-  {
-    id: "ccpa",
-    name: "CCPA / CPRA (Opt-out)",
-    jurisdiction: "California, US",
-    badge: "Opt-out",
-    info: "Allows trackers by default, but legally mandates a prominent 'Do Not Sell or Share My Personal Information' button and automatic Global Privacy Control (GPC) support.",
-    data: {
-      title: "Do Not Sell or Share My Personal Information",
-      description: "Under the California Consumer Privacy Act (CCPA), you have the right to opt out of the sale or sharing of your personal data with third-party advertisers.",
-      accept_all_label: "Dismiss / Accept",
-      reject_all_label: "Do Not Sell My Info",
-      preferences_label: "Opt-Out Preferences",
-      save_preferences_label: "Save Choices",
-    },
-  },
-  {
-    id: "dpdp",
-    name: "DPDP Act (Itemized)",
-    jurisdiction: "India",
-    badge: "Purpose Consent",
-    info: "Indian Digital Personal Data Protection Act requires plain-language purpose specification, accessible consent withdrawal, and direct grievance redressal disclosures.",
-    data: {
-      title: "Consent Notice under DPDP Act",
-      description: "We collect and process digital personal data only for specified legitimate purposes to provide our web services. You may manage or withdraw consent anytime.",
-      accept_all_label: "I Agree",
-      reject_all_label: "Decline Non-Essential",
-      preferences_label: "Manage Purposes",
-      save_preferences_label: "Save Consent Choices",
-    },
-  },
-  {
-    id: "lgpd",
-    name: "LGPD (Opt-in)",
-    jurisdiction: "Brazil",
-    badge: "Opt-in",
-    info: "Brazilian General Data Protection Law requiring granular category consent and transparent legal basis declarations for all data processing activities.",
-    data: {
-      title: "Gerenciamento de Privacidade e Cookies",
-      description: "Utilizamos cookies para aprimorar sua navegação e analisar nosso tráfego de acordo com a LGPD. Você pode personalizar suas escolhas a qualquer momento.",
-      accept_all_label: "Aceitar Todos",
-      reject_all_label: "Rejeitar",
-      preferences_label: "Personalizar",
-      save_preferences_label: "Salvar Preferências",
-    },
-  },
-  {
-    id: "notice_only",
-    name: "Notice Only (Global)",
-    jurisdiction: "Non-regulated",
-    badge: "Informational",
-    info: "Simple informational floating notice with a single acknowledgement button for jurisdictions without strict prior-consent requirements.",
-    data: {
-      title: "Cookie Usage Notice",
-      description: "This website uses cookies to ensure you get the best browsing experience on our website.",
-      accept_all_label: "Got it!",
-      reject_all_label: "Dismiss",
-      preferences_label: "Preferences",
-      save_preferences_label: "Acknowledge",
-    },
-  },
 ]
 
 export function BannerStudio() {
@@ -258,8 +201,16 @@ export function BannerStudio() {
   })
 
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [savedSuccess, setSavedSuccess] = useState(false)
+  const [isDraft, setIsDraft] = useState(false)
+  const [publishedVersion, setPublishedVersion] = useState("1.0")
+  const [baseVersion, setBaseVersion] = useState("1.0")
+  const [publishedConfig, setPublishedConfig] = useState<any>(null)
+
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false)
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [copiedEmbed, setCopiedEmbed] = useState(false)
 
   // Live Canvas Viewport Controls
@@ -283,45 +234,164 @@ export function BannerStudio() {
     advertisement: true,
   })
 
-  useEffect(() => {
+  // Load draft or published config
+  const loadStudioData = async () => {
     if (!activeDomain) {
       setIsLoading(false)
       return
     }
 
     setIsLoading(true)
-    fetchConsentConfig(activeDomain)
-      .then((data) => {
+    try {
+      const [draftData, pubData] = await Promise.all([
+        fetchConsentDraft(activeDomain),
+        fetchConsentConfig(activeDomain),
+      ])
+
+      setPublishedConfig(pubData)
+      setPublishedVersion(draftData.published_version || pubData.consent_version || "1.0")
+      setBaseVersion(draftData.base_version || pubData.consent_version || "1.0")
+      setIsDraft(draftData.is_draft)
+
+      const activeConfig = draftData.config || pubData
+      if (activeConfig) {
         setConfig((prev) => ({
           ...prev,
-          ...data,
-          primary_color: data.primary_color || "#1868db",
-          enable_gpc: data.enable_gpc !== undefined ? data.enable_gpc : true,
-          consent_version: data.consent_version || "1.0",
+          ...activeConfig,
+          primary_color: activeConfig.primary_color || "#1868db",
+          enable_gpc: activeConfig.enable_gpc !== undefined ? activeConfig.enable_gpc : true,
+          consent_version: activeConfig.consent_version || "1.0",
         }))
-      })
-      .catch((err) => {
-        console.warn("Could not fetch consent config, using defaults:", err)
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
+      }
+    } catch (err: any) {
+      console.warn("Could not fetch studio draft/config:", err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStudioData()
   }, [activeDomain])
 
-  const handleSave = async () => {
+  // Track edits to flag draft changes
+  const updateConfig = (updater: (prev: typeof config) => typeof config) => {
+    setConfig((prev) => {
+      const next = updater(prev)
+      setIsDraft(true)
+      return next
+    })
+  }
+
+  // Save Working Draft
+  const handleSaveDraft = async () => {
     if (!activeDomain) return
-    setIsSaving(true)
+    setIsSavingDraft(true)
     try {
-      await saveConsentConfig({
-        ...config,
-        domain: activeDomain,
-      })
-      setSavedSuccess(true)
-      setTimeout(() => setSavedSuccess(false), 3000)
+      await saveConsentDraft(activeDomain, config, baseVersion)
+      setIsDraft(true)
+      setToast({ type: "success", message: "Draft saved. Changes will not affect live website until published." })
+      setTimeout(() => setToast(null), 4000)
     } catch (err: any) {
-      alert(err?.message || "Failed to save consent configuration.")
+      setToast({ type: "error", message: err?.message || "Failed to save draft." })
+      setTimeout(() => setToast(null), 5000)
     } finally {
-      setIsSaving(false)
+      setIsSavingDraft(false)
+    }
+  }
+
+  // Discard Working Draft
+  const handleDiscardDraft = async () => {
+    if (!activeDomain) return
+    const confirmed = window.confirm("Discard all unpublished draft changes and revert to the live published configuration?")
+    if (!confirmed) return
+
+    try {
+      await discardConsentDraft(activeDomain)
+      await loadStudioData()
+      setToast({ type: "success", message: "Draft discarded. Reverted to live published configuration." })
+      setTimeout(() => setToast(null), 4000)
+    } catch (err: any) {
+      setToast({ type: "error", message: err?.message || "Failed to discard draft." })
+      setTimeout(() => setToast(null), 5000)
+    }
+  }
+
+  // Compute validation
+  const getValidation = (): ValidationResult => {
+    const errors: string[] = []
+    const warnings: string[] = []
+
+    if (!config.title || config.title.trim().length === 0) errors.push("Banner title is required.")
+    if (!config.description || config.description.trim().length === 0) errors.push("Banner description is required.")
+    if (!config.accept_all_label || config.accept_all_label.trim().length === 0) errors.push("Accept All label cannot be empty.")
+    if (!config.reject_all_label || config.reject_all_label.trim().length === 0) errors.push("Reject All label cannot be empty.")
+    if (!config.preferences_label || config.preferences_label.trim().length === 0) errors.push("Preferences label cannot be empty.")
+
+    if (config.privacy_policy_url) {
+      const url = config.privacy_policy_url.trim()
+      if (!url.startsWith("/") && !url.startsWith("http://") && !url.startsWith("https://")) {
+        errors.push("Privacy Policy URL must start with / or https://")
+      }
+    }
+
+    const cssCheck = validateAndSanitizeCSS(config.custom_css)
+    if (!cssCheck.isSafe) {
+      errors.push(cssCheck.error || "Unsafe Custom CSS detected.")
+    }
+
+    return { isValid: errors.length === 0, errors, warnings }
+  }
+
+  // Compute diffs
+  const getDiffs = (): string[] => {
+    if (!publishedConfig) return ["Initial configuration changes"]
+    const diffs: string[] = []
+    if (publishedConfig.title !== config.title) diffs.push("Updated banner title")
+    if (publishedConfig.description !== config.description) diffs.push("Updated banner description")
+    if (publishedConfig.primary_color !== config.primary_color) diffs.push(`Changed primary color to ${config.primary_color}`)
+    if (publishedConfig.layout !== config.layout) diffs.push(`Changed layout to ${config.layout}`)
+    if (publishedConfig.theme !== config.theme) diffs.push(`Changed theme to ${config.theme}`)
+    if (publishedConfig.accept_all_label !== config.accept_all_label) diffs.push("Updated Accept button label")
+    if (publishedConfig.reject_all_label !== config.reject_all_label) diffs.push("Updated Reject button label")
+    if (publishedConfig.preferences_label !== config.preferences_label) diffs.push("Updated Preferences button label")
+    if (publishedConfig.enable_gpc !== config.enable_gpc) diffs.push(`GPC set to ${config.enable_gpc ? "Enabled" : "Disabled"}`)
+    if (publishedConfig.enable_consent_mode_v2 !== config.enable_consent_mode_v2) diffs.push(`Consent Mode v2 set to ${config.enable_consent_mode_v2 ? "Enabled" : "Disabled"}`)
+    if (publishedConfig.geo_targeting !== config.geo_targeting) diffs.push(`Geo-targeting set to ${config.geo_targeting}`)
+    if (publishedConfig.custom_css !== config.custom_css) diffs.push("Updated Shadow-DOM Custom CSS")
+    if (diffs.length === 0) diffs.push("Configuration adjustments")
+    return diffs
+  }
+
+  const getTargetVersion = () => {
+    const clean = (publishedVersion || "1.0").replace(/^v/i, "").trim()
+    const parts = clean.split(".")
+    if (parts.length === 2) {
+      const major = parseInt(parts[0] || "1", 10) || 1
+      const minor = parseInt(parts[1] || "0", 10) || 0
+      return `${major}.${minor + 1}`
+    }
+    return `${clean}.1`
+  }
+
+  // Publish Configuration
+  const handlePublish = async () => {
+    if (!activeDomain) return
+    setIsPublishing(true)
+    try {
+      const res = await publishConsentConfig(activeDomain, config, baseVersion)
+      setPublishedVersion(res.published_version)
+      setBaseVersion(res.published_version)
+      setPublishedConfig(res.config)
+      setIsDraft(false)
+      setIsPublishModalOpen(false)
+      setToast({ type: "success", message: `v${res.published_version} published successfully to production!` })
+      setTimeout(() => setToast(null), 5000)
+    } catch (err: any) {
+      setToast({ type: "error", message: err?.message || "Failed to publish configuration." })
+      setTimeout(() => setToast(null), 6000)
+    } finally {
+      setIsPublishing(false)
     }
   }
 
@@ -330,13 +400,55 @@ export function BannerStudio() {
   }
 
   const copyEmbedSnippet = () => {
-    navigator.clipboard.writeText('<div class="upfront-audit-table-element"></div>')
+    navigator.clipboard.writeText('<div id="usrly-cookie-declaration"></div>')
     setCopiedEmbed(true)
     setTimeout(() => setCopiedEmbed(false), 2000)
   }
 
   return (
     <div className="w-full h-full flex flex-col bg-white overflow-hidden select-none">
+      {/* 1. Studio Enterprise Header */}
+      <StudioHeader
+        activeDomain={activeDomain || ""}
+        publishedVersion={publishedVersion}
+        isDraft={isDraft}
+        isSavingDraft={isSavingDraft}
+        isPublishing={isPublishing}
+        onSaveDraft={handleSaveDraft}
+        onDiscardDraft={handleDiscardDraft}
+        onOpenPublishModal={() => setIsPublishModalOpen(true)}
+        onOpenVersionHistory={() => setIsVersionHistoryOpen(true)}
+      />
+
+      {/* Global Studio Toast Alert */}
+      {toast && (
+        <div
+          role="alert"
+          className={cn(
+            "mx-5 mt-3 p-3 rounded-lg border text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2",
+            toast.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+              : "bg-rose-50 border-rose-200 text-rose-900"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            {toast.type === "success" ? (
+              <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="size-4 text-rose-600 shrink-0" />
+            )}
+            <span>{toast.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="text-xs opacity-60 hover:opacity-100 font-bold ml-4 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Main Studio Frame: Left Rail + Settings Panel + Right Live Canvas */}
       <div className="flex-1 flex overflow-hidden w-full h-full">
         
@@ -417,11 +529,13 @@ export function BannerStudio() {
                         const selectedId = e.target.value
                         const found = LAW_PRESETS.find((p) => p.id === selectedId)
                         if (found) {
-                          setConfig((prev) => ({
-                            ...prev,
-                            ...found.data,
-                            law_template: found.id,
-                          }))
+                          setConfig((prev) => applyPresetToConfig(prev, found))
+                          setMockSwitches({
+                            functional: found.defaultCategories.functional,
+                            analytics: found.defaultCategories.analytics,
+                            performance: found.defaultCategories.performance,
+                            advertisement: found.defaultCategories.advertisement,
+                          })
                         }
                       }}
                       className="w-full px-3 py-2 text-xs font-semibold rounded-[4px] border border-slate-300 bg-white text-slate-900 shadow-2xs focus:outline-hidden focus:border-[#1868db] focus:ring-1 focus:ring-[#1868db] cursor-pointer appearance-none pr-8"
@@ -468,11 +582,11 @@ export function BannerStudio() {
                           </div>
                           <div className="flex items-center justify-between text-slate-500">
                             <span>Primary Action:</span>
-                            <strong className="text-slate-700">{currentPreset.data.accept_all_label}</strong>
+                            <strong className="text-slate-700">{currentPreset.bannerData.accept_all_label}</strong>
                           </div>
                           <div className="flex items-center justify-between text-slate-500">
                             <span>Opt-Out / Reject:</span>
-                            <strong className="text-slate-700">{currentPreset.data.reject_all_label}</strong>
+                            <strong className="text-slate-700">{currentPreset.bannerData.reject_all_label}</strong>
                           </div>
                         </div>
 
@@ -481,11 +595,13 @@ export function BannerStudio() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            setConfig((prev) => ({
-                              ...prev,
-                              ...currentPreset.data,
-                              law_template: currentPreset.id,
-                            }))
+                            setConfig((prev) => applyPresetToConfig(prev, currentPreset))
+                            setMockSwitches({
+                              functional: currentPreset.defaultCategories.functional,
+                              analytics: currentPreset.defaultCategories.analytics,
+                              performance: currentPreset.defaultCategories.performance,
+                              advertisement: currentPreset.defaultCategories.advertisement,
+                            })
                           }}
                           className="w-full text-[10px] font-bold h-7 rounded-[4px] border-blue-200 bg-white text-[#1868db] hover:bg-blue-50"
                         >
@@ -602,11 +718,13 @@ export function BannerStudio() {
                         const selectedId = e.target.value
                         const found = LAW_PRESETS.find((p) => p.id === selectedId)
                         if (found) {
-                          setConfig((prev) => ({
-                            ...prev,
-                            ...found.data,
-                            law_template: found.id,
-                          }))
+                          setConfig((prev) => applyPresetToConfig(prev, found))
+                          setMockSwitches({
+                            functional: found.defaultCategories.functional,
+                            analytics: found.defaultCategories.analytics,
+                            performance: found.defaultCategories.performance,
+                            advertisement: found.defaultCategories.advertisement,
+                          })
                         }
                       }}
                       className="w-full px-3 py-2 text-xs font-semibold rounded-[4px] border border-slate-300 bg-white text-slate-900 shadow-2xs focus:outline-hidden focus:border-[#1868db] focus:ring-1 focus:ring-[#1868db] cursor-pointer appearance-none pr-8"
@@ -1262,13 +1380,22 @@ export function BannerStudio() {
           </div>
 
           {/* Sticky Bottom Action */}
-          <div className="p-3 border-t border-slate-200 bg-slate-50/80">
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || !activeDomain}
-              className="w-full rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold py-2 shadow-xs cursor-pointer"
+          <div className="p-3 border-t border-slate-200 bg-slate-50/80 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={isSavingDraft || isPublishing || !activeDomain}
+              onClick={handleSaveDraft}
+              className="flex-1 rounded-[4px] border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-2 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              {isSaving ? "Publishing..." : "Publish Changes"}
+              {isSavingDraft ? "Saving..." : "Save Draft"}
+            </button>
+            <Button
+              type="button"
+              onClick={() => setIsPublishModalOpen(true)}
+              disabled={isPublishing || !activeDomain}
+              className="flex-1 rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold py-2 shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              Review & Publish
             </Button>
           </div>
         </div>
@@ -1339,32 +1466,19 @@ export function BannerStudio() {
               </button>
             </div>
 
-            {/* Right Action: Published status + Publish Changes button */}
+            {/* Right Action: Draft Status Badge */}
             <div className="flex items-center gap-2">
-              {savedSuccess && (
-                <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in">
-                  <Check className="size-3.5" /> Published
-                </span>
+              {isDraft ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                  <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>Draft Preview</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  <span>Live Preview (v{publishedVersion})</span>
+                </div>
               )}
-              <Button
-                onClick={handleSave}
-                disabled={isSaving || !activeDomain}
-                className="rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-3.5 py-1.5 h-8 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                {savedSuccess ? (
-                  <>
-                    <Check className="size-3.5" />
-                    Published!
-                  </>
-                ) : isSaving ? (
-                  "Saving..."
-                ) : (
-                  <>
-                    <Save className="size-3.5" />
-                    Publish Changes
-                  </>
-                )}
-              </Button>
             </div>
           </div>
 
@@ -1421,32 +1535,36 @@ export function BannerStudio() {
                             ? "flex flex-col gap-2 pt-3 border-t border-slate-100 w-full"
                             : "flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100 w-full"
                         )}>
-                          <button
-                            type="button"
-                            onClick={() => setPreviewView("preferences")}
-                            className={cn(
-                              "px-3 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
-                              previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
-                            )}
-                            style={{ borderColor: config.primary_color, color: config.primary_color }}
-                          >
-                            {config.preferences_label}
-                          </button>
+                          {(config as any).law_template !== "notice_only" && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewView("preferences")}
+                              className={cn(
+                                "px-3 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
+                                previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
+                              )}
+                              style={{ borderColor: config.primary_color, color: config.primary_color }}
+                            >
+                              {config.preferences_label}
+                            </button>
+                          )}
+                          {(config as any).law_template !== "notice_only" && (
+                            <button
+                              type="button"
+                              className={cn(
+                                "px-3 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                                previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
+                              )}
+                              style={{ backgroundColor: config.primary_color }}
+                            >
+                              {config.reject_all_label}
+                            </button>
+                          )}
                           <button
                             type="button"
                             className={cn(
                               "px-3 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
-                              previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
-                            )}
-                            style={{ backgroundColor: config.primary_color }}
-                          >
-                            {config.reject_all_label}
-                          </button>
-                          <button
-                            type="button"
-                            className={cn(
-                              "px-3 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
-                              previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
+                              previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "flex-1 min-w-[110px]"
                             )}
                             style={{ backgroundColor: config.primary_color }}
                           >
@@ -1475,32 +1593,36 @@ export function BannerStudio() {
                             ? "flex flex-col gap-2 w-full pt-1 shrink-0"
                             : "flex flex-wrap items-center justify-end gap-2 shrink-0"
                         )}>
-                          <button
-                            type="button"
-                            onClick={() => setPreviewView("preferences")}
-                            className={cn(
-                              "px-3.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
-                              previewDevice === "mobile" ? "w-full" : "min-w-fit"
-                            )}
-                            style={{ borderColor: config.primary_color, color: config.primary_color }}
-                          >
-                            {config.preferences_label}
-                          </button>
-                          <button
-                            type="button"
-                            className={cn(
-                              "px-3.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
-                              previewDevice === "mobile" ? "w-full" : "min-w-fit"
-                            )}
-                            style={{ backgroundColor: config.primary_color }}
-                          >
-                            {config.reject_all_label}
-                          </button>
+                          {(config as any).law_template !== "notice_only" && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewView("preferences")}
+                              className={cn(
+                                "px-3.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
+                                previewDevice === "mobile" ? "w-full" : "min-w-fit"
+                              )}
+                              style={{ borderColor: config.primary_color, color: config.primary_color }}
+                            >
+                              {config.preferences_label}
+                            </button>
+                          )}
+                          {(config as any).law_template !== "notice_only" && (
+                            <button
+                              type="button"
+                              className={cn(
+                                "px-3.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                                previewDevice === "mobile" ? "w-full" : "min-w-fit"
+                              )}
+                              style={{ backgroundColor: config.primary_color }}
+                            >
+                              {config.reject_all_label}
+                            </button>
+                          )}
                           <button
                             type="button"
                             className={cn(
                               "px-4 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
-                              previewDevice === "mobile" ? "w-full" : "min-w-fit"
+                              previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "min-w-fit"
                             )}
                             style={{ backgroundColor: config.primary_color }}
                           >
@@ -1536,32 +1658,36 @@ export function BannerStudio() {
                           ? "flex flex-col gap-2 pt-2 w-full"
                           : "flex flex-wrap gap-2 pt-2 w-full"
                       )}>
-                        <button
-                          type="button"
-                          onClick={() => setPreviewView("preferences")}
-                          className={cn(
-                            "px-2.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
-                            previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
-                          )}
-                          style={{ borderColor: config.primary_color, color: config.primary_color }}
-                        >
-                          {config.preferences_label}
-                        </button>
+                        {(config as any).law_template !== "notice_only" && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewView("preferences")}
+                            className={cn(
+                              "px-2.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
+                              previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
+                            )}
+                            style={{ borderColor: config.primary_color, color: config.primary_color }}
+                          >
+                            {config.preferences_label}
+                          </button>
+                        )}
+                        {(config as any).law_template !== "notice_only" && (
+                          <button
+                            type="button"
+                            className={cn(
+                              "px-2.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                              previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
+                            )}
+                            style={{ backgroundColor: config.primary_color }}
+                          >
+                            {config.reject_all_label}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className={cn(
                             "px-2.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
-                            previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
-                          )}
-                          style={{ backgroundColor: config.primary_color }}
-                        >
-                          {config.reject_all_label}
-                        </button>
-                        <button
-                          type="button"
-                          className={cn(
-                            "px-2.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
-                            previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
+                            previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "flex-1 min-w-[90px]"
                           )}
                           style={{ backgroundColor: config.primary_color }}
                         >
@@ -1883,6 +2009,27 @@ export function BannerStudio() {
           </div>
         </div>
       </div>
+
+      {/* 2. Atomic Publish Confirmation Modal */}
+      <PublishModal
+        isOpen={isPublishModalOpen}
+        onClose={() => setIsPublishModalOpen(false)}
+        onConfirmPublish={handlePublish}
+        isPublishing={isPublishing}
+        targetVersion={getTargetVersion()}
+        publishedVersion={publishedVersion}
+        diffs={getDiffs()}
+        validation={getValidation()}
+      />
+
+      {/* 3. Version History & Audit Drawer */}
+      <VersionHistoryDrawer
+        isOpen={isVersionHistoryOpen}
+        onClose={() => setIsVersionHistoryOpen(false)}
+        activeDomain={activeDomain || ""}
+        currentPublishedVersion={publishedVersion}
+        onVersionRestored={loadStudioData}
+      />
     </div>
   )
 }

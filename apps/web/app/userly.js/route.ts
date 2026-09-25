@@ -847,10 +847,37 @@ const TRACKER_SCRIPT = `(function () {
     \`;
     shadow.appendChild(style);
 
-    var functionalChecked = !isGPCSignal;
-    var analyticsChecked = !isGPCSignal;
-    var performanceChecked = !isGPCSignal;
-    var adChecked = !isGPCSignal;
+    var stored = getStoredConsent();
+    var isNoticeOnly = config.law_template === "notice_only";
+    var isCCPA = config.law_template === "ccpa";
+    var isOptInModel = !isCCPA && !isNoticeOnly;
+
+    var functionalChecked = false;
+    var analyticsChecked = false;
+    var performanceChecked = false;
+    var adChecked = false;
+
+    if (stored) {
+      functionalChecked = Boolean(stored.functional);
+      analyticsChecked = Boolean(stored.analytics);
+      performanceChecked = Boolean(stored.performance);
+      adChecked = Boolean(stored.advertisement || stored.marketing);
+    } else if (isGPCSignal) {
+      functionalChecked = false;
+      analyticsChecked = false;
+      performanceChecked = false;
+      adChecked = false;
+    } else if (!isOptInModel) {
+      functionalChecked = config.default_functional !== false;
+      analyticsChecked = config.default_analytics !== false;
+      performanceChecked = config.default_performance !== false;
+      adChecked = config.default_advertisement !== false;
+    } else {
+      functionalChecked = Boolean(config.default_functional);
+      analyticsChecked = Boolean(config.default_analytics);
+      performanceChecked = Boolean(config.default_performance);
+      adChecked = Boolean(config.default_advertisement);
+    }
 
     function applyAndClose(consentData) {
       consentData.consent_version = config.consent_version || "1.0";
@@ -1022,16 +1049,31 @@ const TRACKER_SCRIPT = `(function () {
         });
       };
 
-      overlay.querySelector("#usrly-modal-reject").onclick = function () {
-        applyAndClose({
-          consent_given: false,
-          necessary: true,
-          functional: false,
-          analytics: false,
-          performance: false,
-          advertisement: false,
-        });
-      };
+      var modalReject = overlay.querySelector("#usrly-modal-reject");
+      if (modalReject) {
+        modalReject.onclick = function () {
+          if (isCCPA) {
+            applyAndClose({
+              consent_given: false,
+              necessary: true,
+              functional: true,
+              analytics: true,
+              performance: true,
+              advertisement: false,
+              ccpa_opted_out: true,
+            });
+          } else {
+            applyAndClose({
+              consent_given: false,
+              necessary: true,
+              functional: false,
+              analytics: false,
+              performance: false,
+              advertisement: false,
+            });
+          }
+        };
+      }
 
       overlay.querySelector("#usrly-modal-save").onclick = function () {
         var funcEl = overlay.querySelector("#usrly-toggle-func");
@@ -1078,39 +1120,60 @@ const TRACKER_SCRIPT = `(function () {
           </div>
         </div>
         <div class="usrly-btn-group">
-          <button class="usrly-btn usrly-btn-outline" id="usrly-btn-customise">\${config.preferences_label || "Customise"}</button>
-          <button class="usrly-btn usrly-btn-secondary" id="usrly-btn-reject">\${config.reject_all_label || "Reject All"}</button>
-          <button class="usrly-btn usrly-btn-primary" id="usrly-btn-accept">\${config.accept_all_label || "Accept All"}</button>
+          \${!isNoticeOnly ? \`<button class="usrly-btn usrly-btn-outline" id="usrly-btn-customise">\${config.preferences_label || "Customise"}</button>\` : ""}
+          \${!isNoticeOnly ? \`<button class="usrly-btn usrly-btn-secondary" id="usrly-btn-reject">\${config.reject_all_label || (isCCPA ? "Do Not Sell My Info" : "Reject All")}</button>\` : ""}
+          <button class="usrly-btn usrly-btn-primary" id="usrly-btn-accept">\${config.accept_all_label || (isNoticeOnly ? "Got it!" : (isCCPA ? "Accept & Continue" : "Accept All"))}</button>
         </div>
       </div>
     \`;
     shadow.appendChild(banner);
 
-    banner.querySelector("#usrly-btn-accept").onclick = function () {
-      applyAndClose({
-        consent_given: true,
-        necessary: true,
-        functional: true,
-        analytics: true,
-        performance: true,
-        advertisement: true,
-      });
-    };
+    var btnAccept = banner.querySelector("#usrly-btn-accept");
+    if (btnAccept) {
+      btnAccept.onclick = function () {
+        applyAndClose({
+          consent_given: true,
+          necessary: true,
+          functional: true,
+          analytics: true,
+          performance: true,
+          advertisement: true,
+        });
+      };
+    }
 
-    banner.querySelector("#usrly-btn-reject").onclick = function () {
-      applyAndClose({
-        consent_given: false,
-        necessary: true,
-        functional: false,
-        analytics: false,
-        performance: false,
-        advertisement: false,
-      });
-    };
+    var btnReject = banner.querySelector("#usrly-btn-reject");
+    if (btnReject) {
+      btnReject.onclick = function () {
+        if (isCCPA) {
+          applyAndClose({
+            consent_given: false,
+            necessary: true,
+            functional: true,
+            analytics: true,
+            performance: true,
+            advertisement: false,
+            ccpa_opted_out: true,
+          });
+        } else {
+          applyAndClose({
+            consent_given: false,
+            necessary: true,
+            functional: false,
+            analytics: false,
+            performance: false,
+            advertisement: false,
+          });
+        }
+      };
+    }
 
-    banner.querySelector("#usrly-btn-customise").onclick = function () {
-      showPreferencesModal();
-    };
+    var btnCustomise = banner.querySelector("#usrly-btn-customise");
+    if (btnCustomise) {
+      btnCustomise.onclick = function () {
+        showPreferencesModal();
+      };
+    }
   }
 
   // 3. EXPOSE DEVELOPER SDK ON window.Userly & window.usrly

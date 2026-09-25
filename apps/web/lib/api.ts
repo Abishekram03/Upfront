@@ -376,3 +376,118 @@ export async function updateDiscoveredCookie(
   return await res.json()
 }
 
+export interface ConsentDraftResponse {
+  is_draft: boolean
+  base_version: string
+  published_version: string
+  updated_at: string | null
+  config: ConsentConfig | null
+}
+
+export interface ConsentVersion {
+  id: string
+  domain: string
+  version: string
+  config: any
+  change_summary: string[]
+  published_by?: string
+  published_at: string
+  previous_version?: string
+}
+
+export async function fetchConsentDraft(domain: string): Promise<ConsentDraftResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/draft?domain=${encodeURIComponent(domain)}`, {
+    cache: "no-store",
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to fetch draft configuration")
+  }
+  return await res.json()
+}
+
+export async function saveConsentDraft(
+  domain: string,
+  config: any,
+  baseVersion: string = "1.0"
+): Promise<{ ok: boolean; is_draft: boolean; updated_at: string; config: any }> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ domain, base_version: baseVersion, config }),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to save draft")
+  }
+  return await res.json()
+}
+
+export async function discardConsentDraft(domain: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/draft?domain=${encodeURIComponent(domain)}`, {
+    method: "DELETE",
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to discard draft")
+  }
+  return await res.json()
+}
+
+export async function publishConsentConfig(
+  domain: string,
+  config: any,
+  baseVersion?: string
+): Promise<{
+  ok: boolean
+  published_version: string
+  change_summary: string[]
+  published_at: string
+  config: ConsentConfig
+}> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ domain, base_version: baseVersion, config }),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    if (res.status === 409) {
+      throw new Error(`Conflict: ${errData.detail || "Configuration has changed on server."}`)
+    }
+    if (res.status === 422 && errData.errors) {
+      throw new Error(`Validation failed:\n• ${errData.errors.join("\n• ")}`)
+    }
+    throw new Error(errData.detail || "Failed to publish consent configuration")
+  }
+  return await res.json()
+}
+
+export async function fetchConsentVersions(domain: string): Promise<{ domain: string; versions: ConsentVersion[] }> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/versions?domain=${encodeURIComponent(domain)}`, {
+    cache: "no-store",
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to fetch version history")
+  }
+  return await res.json()
+}
+
+export async function restoreConsentVersion(
+  domain: string,
+  version: string
+): Promise<{ ok: boolean; new_version: string; message: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/consent/versions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ domain, version }),
+  })
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.detail || "Failed to restore version")
+  }
+  return await res.json()
+}
+
+
