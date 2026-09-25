@@ -1,104 +1,136 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import {
-  ShieldCheck,
-  Palette,
-  FileCode,
-  FileCheck,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  ArrowRight,
-  Sparkles,
-  AlertCircle,
-  RefreshCw,
-  Sliders,
-  Globe,
-  SlidersHorizontal,
-  Cookie,
-  Radar,
-  Copy,
-  Code2,
-  Lock,
-  HelpCircle,
-} from "lucide-react"
-import { Button } from "@workspace/ui/components/button"
-import { cn } from "@/lib/utils"
+import { Globe, AlertCircle, RefreshCw, CheckCircle2 } from "lucide-react"
 import { useDomain } from "@/lib/domain-context"
-import { fetchConsentStats, fetchConsentConfig, saveConsentConfig, ConsentStatsSummary, ConsentConfig } from "@/lib/api"
+import {
+  fetchConsentStats,
+  fetchConsentConfig,
+  fetchScannerData,
+  saveConsentConfig,
+  ConsentStatsSummary,
+  ConsentConfig,
+  ScannerResponse,
+} from "@/lib/api"
+import { ConsentHeader } from "./overview/consent-header"
+import { ConsentNavigation } from "./overview/consent-navigation"
+import { ConsentDecisionMetrics } from "./overview/consent-decision-metrics"
+import { ConsentCategoryBreakdown } from "./overview/consent-category-breakdown"
+import { ConsentHealth } from "./overview/consent-health"
+import { InstallationCard } from "./overview/installation-card"
+import { DeclarationEmbedCard } from "./overview/declaration-embed-card"
 
 export function ConsentOverview() {
   const { activeDomain, isLoadingSites, sites } = useDomain()
 
   const [stats, setStats] = useState<ConsentStatsSummary | null>(null)
   const [config, setConfig] = useState<ConsentConfig | null>(null)
+  const [scanner, setScanner] = useState<ScannerResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isToggling, setIsToggling] = useState(false)
-  const [copiedSnippet, setCopiedSnippet] = useState(false)
+  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!activeDomain) {
       setIsLoading(false)
       setStats(null)
       setConfig(null)
+      setScanner(null)
       return
     }
 
     setIsLoading(true)
     setError(null)
+
     try {
-      const [statsData, configData] = await Promise.all([
+      // Fetch stats, config, and scanner concurrently with resilient error handling
+      const [statsResult, configResult, scannerResult] = await Promise.allSettled([
         fetchConsentStats(activeDomain),
         fetchConsentConfig(activeDomain),
+        fetchScannerData(activeDomain),
       ])
-      setStats(statsData)
-      setConfig(configData)
+
+      if (statsResult.status === "fulfilled") {
+        setStats(statsResult.value)
+      } else {
+        console.error("Failed to load consent stats:", statsResult.reason)
+      }
+
+      if (configResult.status === "fulfilled") {
+        setConfig(configResult.value)
+      } else {
+        console.error("Failed to load consent config:", configResult.reason)
+      }
+
+      if (scannerResult.status === "fulfilled") {
+        setScanner(scannerResult.value)
+      } else {
+        // Non-critical, scanner can be null if no scan has been executed
+        setScanner(null)
+      }
+
+      // If both core endpoints failed, raise an error state
+      if (statsResult.status === "rejected" && configResult.status === "rejected") {
+        throw new Error(
+          statsResult.reason?.message || configResult.reason?.message || "Unable to retrieve consent overview data."
+        )
+      }
     } catch (err: any) {
-      console.error("Failed to load consent overview:", err)
-      setError(err?.message || "Failed to load consent data.")
+      console.error("Consent Overview fetch failure:", err)
+      setError(err?.message || "Unable to load consent metrics and settings. Please try again.")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [activeDomain])
 
   useEffect(() => {
     loadData()
-  }, [activeDomain])
+  }, [loadData])
 
+  // Master Banner Toggle with Optimistic rollback and safety validation
   const handleToggleBanner = async () => {
-    if (!config || !activeDomain) return
+    if (!config || !activeDomain || isToggling) return
+
+    const previousEnabled = config.is_enabled
+    const newEnabled = !previousEnabled
+
     setIsToggling(true)
+    setNotification(null)
+
     try {
       const updated = await saveConsentConfig({
         ...config,
-        is_enabled: !config.is_enabled,
+        is_enabled: newEnabled,
       })
       setConfig(updated)
+      setNotification({
+        type: "success",
+        message: newEnabled ? "Consent banner is now Live on your website." : "Consent banner paused.",
+      })
+      setTimeout(() => setNotification(null), 4000)
     } catch (err: any) {
-      alert(err?.message || "Failed to update banner status.")
+      console.error("Banner toggle failure:", err)
+      // Rollback to previous state
+      setConfig({ ...config, is_enabled: previousEnabled })
+      setNotification({
+        type: "error",
+        message: err?.message || "Failed to update banner status. Previous state restored.",
+      })
+      setTimeout(() => setNotification(null), 5000)
     } finally {
       setIsToggling(false)
     }
   }
 
-  const snippetCode = `<script src="${typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"}/consentos.js?domain=${activeDomain || "your-site.com"}" defer></script>`
-
-  const copySnippet = () => {
-    navigator.clipboard.writeText(snippetCode)
-    setCopiedSnippet(true)
-    setTimeout(() => setCopiedSnippet(false), 2000)
-  }
-
-  // EMPTY STATE: NO SITES
+  // EMPTY STATE: NO SITES REGISTERED
   if (!isLoadingSites && !activeDomain && sites.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-5xl">
         <div className="rounded-lg border border-slate-200 bg-white p-12 text-center shadow-xs">
-          <div className="mx-auto flex max-w-sm flex-col items-center space-y-3">
-            <div className="flex size-14 items-center justify-center rounded-[4px] bg-slate-100 text-[#1868db]">
+          <div className="mx-auto flex max-w-md flex-col items-center space-y-3">
+            <div className="flex size-14 items-center justify-center rounded-[6px] bg-blue-50 text-[#1868db]">
               <Globe className="size-7" />
             </div>
             <h3 className="text-base font-bold text-slate-900">No Website Registered</h3>
@@ -117,356 +149,102 @@ export function ConsentOverview() {
     )
   }
 
-  return (
-    <div className="space-y-6 max-w-6xl pb-16">
-      {/* Top Banner Status Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">Consent Management Platform</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Privacy-first cookie banner studio, script auto-blocking, and proof-of-consent logs for <strong className="text-slate-800">{activeDomain || "your site"}</strong>.
-          </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={loadData}
-            disabled={isLoading}
-            className="inline-flex items-center text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-[4px] px-3 py-1.5 shadow-2xs transition-colors cursor-pointer"
-          >
-            <RefreshCw className={cn("size-3.5 mr-1.5 text-[#1868db]", isLoading && "animate-spin")} />
-            Refresh
-          </button>
-
-          {config && (
+  // ERROR STATE: FAILED DATA FETCH (with retry)
+  if (error && !isLoading && !config && !stats) {
+    return (
+      <div className="space-y-6 max-w-5xl">
+        <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-8 text-center shadow-xs">
+          <div className="mx-auto flex max-w-md flex-col items-center space-y-3">
+            <div className="flex size-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+              <AlertCircle className="size-6" />
+            </div>
+            <h3 className="text-sm font-bold text-rose-900">Unable to Load Consent Data</h3>
+            <p className="text-xs text-rose-700 leading-relaxed">
+              {error}
+            </p>
             <button
               type="button"
-              onClick={handleToggleBanner}
-              disabled={isToggling}
-              className={cn(
-                "inline-flex items-center text-xs font-bold rounded-[4px] px-3.5 py-1.5 shadow-xs transition-all cursor-pointer",
-                config.is_enabled
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                  : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-              )}
+              onClick={loadData}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-[4px] bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2 shadow-xs transition-colors cursor-pointer"
             >
-              {config.is_enabled ? (
-                <>
-                  <CheckCircle2 className="size-3.5 mr-1.5" /> Banner Active
-                </>
-              ) : (
-                <>
-                  <XCircle className="size-3.5 mr-1.5" /> Banner Disabled
-                </>
-              )}
+              <RefreshCw className="size-3.5" />
+              Try Again
             </button>
-          )}
-
-          <Link
-            href="/consent/studio"
-            className="inline-flex items-center gap-1.5 rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-3.5 py-1.5 shadow-xs transition-colors"
-          >
-            <Palette className="size-3.5" />
-            Open Banner Studio
-          </Link>
-        </div>
-      </div>
-
-      {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link
-          href="/consent/studio"
-          className="group block rounded-lg border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex size-9 items-center justify-center rounded-[4px] bg-blue-50 text-[#1868db] group-hover:scale-105 transition-transform">
-              <Palette className="size-4.5" />
-            </div>
-            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
-          </div>
-          <h3 className="text-xs font-bold text-slate-900">Banner Studio</h3>
-          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-            Live visual editor for banner layouts, colors, and 6-field preference centre.
-          </p>
-        </Link>
-
-        <Link
-          href="/consent/scanner"
-          className="group block text-left rounded-lg border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex size-9 items-center justify-center rounded-[4px] bg-emerald-50 text-emerald-600 group-hover:scale-105 transition-transform">
-              <Cookie className="size-4.5" />
-            </div>
-            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
-          </div>
-          <h3 className="text-xs font-bold text-slate-900">Cookie Manager</h3>
-          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-            Categorize cookies and configure script URL regex blocking rules.
-          </p>
-        </Link>
-
-        <Link
-          href="/consent/scanner"
-          className="group block text-left rounded-lg border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex size-9 items-center justify-center rounded-[4px] bg-purple-50 text-purple-600 group-hover:scale-105 transition-transform">
-              <Radar className="size-4.5" />
-            </div>
-            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
-          </div>
-          <h3 className="text-xs font-bold text-slate-900">Automated Scanner</h3>
-          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-            Discover trackers & identify non-consented pre-consent data leaks.
-          </p>
-        </Link>
-
-        <Link
-          href="/consent/logs"
-          className="group block text-left rounded-lg border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1868db] hover:shadow-md transition-all cursor-pointer"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex size-9 items-center justify-center rounded-[4px] bg-amber-50 text-amber-600 group-hover:scale-105 transition-transform">
-              <FileCheck className="size-4.5" />
-            </div>
-            <ArrowRight className="size-3.5 text-slate-400 group-hover:translate-x-1 group-hover:text-[#1868db] transition-all" />
-          </div>
-          <h3 className="text-xs font-bold text-slate-900">Proof Vault</h3>
-          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-            Cryptographically verifiable receipts for GDPR Article 7 audit compliance.
-          </p>
-        </Link>
-      </div>
-
-      {/* KPI Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Receipts</div>
-            <div className="relative group cursor-pointer inline-flex items-center">
-              <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                Total cryptographically verified consent decisions recorded in your audit trail.
-              </div>
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">
-            {isLoading ? "..." : (stats?.total_receipts || 0).toLocaleString()}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1">Logged proof-of-consents</div>
-        </div>
-
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Acceptance Rate</div>
-            <div className="relative group cursor-pointer inline-flex items-center">
-              <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                Percentage of visitors who accepted all or granted non-essential tracking cookies.
-              </div>
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-emerald-600 mt-2">
-            {isLoading ? "..." : `${stats?.acceptance_rate || 0}%`}
-          </div>
-          <div className="text-[11px] text-emerald-600/80 mt-1">Visitors accepted cookies</div>
-        </div>
-
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Rejection Rate</div>
-            <div className="relative group cursor-pointer inline-flex items-center">
-              <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                Percentage of visitors who declined non-essential analytics and marketing cookies.
-              </div>
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-slate-700 mt-2">
-            {isLoading ? "..." : `${stats?.rejection_rate || 0}%`}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1">Rejected non-essential</div>
-        </div>
-
-        <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Analytics Opt-In</div>
-            <div className="relative group cursor-pointer inline-flex items-center">
-              <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-              <div className="absolute right-0 bottom-full mb-1.5 hidden group-hover:block w-56 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                Percentage of visitors who explicitly enabled the Analytics & Telemetry category.
-              </div>
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-[#1868db] mt-2">
-            {isLoading ? "..." : `${stats?.analytics_accepted_pct || 0}%`}
-          </div>
-          <div className="text-[11px] text-[#1868db]/80 mt-1">Granted analytics consent</div>
-        </div>
-      </div>
-
-      {/* 5-Category Breakdown */}
-      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
-        <div className="flex items-center gap-1.5">
-          <h3 className="text-sm font-bold text-slate-900">Consent Decision Breakdown by Category</h3>
-          <div className="relative group cursor-pointer inline-flex items-center">
-            <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-            <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-              Aggregated consent acceptance percentages across the 5 standard compliance cookie categories.
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
-            <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold flex items-center gap-1">
-                Necessary
-                <div className="relative group cursor-pointer inline-flex items-center">
-                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
-                  <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                    Essential for secure authentication, session management, and site security.
-                  </div>
-                </div>
-              </span>
-              <span className="text-[10px] font-bold text-emerald-600">100%</span>
-            </div>
-            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full w-full" />
-            </div>
-          </div>
-
-          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
-            <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold flex items-center gap-1">
-                Functional
-                <div className="relative group cursor-pointer inline-flex items-center">
-                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
-                  <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                    Preserves user preferences, language selection, and interactive widgets.
-                  </div>
-                </div>
-              </span>
-              <span className="text-[10px] font-bold text-[#1868db]">{stats?.functional_accepted_pct || 0}%</span>
-            </div>
-            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-[#1868db] h-full" style={{ width: `${stats?.functional_accepted_pct || 0}%` }} />
-            </div>
-          </div>
-
-          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
-            <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold flex items-center gap-1">
-                Analytics
-                <div className="relative group cursor-pointer inline-flex items-center">
-                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
-                  <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                    Measures anonymous pageviews, visits, and visitor conversion paths.
-                  </div>
-                </div>
-              </span>
-              <span className="text-[10px] font-bold text-indigo-600">{stats?.analytics_accepted_pct || 0}%</span>
-            </div>
-            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-indigo-600 h-full" style={{ width: `${stats?.analytics_accepted_pct || 0}%` }} />
-            </div>
-          </div>
-
-          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
-            <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold flex items-center gap-1">
-                Performance
-                <div className="relative group cursor-pointer inline-flex items-center">
-                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
-                  <div className="absolute left-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                    Monitors page load times, runtime speed, and asset performance.
-                  </div>
-                </div>
-              </span>
-              <span className="text-[10px] font-bold text-purple-600">{stats?.performance_accepted_pct || 0}%</span>
-            </div>
-            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-purple-600 h-full" style={{ width: `${stats?.performance_accepted_pct || 0}%` }} />
-            </div>
-          </div>
-
-          <div className="p-3 rounded-[4px] border border-slate-200 bg-slate-50/60">
-            <div className="flex items-center justify-between text-slate-600 mb-1">
-              <span className="font-semibold flex items-center gap-1">
-                Advertisement
-                <div className="relative group cursor-pointer inline-flex items-center">
-                  <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
-                  <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                    Enables advertising networks, retargeting tags, and conversion tracking.
-                  </div>
-                </div>
-              </span>
-              <span className="text-[10px] font-bold text-rose-600">{stats?.advertisement_accepted_pct || 0}%</span>
-            </div>
-            <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-rose-500 h-full" style={{ width: `${stats?.advertisement_accepted_pct || 0}%` }} />
-            </div>
           </div>
         </div>
       </div>
+    )
+  }
 
-      {/* Installation & SDK Snippet */}
-      <div className="bg-white p-6 rounded-lg border border-slate-200 space-y-4 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h3 className="text-sm font-bold text-slate-900">Install Consent Banner on {activeDomain || "your site"}</h3>
-              <div className="relative group cursor-pointer inline-flex items-center">
-                <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-                <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-72 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                  Paste this single script tag in the &lt;head&gt; of your website. It handles auto-blocking, Google Consent Mode v2, and Shadow DOM banner rendering automatically.
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Single-tag script with automated Google Consent Mode v2 and script blocking.
-            </p>
+  return (
+    <div className="space-y-6 max-w-6xl pb-16">
+      {/* Toast / Status Notification */}
+      {notification && (
+        <div
+          role="alert"
+          className={`p-3 rounded-lg border text-xs font-medium flex items-center justify-between transition-all ${
+            notification.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+              : "bg-rose-50 border-rose-200 text-rose-900"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {notification.type === "success" ? (
+              <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="size-4 text-rose-600 shrink-0" />
+            )}
+            <span>{notification.message}</span>
           </div>
-
-          <div className="flex items-center gap-3 text-xs text-slate-600">
-            <span className="inline-flex items-center gap-1 font-medium">
-              Google Consent Mode v2
-              <div className="relative group cursor-pointer inline-flex items-center">
-                <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
-                <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block w-60 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                  Automatically updates ad_storage and analytics_storage in window.dataLayer upon user action.
-                </div>
-              </div>
-            </span>
-
-            <span className="inline-flex items-center gap-1 font-medium">
-              Live Audit Table
-              <div className="relative group cursor-pointer inline-flex items-center">
-                <HelpCircle className="size-3 text-slate-400 hover:text-slate-600" />
-                <div className="absolute right-0 bottom-full mb-1 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                  Insert &lt;div id=&quot;usrly-cookie-declaration&quot;&gt;&lt;/div&gt; anywhere on your Privacy page to embed a live cookie table.
-                </div>
-              </div>
-            </span>
-          </div>
-        </div>
-
-        <div className="relative">
-          <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg text-xs font-mono overflow-x-auto">
-            {snippetCode}
-          </pre>
           <button
-            onClick={copySnippet}
-            className="absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            type="button"
+            onClick={() => setNotification(null)}
+            className="text-xs opacity-70 hover:opacity-100 font-bold ml-4 cursor-pointer"
           >
-            {copiedSnippet ? <CheckCircle2 className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-            {copiedSnippet ? "Copied!" : "Copy Tag"}
+            Dismiss
           </button>
         </div>
+      )}
+
+      {/* 1. Header with Domain Context & Banner Master Switch */}
+      <ConsentHeader
+        activeDomain={activeDomain || ""}
+        config={config}
+        isLoading={isLoading}
+        isToggling={isToggling}
+        onToggleBanner={handleToggleBanner}
+        onRefresh={loadData}
+      />
+
+      {/* 2. Consent Decision Metrics (Granular Accept All, Reject All, Custom Choice, Analytics Opt-In) */}
+      <ConsentDecisionMetrics stats={stats} isLoading={isLoading} />
+
+      {/* 3. Consent Categories Breakdown (Necessary 100% Always Active, Functional, Analytics, Performance, Advertisement) */}
+      <ConsentCategoryBreakdown stats={stats} isLoading={isLoading} />
+
+      {/* 4. Operational Website & CMP Health */}
+      <ConsentHealth
+        config={config}
+        stats={stats}
+        scanner={scanner}
+        isLoading={isLoading}
+      />
+
+      {/* 5. Quick Navigation Cards */}
+      <div className="space-y-2">
+        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Quick Actions & Tools</h2>
+        <ConsentNavigation />
       </div>
+
+      {/* 6. Single-Tag SDK Installation */}
+      <InstallationCard
+        activeDomain={activeDomain || ""}
+        stats={stats}
+        isLoading={isLoading}
+      />
+
+      {/* 7. Live Cookie Declaration Embed */}
+      <DeclarationEmbedCard />
     </div>
   )
 }

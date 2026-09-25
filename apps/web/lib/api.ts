@@ -215,14 +215,30 @@ export interface ConsentReceipt {
 
 export interface ConsentStatsSummary {
   domain: string
+  total_decisions: number
   total_receipts: number
-  acceptance_rate: number
-  rejection_rate: number
-  necessary_accepted_pct: number
-  functional_accepted_pct: number
-  analytics_accepted_pct: number
-  performance_accepted_pct: number
-  advertisement_accepted_pct: number
+  accept_all_count?: number
+  accept_all_rate: number
+  reject_all_count?: number
+  reject_all_rate: number
+  custom_choice_count?: number
+  custom_choice_rate: number
+  analytics_opt_in_pct: number
+  necessary_pct: number
+  functional_pct: number
+  analytics_pct: number
+  performance_pct: number
+  advertisement_pct: number
+  is_connected?: boolean
+  last_detected_at?: string | null
+  // Backward compatibility aliases
+  acceptance_rate?: number
+  rejection_rate?: number
+  necessary_accepted_pct?: number
+  functional_accepted_pct?: number
+  analytics_accepted_pct?: number
+  performance_accepted_pct?: number
+  advertisement_accepted_pct?: number
   recent_receipts: ConsentReceipt[]
 }
 
