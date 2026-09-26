@@ -7,7 +7,7 @@ const getBaseURL = () => {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
+  return undefined
 }
 
 export const auth: any = betterAuth({
@@ -17,7 +17,10 @@ export const auth: any = betterAuth({
   trustedOrigins: [
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:3002",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
     "https://usrly-five.vercel.app",
     process.env.NEXT_PUBLIC_APP_URL || "",
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",

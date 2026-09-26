@@ -11,11 +11,54 @@
   var consentLogEndpoint = apiHost + "/api/v1/consent/log";
 
   var STORAGE_KEY = "usrly_consent_" + domain;
+  var activeConfig = null;
+  var isGPCSignal = typeof navigator !== "undefined" && Boolean(navigator.globalPrivacyControl);
 
   // -------------------------------------------------------------
-  // 1. ANALYTICS ENGINE
+  // 1. CONSENT MANAGEMENT PLATFORM (CMP) CORE STATE
+  // -------------------------------------------------------------
+  function getStoredConsent() {
+    try {
+      var item = localStorage.getItem(STORAGE_KEY);
+      return item ? JSON.parse(item) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setStoredConsent(consentObj) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(consentObj));
+    } catch (e) {}
+  }
+
+  function isAnalyticsPermitted() {
+    var stored = getStoredConsent();
+    if (stored) {
+      return Boolean(stored.analytics);
+    }
+    if (isGPCSignal) {
+      return false;
+    }
+    if (activeConfig) {
+      if (!activeConfig.is_enabled) return true;
+      if (activeConfig.law_template === "notice_only") return true;
+      if (activeConfig.law_template === "ccpa") {
+        return activeConfig.default_analytics !== false;
+      }
+      return false;
+    }
+    return false;
+  }
+
+  // -------------------------------------------------------------
+  // 2. ANALYTICS ENGINE (CONSENT-GATED)
   // -------------------------------------------------------------
   function sendEvent(name, props) {
+    if (!isAnalyticsPermitted()) {
+      return;
+    }
+
     var payload = {
       domain: domain,
       name: name || "pageview",
@@ -39,6 +82,9 @@
 
   var lastUrl = window.location.href;
   function triggerPageview() {
+    if (!isAnalyticsPermitted()) {
+      return;
+    }
     if (window.location.href !== lastUrl) {
       lastUrl = window.location.href;
     }
@@ -64,27 +110,10 @@
   }
 
   window.usrly = function (eventName, props) {
+    if (!isAnalyticsPermitted()) return;
     sendEvent(eventName, props);
   };
   window.userly = window.usrly; // alias
-
-  // -------------------------------------------------------------
-  // 2. CONSENT MANAGEMENT PLATFORM (CMP) - CookieYes Style
-  // -------------------------------------------------------------
-  function getStoredConsent() {
-    try {
-      var item = localStorage.getItem(STORAGE_KEY);
-      return item ? JSON.parse(item) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function setStoredConsent(consentObj) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(consentObj));
-    } catch (e) {}
-  }
 
   // Dispatch Google Consent Mode v2 Signals
   function dispatchGoogleConsent(consent) {
@@ -814,9 +843,23 @@
       });
 
       // Close handler
-      overlay.querySelector("#usrly-close-modal").onclick = function () {
+      function closeModal() {
         overlay.remove();
-        if (existingBanner) existingBanner.style.display = "block";
+        if (existingBanner) {
+          existingBanner.style.display = "block";
+        } else {
+          host.remove();
+          if (config.show_revisit_button !== false) {
+            renderRevisitButtonOnly(getStoredConsent() || stored);
+          }
+        }
+      }
+
+      overlay.querySelector("#usrly-close-modal").onclick = closeModal;
+      overlay.onclick = function (e) {
+        if (e.target === overlay) {
+          closeModal();
+        }
       };
 
       // Modal Action Handlers

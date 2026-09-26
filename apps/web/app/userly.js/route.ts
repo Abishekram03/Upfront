@@ -19,8 +19,47 @@ const TRACKER_SCRIPT = `(function () {
   var activeConfig = null;
   var isGPCSignal = typeof navigator !== "undefined" && Boolean(navigator.globalPrivacyControl);
 
-  // 1. COOKIELESS ANALYTICS ENGINE
+  // 1. CONSENT MANAGEMENT PLATFORM (CMP) CORE STATE
+  function getStoredConsent() {
+    try {
+      var item = localStorage.getItem(STORAGE_KEY);
+      return item ? JSON.parse(item) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setStoredConsent(consentObj) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(consentObj));
+    } catch (e) {}
+  }
+
+  function isAnalyticsPermitted() {
+    var stored = getStoredConsent();
+    if (stored) {
+      return Boolean(stored.analytics);
+    }
+    if (isGPCSignal) {
+      return false;
+    }
+    if (activeConfig) {
+      if (!activeConfig.is_enabled) return true;
+      if (activeConfig.law_template === "notice_only") return true;
+      if (activeConfig.law_template === "ccpa") {
+        return activeConfig.default_analytics !== false;
+      }
+      return false;
+    }
+    return false;
+  }
+
+  // 2. COOKIELESS ANALYTICS ENGINE (CONSENT-GATED)
   function sendEvent(name, props) {
+    if (!isAnalyticsPermitted()) {
+      return;
+    }
+
     var payload = {
       domain: domain,
       name: name || "pageview",
@@ -44,6 +83,9 @@ const TRACKER_SCRIPT = `(function () {
 
   var lastUrl = window.location.href;
   function triggerPageview() {
+    if (!isAnalyticsPermitted()) {
+      return;
+    }
     if (window.location.href !== lastUrl) {
       lastUrl = window.location.href;
     }
@@ -66,22 +108,6 @@ const TRACKER_SCRIPT = `(function () {
     };
 
     window.addEventListener("popstate", triggerPageview);
-  }
-
-  // 2. CONSENT MANAGEMENT PLATFORM (CMP)
-  function getStoredConsent() {
-    try {
-      var item = localStorage.getItem(STORAGE_KEY);
-      return item ? JSON.parse(item) : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function setStoredConsent(consentObj) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(consentObj));
-    } catch (e) {}
   }
 
   function triggerConsentListeners(consent) {
@@ -317,13 +343,20 @@ const TRACKER_SCRIPT = `(function () {
                 renderRevisitButtonOnly(stored);
               }
             } else {
+              if (config.law_template === "notice_only" || (config.law_template === "ccpa" && config.default_analytics !== false)) {
+                triggerPageview();
+              }
               renderCMP(config);
             }
           } catch (e) {
-            triggerPageview();
+            if (isAnalyticsPermitted()) {
+              triggerPageview();
+            }
           }
         } else {
-          triggerPageview();
+          if (isAnalyticsPermitted()) {
+            triggerPageview();
+          }
         }
       }
     };
@@ -1033,9 +1066,23 @@ const TRACKER_SCRIPT = `(function () {
         });
       });
 
-      overlay.querySelector("#usrly-close-modal").onclick = function () {
+      function closeModal() {
         overlay.remove();
-        if (existingBanner) existingBanner.style.display = "block";
+        if (existingBanner) {
+          existingBanner.style.display = "block";
+        } else {
+          host.remove();
+          if (config.show_revisit_button !== false) {
+            renderRevisitButtonOnly(getStoredConsent() || stored);
+          }
+        }
+      }
+
+      overlay.querySelector("#usrly-close-modal").onclick = closeModal;
+      overlay.onclick = function (e) {
+        if (e.target === overlay) {
+          closeModal();
+        }
       };
 
       overlay.querySelector("#usrly-modal-accept").onclick = function () {
@@ -1219,6 +1266,7 @@ const TRACKER_SCRIPT = `(function () {
     },
     updateConsent: function (categories) {
       var stored = getStoredConsent() || { necessary: true };
+      var wasAnalytics = Boolean(stored.analytics);
       var merged = Object.assign({}, stored, categories);
       merged.consent_given = Boolean(merged.functional || merged.analytics || merged.performance || merged.advertisement);
       setStoredConsent(merged);
@@ -1226,6 +1274,9 @@ const TRACKER_SCRIPT = `(function () {
       unblockGatedScripts(merged);
       logConsentReceipt(merged);
       triggerConsentListeners(merged);
+      if (!wasAnalytics && merged.analytics) {
+        triggerPageview();
+      }
     },
     resetConsent: function () {
       try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
@@ -1234,10 +1285,14 @@ const TRACKER_SCRIPT = `(function () {
     isGPC: function () {
       return isGPCSignal;
     },
+    isAnalyticsAllowed: function () {
+      return isAnalyticsPermitted();
+    },
     version: "2.1.0",
   };
 
   window.usrly = function (eventName, props) {
+    if (!isAnalyticsPermitted()) return;
     sendEvent(eventName, props);
   };
   window.userly = window.usrly;
