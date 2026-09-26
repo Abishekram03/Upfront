@@ -64,14 +64,21 @@ if ($storedIdx -ge 0 -and $sendIdx -gt $storedIdx) {
     throw 'getStoredConsent must precede sendEvent'
 }
 
-# Check 10: Preference Centre checkbox initialization binds to stored.analytics
-if ($routeContent -match 'analyticsChecked = Boolean\(stored\.analytics\)') {
-    Write-Host '[PASS] Preference Centre toggle correctly initializes from stored.analytics' -ForegroundColor Green
+# Check 9: getEffectiveConsent is defined and implements GPC precedence
+if ($routeContent -match 'function getEffectiveConsent\(\)' -and $routeContent -match 'if \(isGPC\)') {
+    Write-Host '[PASS] getEffectiveConsent canonically implements GPC precedence' -ForegroundColor Green
 } else {
-    throw 'Preference Centre toggle does not bind to stored.analytics'
+    throw 'Missing getEffectiveConsent with GPC precedence logic'
 }
 
-# Check 11: Save My Preferences handler reads analytics toggle
+# Check 10: Preference Centre checkbox initialization binds to effective consent
+if ($routeContent -match 'analyticsChecked = Boolean\(eff\.analytics\)' -or $routeContent -match 'analyticsChecked = Boolean\(effective\.analytics\)') {
+    Write-Host '[PASS] Preference Centre toggle correctly initializes from effective.analytics' -ForegroundColor Green
+} else {
+    throw 'Preference Centre toggle does not bind to effective.analytics'
+}
+
+# Check 11: Save My Preferences handler reads analytics toggle and marks explicit override when GPC is active
 if ($routeContent -match 'var anaVal = anaEl \? anaEl\.checked : false[\s\S]*?analytics: anaVal') {
     Write-Host '[PASS] Save My Preferences handler correctly extracts analytics toggle value' -ForegroundColor Green
 } else {
@@ -85,9 +92,9 @@ if ($routeContent -match 'if \(consentData\.analytics\) \{\s*triggerPageview\(\)
     throw 'applyAndClose improperly triggers pageviews when analytics is false'
 }
 
-# Check 13: initCMP only triggers pageview on reload if stored.analytics is true
-if ($routeContent -match 'if \(stored\.analytics\) \{\s*triggerPageview\(\);\s*\}') {
-    Write-Host '[PASS] initCMP only triggers pageview on reload if stored.analytics is explicitly true' -ForegroundColor Green
+# Check 13: initCMP only triggers pageview on reload if effective analytics is permitted
+if ($routeContent -match 'if \(effective\.analytics\) \{\s*triggerPageview\(\);\s*\}' -or $routeContent -match 'if \(isAnalyticsPermitted\(\)\) \{\s*triggerPageview\(\);\s*\}') {
+    Write-Host '[PASS] initCMP only triggers pageview on reload if effective analytics is permitted' -ForegroundColor Green
 } else {
     throw 'initCMP triggers pageview unconditionally on reload'
 }

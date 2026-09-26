@@ -32,21 +32,71 @@
     } catch (e) {}
   }
 
-  function isAnalyticsPermitted() {
+  function getEffectiveConsent() {
     var stored = getStoredConsent();
-    if (stored) {
-      return Boolean(stored.analytics);
-    }
-    if (isGPCSignal) {
-      return false;
-    }
-    if (activeConfig) {
-      if (!activeConfig.is_enabled) return true;
-      if (activeConfig.law_template === "notice_only") return true;
-      if (activeConfig.law_template === "ccpa") {
-        return activeConfig.default_analytics !== false;
+    var isGPC = isGPCSignal && (!activeConfig || activeConfig.enable_gpc !== false);
+
+    if (isGPC) {
+      if (stored && stored.gpc_explicit_override) {
+        return stored;
       }
-      return false;
+      var base = stored || {
+        necessary: true,
+        functional: false,
+        analytics: false,
+        performance: false,
+        advertisement: false,
+        consent_version: (activeConfig && activeConfig.consent_version) || "1.0",
+      };
+      return {
+        consent_given: Boolean(base.functional || base.performance),
+        necessary: true,
+        functional: Boolean(base.functional),
+        analytics: false,
+        performance: Boolean(base.performance),
+        advertisement: false,
+        gpc_applied: true,
+        consent_version: base.consent_version || (activeConfig && activeConfig.consent_version) || "1.0",
+      };
+    }
+
+    if (stored) {
+      return stored;
+    }
+
+    if (activeConfig) {
+      if (!activeConfig.is_enabled || activeConfig.law_template === "notice_only") {
+        return {
+          consent_given: true,
+          necessary: true,
+          functional: true,
+          analytics: true,
+          performance: true,
+          advertisement: true,
+          consent_version: activeConfig.consent_version || "1.0",
+        };
+      }
+      if (activeConfig.law_template === "ccpa") {
+        return {
+          consent_given: true,
+          necessary: true,
+          functional: activeConfig.default_functional !== false,
+          analytics: activeConfig.default_analytics !== false,
+          performance: activeConfig.default_performance !== false,
+          advertisement: activeConfig.default_advertisement !== false,
+          consent_version: activeConfig.consent_version || "1.0",
+        };
+      }
+      return null;
+    }
+
+    return null;
+  }
+
+  function isAnalyticsPermitted() {
+    var effective = getEffectiveConsent();
+    if (effective) {
+      return Boolean(effective.analytics);
     }
     return false;
   }

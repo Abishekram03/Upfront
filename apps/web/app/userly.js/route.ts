@@ -35,21 +35,71 @@ const TRACKER_SCRIPT = `(function () {
     } catch (e) {}
   }
 
-  function isAnalyticsPermitted() {
+  function getEffectiveConsent() {
     var stored = getStoredConsent();
-    if (stored) {
-      return Boolean(stored.analytics);
-    }
-    if (isGPCSignal) {
-      return false;
-    }
-    if (activeConfig) {
-      if (!activeConfig.is_enabled) return true;
-      if (activeConfig.law_template === "notice_only") return true;
-      if (activeConfig.law_template === "ccpa") {
-        return activeConfig.default_analytics !== false;
+    var isGPC = isGPCSignal && (!activeConfig || activeConfig.enable_gpc !== false);
+
+    if (isGPC) {
+      if (stored && stored.gpc_explicit_override) {
+        return stored;
       }
-      return false;
+      var base = stored || {
+        necessary: true,
+        functional: false,
+        analytics: false,
+        performance: false,
+        advertisement: false,
+        consent_version: (activeConfig && activeConfig.consent_version) || "1.0",
+      };
+      return {
+        consent_given: Boolean(base.functional || base.performance),
+        necessary: true,
+        functional: Boolean(base.functional),
+        analytics: false,
+        performance: Boolean(base.performance),
+        advertisement: false,
+        gpc_applied: true,
+        consent_version: base.consent_version || (activeConfig && activeConfig.consent_version) || "1.0",
+      };
+    }
+
+    if (stored) {
+      return stored;
+    }
+
+    if (activeConfig) {
+      if (!activeConfig.is_enabled || activeConfig.law_template === "notice_only") {
+        return {
+          consent_given: true,
+          necessary: true,
+          functional: true,
+          analytics: true,
+          performance: true,
+          advertisement: true,
+          consent_version: activeConfig.consent_version || "1.0",
+        };
+      }
+      if (activeConfig.law_template === "ccpa") {
+        return {
+          consent_given: true,
+          necessary: true,
+          functional: activeConfig.default_functional !== false,
+          analytics: activeConfig.default_analytics !== false,
+          performance: activeConfig.default_performance !== false,
+          advertisement: activeConfig.default_advertisement !== false,
+          consent_version: activeConfig.consent_version || "1.0",
+        };
+      }
+      return null;
+    }
+
+    return null;
+  }
+
+  function isAnalyticsPermitted() {
+    var effective = getEffectiveConsent();
+    if (effective) {
+      return Boolean(effective.analytics);
     }
     return false;
   }
@@ -306,8 +356,11 @@ const TRACKER_SCRIPT = `(function () {
               return;
             }
 
-            // GPC Signal Check: if GPC enabled & signal present & no explicit storage yet
-            if (config.enable_gpc && isGPCSignal && !stored) {
+            var effective = getEffectiveConsent();
+
+            // GPC Signal Check: if GPC enabled & signal present & no explicit override
+            var isGPC = config.enable_gpc !== false && isGPCSignal;
+            if (isGPC && (!stored || !stored.gpc_explicit_override)) {
               var gpcConsent = {
                 consent_given: false,
                 necessary: true,
@@ -322,7 +375,9 @@ const TRACKER_SCRIPT = `(function () {
               setStoredConsent(gpcConsent);
               dispatchGoogleConsent(gpcConsent);
               triggerConsentListeners(gpcConsent);
-              renderRevisitButtonOnly(gpcConsent);
+              if (config.show_revisit_button) {
+                renderRevisitButtonOnly(gpcConsent);
+              }
               return;
             }
 
@@ -333,17 +388,17 @@ const TRACKER_SCRIPT = `(function () {
             }
 
             if (stored) {
-              if (stored.analytics) {
+              if (effective && effective.analytics) {
                 triggerPageview();
               }
-              dispatchGoogleConsent(stored);
-              unblockGatedScripts(stored);
-              triggerConsentListeners(stored);
+              dispatchGoogleConsent(effective || stored);
+              unblockGatedScripts(effective || stored);
+              triggerConsentListeners(effective || stored);
               if (config.show_revisit_button) {
-                renderRevisitButtonOnly(stored);
+                renderRevisitButtonOnly(effective || stored);
               }
             } else {
-              if (config.law_template === "notice_only" || (config.law_template === "ccpa" && config.default_analytics !== false)) {
+              if (effective && effective.analytics) {
                 triggerPageview();
               }
               renderCMP(config);
@@ -880,6 +935,7 @@ const TRACKER_SCRIPT = `(function () {
     \`;
     shadow.appendChild(style);
 
+    var eff = getEffectiveConsent();
     var stored = getStoredConsent();
     var isNoticeOnly = config.law_template === "notice_only";
     var isCCPA = config.law_template === "ccpa";
@@ -890,16 +946,11 @@ const TRACKER_SCRIPT = `(function () {
     var performanceChecked = false;
     var adChecked = false;
 
-    if (stored) {
-      functionalChecked = Boolean(stored.functional);
-      analyticsChecked = Boolean(stored.analytics);
-      performanceChecked = Boolean(stored.performance);
-      adChecked = Boolean(stored.advertisement || stored.marketing);
-    } else if (isGPCSignal) {
-      functionalChecked = false;
-      analyticsChecked = false;
-      performanceChecked = false;
-      adChecked = false;
+    if (eff) {
+      functionalChecked = Boolean(eff.functional);
+      analyticsChecked = Boolean(eff.analytics);
+      performanceChecked = Boolean(eff.performance);
+      adChecked = Boolean(eff.advertisement || eff.marketing);
     } else if (!isOptInModel) {
       functionalChecked = config.default_functional !== false;
       analyticsChecked = config.default_analytics !== false;
@@ -915,6 +966,9 @@ const TRACKER_SCRIPT = `(function () {
     function applyAndClose(consentData) {
       consentData.consent_version = config.consent_version || "1.0";
       consentData.timestamp = new Date().toISOString();
+      if (isGPCSignal) {
+        consentData.gpc_explicit_override = true;
+      }
       setStoredConsent(consentData);
       dispatchGoogleConsent(consentData);
       unblockGatedScripts(consentData);
