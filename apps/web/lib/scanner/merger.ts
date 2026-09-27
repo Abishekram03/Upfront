@@ -74,28 +74,6 @@ export async function mergeAndPersistDiscoveredCookies(
 
   const persistedCookies: MergedCookieResult[] = []
 
-  // Ensure default fallback cookies if site is completely empty
-  if (cookieMap.size === 0) {
-    cookieMap.set("session", {
-      name: "session",
-      domain,
-      duration: "Session",
-      discoverySource: "http_set_cookie",
-    })
-    cookieMap.set("_ga", {
-      name: "_ga",
-      domain,
-      duration: "2 years",
-      discoverySource: "script_signature",
-    })
-    cookieMap.set("_gid", {
-      name: "_gid",
-      domain,
-      duration: "24 hours",
-      discoverySource: "script_signature",
-    })
-  }
-
   for (const [cookieName, raw] of cookieMap.entries()) {
     // Classify against Open Cookie Database taxonomy
     const taxonomy = classifyCookieName(cookieName)

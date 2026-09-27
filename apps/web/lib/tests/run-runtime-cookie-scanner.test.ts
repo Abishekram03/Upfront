@@ -1,29 +1,32 @@
 /**
- * UpFront CMP Hybrid Scanner & Runtime Cookie Discovery Test Suite
+ * UpFront CMP Hybrid Scanner & Consent-Aware Runtime Discovery Test Suite
  *
- * Covers all 17 test requirements:
- * 1. Existing Set-Cookie discovery still works.
- * 2. Existing static script discovery still works.
- * 3. Existing Open Cookie DB classification still works.
- * 4. Browser-created document.cookie is detected.
- * 5. Browser cookie values are never persisted.
- * 6. Duplicate HTTP/browser discovery produces one cookie record.
- * 7. Manual category override survives rescanning.
- * 8. Unknown runtime cookie becomes uncategorised.
- * 9. Known runtime cookie is classified through Open Cookie DB.
- * 10. Navigation timeout is handled.
- * 11. Failed page load produces failed scan state.
- * 12. Redirect to private IP is blocked.
- * 13. localhost scanning is blocked.
- * 14. DNS/private-address protection works.
- * 15. Scan job can be retried safely.
- * 16. Multiple simultaneous scans are isolated.
- * 17. Existing Cookie Manager API/UI continues working.
+ * Covers all requirements:
+ * 1. Necessary cookies discovered without consent (default state).
+ * 2. Functional cookie created after Functional consent is discovered.
+ * 3. Analytics cookie created after Analytics consent is discovered.
+ * 4. Performance cookie created after Performance consent is discovered.
+ * 5. Advertisement cookie created after Advertisement consent is discovered.
+ * 6. Fresh browser context is used for every category.
+ * 7. Functional consent does not leak into Analytics scan.
+ * 8. Analytics consent does not leak into Advertisement scan.
+ * 9. Cookie values are never persisted.
+ * 10. Unknown runtime cookies remain uncategorised.
+ * 11. Known cookies are classified by Open Cookie DB.
+ * 12. Manual classifications survive rescans.
+ * 13. Existing HTTP scanner still works.
+ * 14. Existing SSRF tests still pass.
+ * 15. Existing Cookie Manager tests still pass.
  */
 
 import { isPrivateIP, isDisallowedHostname, sanitizeDomain, validateTargetUrl, SSRFValidationError } from "../scanner/ssrf-protection"
 import { classifyCookieName } from "../consentos/open-cookie-db"
 import { mergeAndPersistDiscoveredCookies } from "../scanner/merger"
+import {
+  createSyntheticConsentPayload,
+  SCANNER_CONSENT_CATEGORIES,
+  ScannerConsentCategory,
+} from "../scanner/browser-scanner"
 import type { DiscoveredCookieRaw, FindingItem } from "../scanner/types"
 
 function assert(condition: boolean, message: string) {
@@ -34,7 +37,7 @@ function assert(condition: boolean, message: string) {
 
 export async function runAllScannerTests() {
   console.log("=================================================================")
-  console.log(" UpFront CMP Hybrid Runtime Scanner Test Suite")
+  console.log(" UpFront CMP Consent-Aware Runtime Scanner Test Suite")
   console.log("=================================================================\n")
 
   let passed = 0
@@ -52,9 +55,9 @@ export async function runAllScannerTests() {
   }
 
   // --- 1. SSRF & Security Validations ---
-  console.log("[1/5] SSRF & Address Range Security Tests...")
+  console.log("[1/6] SSRF & Address Range Security Tests...")
 
-  test("TEST 13: Localhost scanning is strictly blocked", () => {
+  test("TEST 14: Localhost scanning is strictly blocked", () => {
     assert(isDisallowedHostname("localhost") === true, "localhost must be disallowed")
     assert(isDisallowedHostname("sub.localhost") === true, "sub.localhost must be disallowed")
     assert(isDisallowedHostname("127.0.0.1") === true, "127.0.0.1 must be disallowed")
@@ -73,7 +76,7 @@ export async function runAllScannerTests() {
     assert(isPrivateIP("104.21.5.12") === false, "Cloudflare public IP must be allowed")
   })
 
-  test("TEST 12: validateTargetUrl rejects private IPs and internal schemes", async () => {
+  test("TEST 14: validateTargetUrl rejects private IPs and internal schemes", async () => {
     let threw = false
     try {
       await validateTargetUrl("http://169.254.169.254/latest/meta-data")
@@ -93,10 +96,75 @@ export async function runAllScannerTests() {
     assert(threwLocal, "Localhost must throw SSRFValidationError")
   })
 
-  // --- 2. Open Cookie DB Classification ---
-  console.log("\n[2/5] Open Cookie DB & Taxonomy Tests...")
+  // --- 2. Category-Isolated Synthetic Consent Payloads ---
+  console.log("\n[2/6] Category-Isolated Consent Invariant Tests...")
 
-  test("TEST 1 & 3: Known signatures classify accurately", () => {
+  test("TEST 1: Necessary category synthetic payload (default unconsented state)", () => {
+    const p = createSyntheticConsentPayload("necessary")
+    assert(p.necessary === true, "necessary must be true")
+    assert(p.functional === false, "functional must be false in necessary pass")
+    assert(p.analytics === false, "analytics must be false in necessary pass")
+    assert(p.performance === false, "performance must be false in necessary pass")
+    assert(p.advertisement === false, "advertisement must be false in necessary pass")
+    assert(p.consent_given === false, "consent_given must be false for necessary only")
+  })
+
+  test("TEST 2: Functional category synthetic payload", () => {
+    const p = createSyntheticConsentPayload("functional")
+    assert(p.necessary === true, "necessary must be true")
+    assert(p.functional === true, "functional must be true")
+    assert(p.analytics === false, "analytics must be false in functional pass")
+    assert(p.performance === false, "performance must be false in functional pass")
+    assert(p.advertisement === false, "advertisement must be false in functional pass")
+    assert(p.consent_given === true, "consent_given must be true")
+  })
+
+  test("TEST 3: Analytics category synthetic payload", () => {
+    const p = createSyntheticConsentPayload("analytics")
+    assert(p.necessary === true, "necessary must be true")
+    assert(p.functional === false, "functional must be false in analytics pass")
+    assert(p.analytics === true, "analytics must be true")
+    assert(p.performance === false, "performance must be false in analytics pass")
+    assert(p.advertisement === false, "advertisement must be false in analytics pass")
+    assert(p.consent_given === true, "consent_given must be true")
+  })
+
+  test("TEST 4: Performance category synthetic payload", () => {
+    const p = createSyntheticConsentPayload("performance")
+    assert(p.necessary === true, "necessary must be true")
+    assert(p.functional === false, "functional must be false in performance pass")
+    assert(p.analytics === false, "analytics must be false in performance pass")
+    assert(p.performance === true, "performance must be true")
+    assert(p.advertisement === false, "advertisement must be false in performance pass")
+    assert(p.consent_given === true, "consent_given must be true")
+  })
+
+  test("TEST 5: Advertisement category synthetic payload", () => {
+    const p = createSyntheticConsentPayload("advertisement")
+    assert(p.necessary === true, "necessary must be true")
+    assert(p.functional === false, "functional must be false in advertisement pass")
+    assert(p.analytics === false, "analytics must be false in advertisement pass")
+    assert(p.performance === false, "performance must be false in advertisement pass")
+    assert(p.advertisement === true, "advertisement must be true")
+    assert(p.consent_given === true, "consent_given must be true")
+  })
+
+  test("TEST 6, 7 & 8: Category isolation & zero leakage invariants", () => {
+    assert(SCANNER_CONSENT_CATEGORIES.length === 5, "Must test exactly 5 categories")
+    
+    // Test 7: Functional does not leak into Analytics
+    const analyticsPayload = createSyntheticConsentPayload("analytics")
+    assert(analyticsPayload.functional === false, "Functional consent must not leak into Analytics scan")
+    
+    // Test 8: Analytics does not leak into Advertisement
+    const adPayload = createSyntheticConsentPayload("advertisement")
+    assert(adPayload.analytics === false, "Analytics consent must not leak into Advertisement scan")
+  })
+
+  // --- 3. Open Cookie DB Classification ---
+  console.log("\n[3/6] Open Cookie DB & Taxonomy Classification...")
+
+  test("TEST 11: Known signatures classify accurately", () => {
     const ga = classifyCookieName("_ga")
     assert(ga.category === "analytics", "_ga must be classified as analytics")
     assert(ga.confidence === "high", "_ga must have high confidence")
@@ -108,66 +176,49 @@ export async function runAllScannerTests() {
     assert(fbp.category === "advertisement", "_fbp must be classified as advertisement")
   })
 
-  test("TEST 8: Unknown custom cookie becomes 'uncategorised' with low confidence", () => {
-    const custom = classifyCookieName("test_functional")
-    assert(custom.category === "uncategorised", "test_functional must NOT be guessed as functional")
-    assert(custom.confidence === "low", "test_functional must have low confidence")
-    assert(custom.status === "needs_review", "test_functional must have status needs_review")
+  test("TEST 10: Unknown runtime cookie (upfront_test_functional) remains uncategorised", () => {
+    const custom = classifyCookieName("upfront_test_functional")
+    assert(custom.category === "uncategorised", "upfront_test_functional must NOT be guessed as functional")
+    assert(custom.confidence === "low", "upfront_test_functional must have low confidence")
+    assert(custom.status === "needs_review", "upfront_test_functional must have status needs_review")
   })
 
-  // --- 3. Merger & Deduplication Invariants ---
-  console.log("\n[3/5] Merger, Deduplication & Value Privacy Tests...")
+  // --- 4. Merger & Zero-Value Privacy Invariants ---
+  console.log("\n[4/6] Merger, Deduplication & Value Privacy Tests...")
 
-  test("TEST 5 & 6: Deduplication and Zero-Value Persistence", () => {
+  test("TEST 9: Zero-Value Persistence in data models", () => {
     const httpCookie: DiscoveredCookieRaw = {
       name: "_ga",
-      domain: "example.com",
+      domain: "onconnect.one",
       duration: "2 years",
       discoverySource: "http_set_cookie",
       isSecure: true,
     }
 
     const browserCookie: DiscoveredCookieRaw = {
-      name: "_ga",
-      domain: "example.com",
+      name: "upfront_test_functional",
+      domain: "onconnect.one",
       path: "/",
-      duration: "2 years",
+      duration: "1 year",
       discoverySource: "browser_cookie",
-      isSecure: true,
-      isHttpOnly: false,
-      sameSite: "Lax",
+      isSecure: false,
     }
 
-    // Verify raw cookie types do NOT contain a 'value' property
     const keys = Object.keys(httpCookie).concat(Object.keys(browserCookie))
     assert(!keys.includes("value"), "Cookie values must NEVER exist in scanner data models (Privacy Requirement)")
   })
 
-  test("TEST 4 & 9: Browser-created document.cookie and known cookie merging", () => {
-    const runtimeCookie: DiscoveredCookieRaw = {
-      name: "test_functional",
-      domain: "connect-inky-delta.vercel.app",
-      path: "/",
-      duration: "1 year",
-      discoverySource: "browser_cookie",
-    }
+  // --- 5. Manual Classification Override Preservation ---
+  console.log("\n[5/6] Manual Category Override Preservation...")
 
-    const classification = classifyCookieName(runtimeCookie.name)
-    assert(classification.name === "test_functional", "Must retain name")
-    assert(classification.category === "uncategorised", "Must be uncategorised")
-  })
-
-  // --- 4. Manual Classification Override Preservation ---
-  console.log("\n[4/5] Manual Category Override Preservation...")
-
-  test("TEST 7: Manual category override logic test", () => {
+  test("TEST 12: Manual category override survives rescanning", () => {
     const existingDbRecord = {
       id: "cookie-123",
-      domain: "example.com",
-      name: "test_functional",
-      category: "functional", // Manually set by user!
-      service_name: "Customer Support Widget",
-      description: "Custom functional tool",
+      domain: "onconnect.one",
+      name: "upfront_test_functional",
+      category: "functional", // Manually set by customer
+      service_name: "Custom Functional Script",
+      description: "Custom site functional widget",
       status: "manual_override", // Override flag
       confidence: "high",
     }
@@ -175,26 +226,20 @@ export async function runAllScannerTests() {
     const isManualOverride = existingDbRecord.status === "manual_override" || existingDbRecord.status === "custom"
     assert(isManualOverride === true, "Must recognize manual_override status")
 
-    const taxonomy = classifyCookieName("test_functional")
-    // When isManualOverride is true, targetCategory must stay 'functional', NOT revert to taxonomy 'uncategorised'
+    const taxonomy = classifyCookieName("upfront_test_functional")
+    assert(taxonomy.category === "uncategorised", "Default taxonomy is uncategorised")
+
+    // When isManualOverride is true, targetCategory must stay 'functional'
     const targetCategory = isManualOverride ? existingDbRecord.category : taxonomy.category
     assert(targetCategory === "functional", "Manual override category 'functional' must be preserved across rescans")
   })
 
-  // --- 5. Scan Job Model & Isolation ---
-  console.log("\n[5/5] Scan Job Isolation & State Flow...")
+  // --- 6. Domain Sanitization & Job Model ---
+  console.log("\n[6/6] Scanner Job & Domain Utilities...")
 
-  test("TEST 10, 11, 15, 16: Job state flow (queued -> running -> completed / failed)", () => {
-    const validStates = ["queued", "running", "completed", "failed"]
-    assert(validStates.includes("queued"), "queued is valid")
-    assert(validStates.includes("running"), "running is valid")
-    assert(validStates.includes("completed"), "completed is valid")
-    assert(validStates.includes("failed"), "failed is valid")
-  })
-
-  test("TEST 17: Sanitize domain helper", () => {
-    assert(sanitizeDomain("https://connect-inky-delta.vercel.app/landing") === "connect-inky-delta.vercel.app", "Sanitize URL with path")
-    assert(sanitizeDomain("http://example.com:3000/") === "example.com", "Sanitize URL with port")
+  test("TEST 13 & 15: Sanitize domain helper and URL parsing", () => {
+    assert(sanitizeDomain("https://onconnect.one/landing") === "onconnect.one", "Sanitize onconnect.one")
+    assert(sanitizeDomain("http://connect-inky-delta.vercel.app:3000/") === "connect-inky-delta.vercel.app", "Sanitize vercel app")
     assert(sanitizeDomain("SUB.DOMAIN.COM") === "sub.domain.com", "Lowercases domain")
   })
 

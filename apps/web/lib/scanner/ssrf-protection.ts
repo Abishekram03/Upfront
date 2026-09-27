@@ -26,7 +26,14 @@ export function isPrivateIPv4(ip: string): boolean {
     return true // Malformed IP, fail-closed
   }
 
-  const [a, b, c, d] = parts
+  const a = parts[0]
+  const b = parts[1]
+  const c = parts[2]
+  const d = parts[3]
+
+  if (a === undefined || b === undefined || c === undefined || d === undefined) {
+    return true
+  }
 
   // 0.0.0.0/8 (Current network)
   if (a === 0) return true

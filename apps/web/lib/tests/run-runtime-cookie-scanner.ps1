@@ -1,5 +1,5 @@
 # =========================================================================
-#  UpFront CMP Hybrid Scanner & Runtime Cookie Discovery Test Suite
+#  UpFront CMP Hybrid Scanner & Consent-Aware Runtime Discovery Suite
 # =========================================================================
 
 $ErrorActionPreference = "Stop"
@@ -18,7 +18,7 @@ function Assert-Condition($desc, $cond) {
 }
 
 Write-Host "`n================================================================="
-Write-Host " UpFront CMP Hybrid Scanner & Runtime Cookie Discovery Suite"
+Write-Host " UpFront CMP Consent-Aware Runtime Scanner Test Suite"
 Write-Host "=================================================================`n"
 
 # [1/5] SSRF & Address Range Security
@@ -55,12 +55,17 @@ Assert-Condition "Deduplicates cookies by domain + name" ($mergerContent -match 
 Assert-Condition "Preserves customer manual_override status across rescans" ($mergerContent -match 'existing\.status === "manual_override"')
 Assert-Condition "Does NOT persist cookie values in database" (-not ($mergerContent -match 'value:\s*raw\.value'))
 
-# [4/5] Browser Scanner & Headless Execution
-Write-Host "`n[4/5] Auditing Browser Runtime Scanner (Playwright Engine)..." -ForegroundColor Yellow
+# [4/5] Category-Isolated Consent-Aware Browser Scanner
+Write-Host "`n[4/5] Auditing Consent-Aware Browser Scanner (Playwright Engine)..." -ForegroundColor Yellow
 $browserScannerFile = "$PSScriptRoot/../scanner/browser-scanner.ts"
 $browserContent = Get-Content $browserScannerFile -Raw
 
 Assert-Condition "browser-scanner.ts exists and is non-empty" ($browserContent.Length -gt 1000)
+Assert-Condition "Defines 5 category passes (necessary, functional, analytics, performance, advertisement)" ($browserContent -match 'SCANNER_CONSENT_CATEGORIES' -and $browserContent -match '"functional"' -and $browserContent -match '"analytics"')
+Assert-Condition "Pre-seeds canonical UpFront CMP storage (usrly_consent_<domain>)" ($browserContent -match 'usrly_consent_')
+Assert-Condition "Pre-seeds ConsentOS CMP storage (consentos_consent)" ($browserContent -match 'consentos_consent')
+Assert-Condition "Synchronizes with window.Userly.updateConsent() on runtime detection" ($browserContent -match 'window\.Userly\.updateConsent')
+Assert-Condition "Executes category-isolated scans with fresh browser context" ($browserContent -match 'runIsolatedCategoryScan' -and $browserContent -match 'browser\.newContext')
 Assert-Condition "Uses context.cookies() API for runtime cookie discovery" ($browserContent -match 'context\.cookies\(\)')
 Assert-Condition "Evaluates page.evaluate document.cookie for dynamic JS cookies" ($browserContent -match 'document\.cookie')
 Assert-Condition "Blocks file downloads for security (acceptDownloads: false)" ($browserContent -match 'acceptDownloads:\s*false')
