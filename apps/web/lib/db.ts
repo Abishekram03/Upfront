@@ -274,6 +274,14 @@ export async function ensureTables() {
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS law_template VARCHAR(50) DEFAULT 'gdpr';
         ALTER TABLE consent_receipts ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
         ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS script_pattern_regex TEXT;
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS discovery_source VARCHAR(50) DEFAULT 'http_set_cookie';
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS path VARCHAR(255) DEFAULT '/';
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS is_secure BOOLEAN DEFAULT FALSE;
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS is_http_only BOOLEAN DEFAULT FALSE;
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS same_site VARCHAR(50);
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS scan_type VARCHAR(50) DEFAULT 'hybrid';
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITHOUT TIME ZONE;
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS error_message TEXT;
 
         -- Discovered Cookies from Scanner
         CREATE TABLE IF NOT EXISTS discovered_cookies (

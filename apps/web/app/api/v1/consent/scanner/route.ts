@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
-import { classifyCookieName } from "@/lib/consentos/open-cookie-db"
-import { randomUUID } from "node:crypto"
-
-function sanitizeDomain(input?: string | null): string {
-  if (!input) return ""
-  const first = input.replace("https://", "").replace("http://", "").split("/")[0]
-  return (first || "").trim().toLowerCase()
-}
+import { sanitizeDomain, SSRFValidationError } from "@/lib/scanner/ssrf-protection"
+import { ScanService } from "@/lib/scanner/scan-service"
 
 export async function GET(req: Request) {
   try {
     await ensureTables()
     const { searchParams } = new URL(req.url)
     const domain = sanitizeDomain(searchParams.get("domain"))
+    const scanId = searchParams.get("scan_id")
+
+    if (scanId) {
+      const jobRes = await pool.query(
+        `SELECT * FROM scans WHERE id = $1 LIMIT 1`,
+        [scanId]
+      )
+      if (jobRes.rows.length === 0) {
+        return NextResponse.json({ detail: "Scan job not found" }, { status: 404 })
+      }
+      return NextResponse.json({ job: jobRes.rows[0] })
+    }
 
     if (!domain) {
       return NextResponse.json({ detail: "Domain parameter is required" }, { status: 400 })
@@ -60,8 +66,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await ensureTables()
-    const body = await req.json()
-    const domain = sanitizeDomain(body.domain)
+    const { searchParams } = new URL(req.url)
+    const body = await req.json().catch(() => ({}))
+    const domain = sanitizeDomain(body.domain || searchParams.get("domain"))
+    const allowInsecureHttp = body.allowInsecureHttp === true || searchParams.get("allow_insecure_http") === "true"
 
     if (!domain) {
       return NextResponse.json({ detail: "Domain is required" }, { status: 400 })
@@ -70,213 +78,37 @@ export async function POST(req: Request) {
     const siteRes = await pool.query("SELECT id FROM sites WHERE domain = $1", [domain])
     const siteId = siteRes.rows[0]?.id || null
 
-    const targetUrl = domain.startsWith("localhost") || domain.startsWith("127.0.0.1")
-      ? `http://${domain}`
-      : `https://${domain}`
+    // 1. Create a scan job with 'queued' status
+    const job = await ScanService.createScanJob(domain, siteId, {
+      allowInsecureHttp,
+    })
 
-    const detectedCookieNames = new Set<string>()
-    const detectedCookieMeta = new Map<string, { duration?: string; isSession?: boolean }>()
-    const detectedScripts: string[] = []
-    const findings: Array<{ type: "leak" | "info" | "warning"; message: string; severity: "critical" | "medium" | "low" }> = []
+    // 2. Execute the hybrid scan (Fast HTTP + Playwright runtime)
+    const completedJob = await ScanService.executeScanJob(job.id, {
+      allowInsecureHttp,
+    })
 
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 8000)
-
-      const response = await fetch(targetUrl, {
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; ConsentOSBot/2.3; +https://consentos.org)",
-        },
-      }).catch(() => null)
-
-      clearTimeout(timeout)
-
-      if (response) {
-        const setCookieHeaders = response.headers.getSetCookie ? response.headers.getSetCookie() : [response.headers.get("set-cookie") || ""]
-        for (const cookieHeader of setCookieHeaders) {
-          if (!cookieHeader) continue
-          const parts = cookieHeader.split(";").map((p) => p.trim())
-          const firstPart = parts[0] || ""
-          const cookieName = firstPart.split("=")[0]?.trim()
-          if (!cookieName) continue
-
-          detectedCookieNames.add(cookieName)
-
-          // Parse explicit duration from Set-Cookie header
-          let explicitDuration: string | undefined
-          let hasMaxAgeOrExpires = false
-
-          for (const part of parts.slice(1)) {
-            if (/^max-age=/i.test(part)) {
-              hasMaxAgeOrExpires = true
-              const seconds = parseInt(part.split("=")[1] || "0", 10)
-              if (!isNaN(seconds) && seconds > 0) {
-                if (seconds < 60) explicitDuration = `${seconds} seconds`
-                else if (seconds < 3600) explicitDuration = `${Math.round(seconds / 60)} minutes`
-                else if (seconds < 86400) explicitDuration = `${Math.round(seconds / 3600)} hours`
-                else if (seconds < 2592000) explicitDuration = `${Math.round(seconds / 86400)} days`
-                else if (seconds < 31536000) explicitDuration = `${Math.round(seconds / 2592000)} months`
-                else explicitDuration = `${Math.round(seconds / 31536000)} year${Math.round(seconds / 31536000) > 1 ? "s" : ""}`
-              } else {
-                explicitDuration = "Session"
-              }
-              break
-            }
-            if (/^expires=/i.test(part)) {
-              hasMaxAgeOrExpires = true
-              const dateStr = part.substring(8).trim()
-              const expiryDate = new Date(dateStr)
-              if (!isNaN(expiryDate.getTime())) {
-                const diffMs = expiryDate.getTime() - Date.now()
-                if (diffMs > 0) {
-                  const seconds = Math.round(diffMs / 1000)
-                  if (seconds < 3600) explicitDuration = `${Math.round(seconds / 60)} minutes`
-                  else if (seconds < 86400) explicitDuration = `${Math.round(seconds / 3600)} hours`
-                  else if (seconds < 2592000) explicitDuration = `${Math.round(seconds / 86400)} days`
-                  else if (seconds < 31536000) explicitDuration = `${Math.round(seconds / 2592000)} months`
-                  else explicitDuration = `${Math.round(seconds / 31536000)} year${Math.round(seconds / 31536000) > 1 ? "s" : ""}`
-                } else {
-                  explicitDuration = "Session"
-                }
-              }
-              break
-            }
-          }
-
-          if (!hasMaxAgeOrExpires) {
-            explicitDuration = "Session"
-          }
-
-          detectedCookieMeta.set(cookieName, {
-            duration: explicitDuration,
-            isSession: !hasMaxAgeOrExpires || explicitDuration === "Session",
-          })
-        }
-
-        const html = await response.text().catch(() => "")
-        const scriptSrcMatches = html.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)
-        for (const match of scriptSrcMatches) {
-          if (match[1]) detectedScripts.push(match[1])
-        }
-
-        if (/google-analytics\.com|googletagmanager\.com\/gtag/i.test(html)) {
-          detectedCookieNames.add("_ga")
-          detectedCookieNames.add("_gid")
-          findings.push({
-            type: "info",
-            message: "Google Analytics 4 detected in page markup.",
-            severity: "medium",
-          })
-        }
-        if (/connect\.facebook\.net|fbevents\.js/i.test(html)) {
-          detectedCookieNames.add("_fbp")
-          findings.push({
-            type: "leak",
-            message: "Meta Pixel detected before user consent. Gated behind advertisement category.",
-            severity: "critical",
-          })
-        }
-        if (/clarity\.ms\/tag/i.test(html)) {
-          detectedCookieNames.add("_clck")
-          detectedCookieNames.add("_clsk")
-        }
-        if (/static\.hotjar\.com/i.test(html)) {
-          detectedCookieNames.add("_hjSessionUser_1")
-        }
-        if (/widget\.intercom\.io/i.test(html)) {
-          detectedCookieNames.add("intercom-session-id")
-        }
-      }
-    } catch (fetchErr) {
-      console.warn(`[Scanner] Could not crawl ${targetUrl}:`, fetchErr)
-    }
-
-    if (detectedCookieNames.size === 0) {
-      detectedCookieNames.add("session")
-      detectedCookieNames.add("_ga")
-      detectedCookieNames.add("_gid")
-    }
-
-    const discoveredList = []
-    for (const cookieName of detectedCookieNames) {
-      const classified = classifyCookieName(cookieName)
-      const headerMeta = detectedCookieMeta?.get(cookieName)
-
-      // Duration precedence: Set-Cookie Header (Expires/Max-Age/Session) -> Open Cookie DB taxonomy -> Default "Session"
-      const finalDuration = headerMeta?.duration || classified.duration || "Session"
-
-      const existingRes = await pool.query(
-        `SELECT id FROM discovered_cookies WHERE domain = $1 AND name = $2`,
-        [domain, cookieName]
-      )
-
-      if (existingRes.rows.length > 0 && existingRes.rows[0]) {
-        await pool.query(
-          `UPDATE discovered_cookies 
-           SET last_detected_at = NOW(),
-               duration = COALESCE(NULLIF($1, 'Unknown'), duration),
-               script_pattern_regex = COALESCE($2, script_pattern_regex)
-           WHERE id = $3`,
-          [finalDuration, classified.script_pattern_regex, existingRes.rows[0].id]
-        )
-      } else {
-        const id = randomUUID()
-        await pool.query(
-          `INSERT INTO discovered_cookies (
-            id, site_id, domain, name, category, service_name, duration,
-            description, confidence, status, script_pattern_regex, first_detected_at, last_detected_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
-          [
-            id,
-            siteId,
-            domain,
-            classified.name,
-            classified.category,
-            classified.service_name,
-            finalDuration,
-            classified.description,
-            classified.confidence,
-            classified.status,
-            classified.script_pattern_regex,
-          ]
-        )
-      }
-      discoveredList.push({
-        ...classified,
-        duration: finalDuration,
-      })
-    }
-
-    // Create a new scan record
-    const scanId = randomUUID()
-    const leakList = findings.filter((f) => f.type === "leak")
-
-    await pool.query(
-      `INSERT INTO scans (
-        id, site_id, domain, status, cookies_found, scripts_found, leaks_found, dark_patterns_found, findings, created_at
-      ) VALUES ($1, $2, $3, 'completed', $4, $5, $6, 0, $7, NOW())`,
-      [scanId, siteId, domain, detectedCookieNames.size, detectedScripts.length, leakList.length, JSON.stringify(findings)]
-    )
-
-    // Retrieve fresh lists
+    // 3. Retrieve updated cookies and findings
     const updatedCookies = await pool.query(
       `SELECT * FROM discovered_cookies WHERE domain = $1 ORDER BY category ASC, name ASC`,
       [domain]
     )
 
-    const latestScan = await pool.query(
-      `SELECT * FROM scans WHERE id = $1`,
-      [scanId]
-    )
+    const leaks = (completedJob.findings || []).filter((f: any) => f.type === "leak")
 
     return NextResponse.json({
-      success: true,
-      latest_scan: latestScan.rows[0] || null,
+      success: completedJob.status === "completed",
+      scan_id: completedJob.id,
+      status: completedJob.status,
+      latest_scan: completedJob,
       cookies: updatedCookies.rows || [],
-      pre_consent_leaks: leakList,
+      pre_consent_leaks: leaks,
+      error_message: completedJob.error_message || null,
     })
   } catch (err: any) {
+    if (err instanceof SSRFValidationError) {
+      return NextResponse.json({ detail: err.message, ssrf_blocked: true }, { status: 403 })
+    }
     console.error("POST /api/v1/consent/scanner error:", err)
     return NextResponse.json({ detail: err.message || "Failed to execute scan" }, { status: 500 })
   }
@@ -293,8 +125,9 @@ export async function PATCH(req: Request) {
     }
 
     if (category) {
+      // Mark with 'manual_override' so rescans never overwrite this user preference!
       await pool.query(
-        `UPDATE discovered_cookies SET category = $1, status = 'reviewed' WHERE id = $2`,
+        `UPDATE discovered_cookies SET category = $1, status = 'manual_override' WHERE id = $2`,
         [category, cookieId]
       )
     }

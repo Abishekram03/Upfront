@@ -26,6 +26,7 @@ import {
   Layers,
   Sparkles,
   HelpCircle,
+  RotateCcw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -51,6 +52,76 @@ import {
 } from "./studio/presets"
 
 export { LAW_PRESETS }
+
+export const DEFAULT_BANNER_CONFIG: Omit<StudioConfig, "domain"> = {
+  is_enabled: true,
+  layout: "floating_bottom_left" as any,
+  box_position: "bottom_left",
+  preference_layout: "center",
+  categories_on_first_layer: false,
+  theme: "light",
+  primary_color: "#1868db",
+  border_radius: "rounded-md",
+  title: "We value your privacy",
+  description: "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies.",
+  privacy_policy_url: "/privacy",
+  show_close_button: false,
+  accept_all_label: "Accept All",
+  reject_all_label: "Reject All",
+  preferences_label: "Customise",
+  show_cookie_policy_link: true,
+  show_google_privacy_policy: true,
+  google_policy_message: "For more information on how Google's third-party cookies operate and handle your data, see:",
+  google_policy_link_text: "Google Privacy Policy",
+  google_policy_url: "https://business.safety.google/privacy",
+  show_more_label: "Show more",
+  show_less_label: "Show less",
+  show_cookie_list_on_banner: true,
+  blocked_content_alt_text: "Please accept cookies to access this content",
+  
+  // Preference Centre
+  preference_title: "Customise Consent Preferences",
+  preference_description: "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.",
+  save_preferences_label: "Save My Preferences",
+  pref_accept_all_label: "Accept All",
+  pref_reject_all_label: "Reject All",
+
+  // 5 Categories
+  necessary_title: "Necessary",
+  necessary_description: "Necessary cookies are required to enable the basic features of this site, such as providing secure log-in or adjusting your consent preferences. These cookies do not store any personally identifiable data.",
+  
+  functional_title: "Functional",
+  functional_description: "Functional cookies help perform certain functionalities like sharing the content of the website on social media platforms, collecting feedback, and other third-party features.",
+  
+  analytics_title: "Analytics",
+  analytics_description: "Analytical cookies are used to understand how visitors interact with the website. These cookies help provide information on metrics such as the number of visitors, bounce rate, traffic source, etc.",
+  
+  performance_title: "Performance",
+  performance_description: "Performance cookies are used to understand and analyze the key performance indexes of the website which helps in delivering a better user experience for the visitors.",
+  
+  advertisement_title: "Advertisement",
+  advertisement_description: "Advertisement cookies are used to provide visitors with customized advertisements based on the pages you visited previously and to analyze the effectiveness of the ad campaigns.",
+
+  enable_necessary_category: true,
+  enable_functional_category: true,
+  enable_analytics_category: true,
+  enable_performance_category: true,
+  enable_advertisement_category: true,
+
+  show_necessary_cookies: true,
+  show_functional_cookies: true,
+  show_analytics_cookies: true,
+  show_performance_cookies: true,
+  show_advertisement_cookies: true,
+
+  show_revisit_button: true,
+  revisit_button_position: "bottom_left",
+  enable_consent_mode_v2: true,
+  geo_targeting: "all",
+  enable_gpc: true,
+  consent_version: "1.0",
+  custom_css: "",
+}
 
 const COLOR_PRESETS = [
   { name: "Upfront Blue", hex: "#1868db" },
@@ -130,74 +201,8 @@ export function BannerStudio() {
     show_performance_cookies?: boolean
     show_advertisement_cookies?: boolean
   }>({
+    ...DEFAULT_BANNER_CONFIG,
     domain: activeDomain || "",
-    is_enabled: true,
-    layout: "floating_bottom_left" as any,
-    box_position: "bottom_left",
-    preference_layout: "center",
-    categories_on_first_layer: false,
-    theme: "light",
-    primary_color: "#1868db",
-    border_radius: "rounded-md",
-    title: "We value your privacy",
-    description: "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies.",
-    privacy_policy_url: "/privacy",
-    show_close_button: false,
-    accept_all_label: "Accept All",
-    reject_all_label: "Reject All",
-    preferences_label: "Customise",
-    show_cookie_policy_link: true,
-    show_google_privacy_policy: true,
-    google_policy_message: "For more information on how Google's third-party cookies operate and handle your data, see:",
-    google_policy_link_text: "Google Privacy Policy",
-    google_policy_url: "https://business.safety.google/privacy",
-    show_more_label: "Show more",
-    show_less_label: "Show less",
-    show_cookie_list_on_banner: true,
-    blocked_content_alt_text: "Please accept cookies to access this content",
-    
-    // Preference Centre
-    preference_title: "Customise Consent Preferences",
-    preference_description: "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.",
-    save_preferences_label: "Save My Preferences",
-    pref_accept_all_label: "Accept All",
-    pref_reject_all_label: "Reject All",
-
-    // 5 Categories
-    necessary_title: "Necessary",
-    necessary_description: "Necessary cookies are required to enable the basic features of this site, such as providing secure log-in or adjusting your consent preferences. These cookies do not store any personally identifiable data.",
-    
-    functional_title: "Functional",
-    functional_description: "Functional cookies help perform certain functionalities like sharing the content of the website on social media platforms, collecting feedback, and other third-party features.",
-    
-    analytics_title: "Analytics",
-    analytics_description: "Analytical cookies are used to understand how visitors interact with the website. These cookies help provide information on metrics such as the number of visitors, bounce rate, traffic source, etc.",
-    
-    performance_title: "Performance",
-    performance_description: "Performance cookies are used to understand and analyze the key performance indexes of the website which helps in delivering a better user experience for the visitors.",
-    
-    advertisement_title: "Advertisement",
-    advertisement_description: "Advertisement cookies are used to provide visitors with customized advertisements based on the pages you visited previously and to analyze the effectiveness of the ad campaigns.",
-
-    enable_necessary_category: true,
-    enable_functional_category: true,
-    enable_analytics_category: true,
-    enable_performance_category: true,
-    enable_advertisement_category: true,
-
-    show_necessary_cookies: true,
-    show_functional_cookies: true,
-    show_analytics_cookies: true,
-    show_performance_cookies: true,
-    show_advertisement_cookies: true,
-
-    show_revisit_button: true,
-    revisit_button_position: "bottom_left",
-    enable_consent_mode_v2: true,
-    geo_targeting: "all",
-    enable_gpc: true,
-    consent_version: "1.0",
-    custom_css: "",
   })
 
   const [isLoading, setIsLoading] = useState(true)
@@ -209,6 +214,7 @@ export function BannerStudio() {
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
+  const [isResetBannerModalOpen, setIsResetBannerModalOpen] = useState(false)
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false)
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [copiedEmbed, setCopiedEmbed] = useState(false)
@@ -315,6 +321,20 @@ export function BannerStudio() {
       setToast({ type: "error", message: err?.message || "Failed to discard draft." })
       setTimeout(() => setToast(null), 5000)
     }
+  }
+
+  // Reset entire banner to default banner configuration
+  const handleResetToDefaultBanner = () => {
+    updateConfig(() => ({
+      ...DEFAULT_BANNER_CONFIG,
+      domain: activeDomain || "",
+    }))
+    setIsResetBannerModalOpen(false)
+    setToast({
+      type: "success",
+      message: "Banner reset to default configuration.",
+    })
+    setTimeout(() => setToast(null), 4000)
   }
 
   // Compute validation
@@ -1364,7 +1384,7 @@ export function BannerStudio() {
             {/* TAB 5: CUSTOM CSS OVERRIDES                              */}
             {/* ======================================================== */}
             {activeRailTab === "custom_css" && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-bold text-slate-800">Custom CSS Overrides</div>
                   {Boolean(config.custom_css?.trim()) && (
@@ -1373,12 +1393,12 @@ export function BannerStudio() {
                       onClick={() => updateConfig((prev) => ({ ...prev, custom_css: "" }))}
                       className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
                     >
-                      Reset to Default
+                      Clear CSS
                     </button>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  Add custom CSS rules targeting <code>.upfront-banner</code> or <code>.upfront-modal</code>. Clear this field or click &apos;Reset to Default&apos; to restore the original styling.
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Add custom CSS rules targeting <code>.upfront-banner</code> or <code>.upfront-modal</code>.
                 </p>
                 <textarea
                   rows={8}
@@ -1387,6 +1407,27 @@ export function BannerStudio() {
                   onChange={(e) => updateConfig((prev) => ({ ...prev, custom_css: e.target.value }))}
                   className="w-full p-2 text-xs font-mono rounded-[4px] border border-slate-200 bg-slate-900 text-slate-100 focus:outline-hidden leading-relaxed"
                 />
+
+                {/* Reset to Default Banner Section */}
+                <div className="pt-3 border-t border-slate-200">
+                  <div className="bg-slate-50 border border-slate-200 rounded-[4px] p-3 space-y-2.5">
+                    <div className="flex items-center gap-1.5 text-slate-800 text-xs font-bold">
+                      <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Reset to Default Banner</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Restore the entire banner configuration to the default setup, including layout, colours, standard text labels, and clear all custom CSS.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsResetBannerModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-1.5 rounded-[4px] border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold py-2 shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Reset to Default Banner
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -2147,6 +2188,52 @@ export function BannerStudio() {
         currentPublishedVersion={publishedVersion}
         onVersionRestored={loadStudioData}
       />
+
+      {/* 4. Reset to Default Banner Confirmation Modal */}
+      {isResetBannerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-600">
+                <RotateCcw className="w-4 h-4" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900">Reset Banner to Default?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  This action will restore all banner settings, including colors, layout, consent category descriptions, and custom CSS overrides back to the original default configuration.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1">
+              <div className="font-semibold text-slate-700">What will be reset:</div>
+              <ul className="list-disc pl-4 space-y-0.5 text-slate-500">
+                <li>Theme & Primary Color (#1868db)</li>
+                <li>Banner Layout & Position</li>
+                <li>Notice and Preference Centre copy</li>
+                <li>Custom CSS overrides</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsResetBannerModalOpen(false)}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-[4px] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <Button
+                type="button"
+                onClick={handleResetToDefaultBanner}
+                className="px-3 py-1.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white rounded-[4px] shadow-xs cursor-pointer"
+              >
+                Confirm Reset
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
