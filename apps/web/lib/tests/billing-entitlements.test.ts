@@ -1,7 +1,7 @@
 import { PLANS, getPlan, getRequiredPlanForCapability, getPlanByPaddlePriceId, type EntitlementKey, type PlanId } from "../billing/plans"
 import { getWorkspaceEntitlements, assertWorkspaceCapability, EntitlementError } from "../billing/entitlements"
 import { verifyPaddleWebhookSignature, processPaddleWebhook } from "../billing/paddle"
-import { getDb, query } from "../db"
+import { pool } from "../db"
 import crypto from "crypto"
 
 // Test Harness Assertions
@@ -43,10 +43,10 @@ async function runAllTests() {
   console.log(">> 1. Testing Plan Definitions and Capability Limits...")
 
   // Free Tier
-  assert(PLANS.free.price === 0, "Free plan price is $0")
-  assert(PLANS.free.limits.analytics_monthly_pageviews === 50000, "Free plan has 50K pageviews/month")
-  assert(PLANS.free.limits.scan_pages_per_scan === 100, "Free plan has 100 pages/scan")
-  assert(PLANS.free.limits.consent_history_days === 30, "Free plan has 30 days consent history")
+  assert(PLANS.free.priceMonthly === 0, "Free plan price is $0")
+  assert(PLANS.free.limits.monthlyPageviews === 50000, "Free plan has 50K pageviews/month")
+  assert(PLANS.free.limits.pagesPerScan === 100, "Free plan has 100 pages/scan")
+  assert(PLANS.free.limits.consentHistoryDays === 30, "Free plan has 30 days consent history")
   assert(PLANS.free.capabilities["cmp.banner"] === true, "Free plan has cmp.banner")
   assert(PLANS.free.capabilities["cmp.gpc"] === false, "Free plan cmp.gpc is locked (false)")
   assert(PLANS.free.capabilities["cmp.geo_targeting"] === false, "Free plan cmp.geo_targeting is locked (false)")
@@ -58,10 +58,10 @@ async function runAllTests() {
   assert(PLANS.free.capabilities["cmp.version_history"] === false, "Free plan cmp.version_history is locked (false)")
 
   // Growth Tier
-  assert(PLANS.growth.price === 19, "Growth plan price is $19")
-  assert(PLANS.growth.limits.analytics_monthly_pageviews === 250000, "Growth plan has 250K pageviews/month")
-  assert(PLANS.growth.limits.scan_pages_per_scan === 1000, "Growth plan has 1,000 pages/scan")
-  assert(PLANS.growth.limits.consent_history_days === 365, "Growth plan has 365 days (12 mo) consent history")
+  assert(PLANS.growth.priceMonthly === 19, "Growth plan price is $19")
+  assert(PLANS.growth.limits.monthlyPageviews === 250000, "Growth plan has 250K pageviews/month")
+  assert(PLANS.growth.limits.pagesPerScan === 1000, "Growth plan has 1,000 pages/scan")
+  assert(PLANS.growth.limits.consentHistoryDays === 365, "Growth plan has 365 days (12 mo) consent history")
   assert(PLANS.growth.capabilities["cmp.gpc"] === true, "Growth plan cmp.gpc is unlocked (true)")
   assert(PLANS.growth.capabilities["cmp.geo_targeting"] === true, "Growth plan cmp.geo_targeting is unlocked (true)")
   assert(PLANS.growth.capabilities["cmp.google_consent_mode_v2"] === true, "Growth plan cmp.google_consent_mode_v2 is unlocked (true)")
@@ -72,10 +72,10 @@ async function runAllTests() {
   assert(PLANS.growth.capabilities["cmp.custom_css"] === false, "Growth plan cmp.custom_css is locked (false)")
 
   // Business Tier
-  assert(PLANS.business.price === 49, "Business plan price is $49")
-  assert(PLANS.business.limits.analytics_monthly_pageviews === 1000000, "Business plan has 1,000,000 pageviews/month")
-  assert(PLANS.business.limits.scan_pages_per_scan === 5000, "Business plan has 5,000 pages/scan")
-  assert(PLANS.business.limits.consent_history_days === 730, "Business plan has 730 days (24 mo) consent history")
+  assert(PLANS.business.priceMonthly === 49, "Business plan price is $49")
+  assert(PLANS.business.limits.monthlyPageviews === 1000000, "Business plan has 1,000,000 pageviews/month")
+  assert(PLANS.business.limits.pagesPerScan === 5000, "Business plan has 5,000 pages/scan")
+  assert(PLANS.business.limits.consentHistoryDays === 730, "Business plan has 730 days (24 mo) consent history")
   assert(PLANS.business.capabilities["cmp.tcf_v23"] === true, "Business plan cmp.tcf_v23 is unlocked (true)")
   assert(PLANS.business.capabilities["cmp.custom_css"] === true, "Business plan cmp.custom_css is unlocked (true)")
   assert(PLANS.business.capabilities["cmp.scheduled_scans"] === "daily", "Business plan has daily/weekly scheduled scans")
@@ -176,7 +176,7 @@ async function runAllTests() {
   }
 
   const result1 = await processPaddleWebhook(createEvent)
-  assert(result1.processed === true, "subscription.created processed successfully")
+  assert(result1.action === "processed", "subscription.created processed successfully")
   assert(result1.plan === "growth", "Subscription created provisioned plan='growth'")
 
   // Verify entitlements updated in DB
@@ -189,7 +189,7 @@ async function runAllTests() {
 
   // B. Deduplication: Duplicate Event ID
   const dupResult = await processPaddleWebhook(createEvent)
-  assert(dupResult.duplicate === true, "Duplicate event_id correctly detected and skipped idempotently")
+  assert(dupResult.action === "deduplicated", "Duplicate event_id correctly detected and skipped idempotently")
 
   // C. Out-of-Order Event Protection
   const staleEvent = {
@@ -202,7 +202,7 @@ async function runAllTests() {
     }
   }
   const staleResult = await processPaddleWebhook(staleEvent)
-  assert(staleResult.outOfOrder === true, "Stale/out-of-order event correctly detected and skipped")
+  assert(staleResult.action === "skipped_out_of_order", "Stale/out-of-order event correctly detected and skipped")
 
   // D. Upgrade: Growth -> Business (subscription.updated)
   const upgradeEvent = {
@@ -230,7 +230,7 @@ async function runAllTests() {
     }
   }
   const resultUpgrade = await processPaddleWebhook(upgradeEvent)
-  assert(resultUpgrade.processed === true, "subscription.updated (upgrade to Business) processed successfully")
+  assert(resultUpgrade.action === "processed", "subscription.updated (upgrade to Business) processed successfully")
 
   const businessEntitlements = await getWorkspaceEntitlements(testWorkspaceId)
   assert(businessEntitlements.plan === "business", "Workspace entitlement updated to 'business'")
@@ -269,8 +269,8 @@ async function runAllTests() {
   assert(canceledEntitlements.capabilities["cmp.tcf_v23"] === false, "TCF v2.3 locked after cancellation")
 
   // Clean up test records
-  await query("DELETE FROM subscriptions WHERE workspace_id = $1", [testWorkspaceId])
-  await query("DELETE FROM billing_events WHERE payload::text LIKE $1", [`%${testWorkspaceId}%`])
+  await pool.query("DELETE FROM subscriptions WHERE workspace_id = $1", [testWorkspaceId])
+  await pool.query("DELETE FROM billing_events WHERE payload::text LIKE $1", [`%${testWorkspaceId}%`])
 
   console.log("\n========================================================")
   console.log(` BILLING TEST SUMMARY: ${passedTests} / ${totalTests} Passed (${failedTests} Failed)`)

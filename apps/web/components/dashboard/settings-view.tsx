@@ -1077,11 +1077,11 @@ export function SettingsView() {
               <h2 className="text-3xl font-extrabold mt-1.5 flex items-center gap-2">
                 <span>{PLANS[currentPlan].name}</span>
                 <span className="text-lg font-normal text-slate-400">
-                  ({PLANS[currentPlan].price === 0 ? "Free forever" : `$${PLANS[currentPlan].price}/month`})
+                  ({PLANS[currentPlan].priceMonthly === 0 ? "Free forever" : `$${PLANS[currentPlan].priceMonthly}/month`})
                 </span>
               </h2>
               <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-                {PLANS[currentPlan].tagline}
+                {PLANS[currentPlan].positioning || PLANS[currentPlan].description}
               </p>
             </div>
 
@@ -1115,7 +1115,7 @@ export function SettingsView() {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-700">Monthly Pageviews</span>
                 <span className="font-mono text-slate-500 font-medium">
-                  {(usage?.pageviewsThisMonth || 0).toLocaleString()} / {(entitlements?.limits.analytics_monthly_pageviews || 50000).toLocaleString()}
+                  {(usage?.pageviewsThisMonth || 0).toLocaleString()} / {(entitlements?.limits.monthlyPageviews || 50000).toLocaleString()}
                 </span>
               </div>
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -1148,7 +1148,7 @@ export function SettingsView() {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-700">Scanner Depth</span>
                 <span className="font-mono text-slate-900 font-bold">
-                  {(entitlements?.limits.scan_pages_per_scan || 100).toLocaleString()} pages/scan
+                  {(entitlements?.limits.pagesPerScan || 100).toLocaleString()} pages/scan
                 </span>
               </div>
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -1169,9 +1169,9 @@ export function SettingsView() {
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-700">Consent History</span>
                 <span className="font-mono text-slate-900 font-bold">
-                  {entitlements?.limits.consent_history_days === 30
+                  {entitlements?.limits.consentHistoryDays === 30
                     ? "30 Days"
-                    : `${(entitlements?.limits.consent_history_days || 30) / 30} Months`}
+                    : `${(entitlements?.limits.consentHistoryDays || 30) / 30} Months`}
                 </span>
               </div>
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
