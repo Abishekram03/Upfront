@@ -272,6 +272,10 @@ export async function ensureTables() {
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS description_column_label VARCHAR(100) DEFAULT 'Description';
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS custom_css TEXT;
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS law_template VARCHAR(50) DEFAULT 'gdpr';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_iab_tcf BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_auto_language BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS default_language VARCHAR(10) DEFAULT 'en';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS supported_languages TEXT[] DEFAULT ARRAY['en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'hi'];
         ALTER TABLE consent_receipts ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
         ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS script_pattern_regex TEXT;
         ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS discovery_source VARCHAR(50) DEFAULT 'http_set_cookie';
@@ -375,6 +379,34 @@ export async function ensureTables() {
           updated_by VARCHAR(64)
         );
         CREATE INDEX IF NOT EXISTS ix_cookie_policy_drafts_domain ON cookie_policy_drafts(domain);
+
+        -- Safe Schema Migrations for Scans
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS trigger_source VARCHAR(50) DEFAULT 'manual';
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS schedule_id VARCHAR(36);
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS scheduled_occurrence VARCHAR(100);
+
+        -- Scheduled / Recurring Cookie Scans
+        CREATE TABLE IF NOT EXISTS scan_schedules (
+          id VARCHAR(36) PRIMARY KEY,
+          workspace_id VARCHAR(36),
+          site_id VARCHAR(36),
+          domain VARCHAR(255) UNIQUE NOT NULL,
+          enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          frequency VARCHAR(20) NOT NULL DEFAULT 'monthly',
+          day_of_week INTEGER DEFAULT 1,
+          day_of_month INTEGER DEFAULT 1,
+          time_of_day VARCHAR(5) NOT NULL DEFAULT '09:00',
+          timezone VARCHAR(100) NOT NULL DEFAULT 'UTC',
+          next_run_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+          last_run_at TIMESTAMP WITHOUT TIME ZONE,
+          last_run_status VARCHAR(50),
+          last_error TEXT,
+          created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS ix_scan_schedules_next_run ON scan_schedules(enabled, next_run_at);
+        CREATE INDEX IF NOT EXISTS ix_scan_schedules_domain ON scan_schedules(domain);
+        CREATE INDEX IF NOT EXISTS ix_scan_schedules_site ON scan_schedules(site_id);
       `)
       tablesInitialized = true
     } finally {

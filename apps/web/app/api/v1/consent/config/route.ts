@@ -63,9 +63,8 @@ export async function GET(req: Request) {
         `INSERT INTO consent_configs (
           id, domain, is_enabled, layout, theme, primary_color, border_radius,
           title, description, privacy_policy_url, accept_all_label, reject_all_label,
-          preferences_label, enable_necessary_category, enable_functional_category,
-          enable_analytics_category, enable_performance_category, enable_advertisement_category,
-          show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
+          show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf,
+          enable_auto_language, default_language, supported_languages, geo_targeting,
           enable_gpc, consent_version,
           created_at, updated_at
         ) VALUES (
@@ -74,7 +73,8 @@ export async function GET(req: Request) {
           'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking ''Accept All'', you consent to our use of cookies.',
           '/privacy', 'Accept All', 'Reject All', 'Customise',
           TRUE, TRUE, TRUE, TRUE, TRUE,
-          TRUE, 'bottom_left', TRUE, 'all',
+          TRUE, 'bottom_left', TRUE, TRUE,
+          TRUE, 'en', ARRAY['en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'hi'], 'all',
           TRUE, '1.0',
           NOW(), NOW()
         )
@@ -131,8 +131,8 @@ export async function POST(req: Request) {
         always_active_label, no_cookies_to_display_label, cookie_column_label,
         duration_column_label, description_column_label,
         enable_necessary_category, enable_functional_category,
-        enable_analytics_category, enable_performance_category, enable_advertisement_category,
-        show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
+        show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf,
+        enable_auto_language, default_language, supported_languages, geo_targeting,
         enable_gpc, consent_version, custom_css, law_template,
         created_at, updated_at
       ) VALUES (
@@ -145,6 +145,7 @@ export async function POST(req: Request) {
         $24, $25, $26,
         $27, $28, $29, $30,
         $31, $32, $33, $34,
+        $35, $36, $37, $38,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -175,6 +176,10 @@ export async function POST(req: Request) {
         show_revisit_button = EXCLUDED.show_revisit_button,
         revisit_button_position = EXCLUDED.revisit_button_position,
         enable_consent_mode_v2 = EXCLUDED.enable_consent_mode_v2,
+        enable_iab_tcf = EXCLUDED.enable_iab_tcf,
+        enable_auto_language = EXCLUDED.enable_auto_language,
+        default_language = EXCLUDED.default_language,
+        supported_languages = EXCLUDED.supported_languages,
         geo_targeting = EXCLUDED.geo_targeting,
         enable_gpc = EXCLUDED.enable_gpc,
         consent_version = EXCLUDED.consent_version,
@@ -212,6 +217,10 @@ export async function POST(req: Request) {
         body.show_revisit_button !== undefined ? body.show_revisit_button : true,
         body.revisit_button_position || "bottom_left",
         body.enable_consent_mode_v2 !== undefined ? body.enable_consent_mode_v2 : true,
+        body.enable_iab_tcf !== undefined ? body.enable_iab_tcf : true,
+        body.enable_auto_language !== undefined ? body.enable_auto_language : true,
+        body.default_language || "en",
+        body.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi"],
         body.geo_targeting || "all",
         body.enable_gpc !== undefined ? body.enable_gpc : true,
         body.consent_version || "1.0",

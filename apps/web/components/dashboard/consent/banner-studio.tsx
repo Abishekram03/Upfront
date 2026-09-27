@@ -50,11 +50,19 @@ import {
   applyPresetToConfig,
   LawPreset,
 } from "./studio/presets"
+import {
+  SUPPORTED_LANGUAGES,
+  CMPTranslationDictionary,
+  resolveCMPText,
+} from "@/lib/i18n/translations"
 
 export { LAW_PRESETS }
 
 export const DEFAULT_BANNER_CONFIG: Omit<StudioConfig, "domain"> = {
   is_enabled: true,
+  enable_auto_language: true,
+  default_language: "en",
+  supported_languages: ["en", "de", "fr", "es", "pt", "it", "nl", "hi"],
   layout: "floating_bottom_left" as any,
   box_position: "bottom_left",
   preference_layout: "center",
@@ -117,6 +125,7 @@ export const DEFAULT_BANNER_CONFIG: Omit<StudioConfig, "domain"> = {
   show_revisit_button: true,
   revisit_button_position: "bottom_left",
   enable_consent_mode_v2: true,
+  enable_iab_tcf: true,
   geo_targeting: "all",
   enable_gpc: true,
   consent_version: "1.0",
@@ -222,7 +231,13 @@ export function BannerStudio() {
   // Live Canvas Viewport Controls
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop")
   const [previewView, setPreviewView] = useState<"notice" | "preferences">("notice")
+  const [previewLanguage, setPreviewLanguage] = useState<string>("en")
   const [iframeLoading, setIframeLoading] = useState(true)
+
+  // Translation resolver for canvas preview
+  const getText = (key: keyof CMPTranslationDictionary): string => {
+    return resolveCMPText(key, config, previewLanguage)
+  }
 
   // Interactive accordions inside preference centre preview
   const [mockExpanded, setMockExpanded] = useState<Record<string, boolean>>({
@@ -377,6 +392,7 @@ export function BannerStudio() {
     if (publishedConfig.preferences_label !== config.preferences_label) diffs.push("Updated Preferences button label")
     if (publishedConfig.enable_gpc !== config.enable_gpc) diffs.push(`GPC set to ${config.enable_gpc ? "Enabled" : "Disabled"}`)
     if (publishedConfig.enable_consent_mode_v2 !== config.enable_consent_mode_v2) diffs.push(`Consent Mode v2 set to ${config.enable_consent_mode_v2 ? "Enabled" : "Disabled"}`)
+    if (publishedConfig.enable_iab_tcf !== config.enable_iab_tcf) diffs.push(`IAB TCF v2.3 set to ${config.enable_iab_tcf ? "Enabled" : "Disabled"}`)
     if (publishedConfig.geo_targeting !== config.geo_targeting) diffs.push(`Geo-targeting set to ${config.geo_targeting}`)
     if (publishedConfig.custom_css !== config.custom_css) diffs.push("Updated Shadow-DOM Custom CSS")
     if (diffs.length === 0) diffs.push("Configuration adjustments")
@@ -678,10 +694,15 @@ export function BannerStudio() {
                 <div className="space-y-3 pt-2 border-t border-slate-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-xs font-bold text-slate-800">Support IAB TCF v2.2</div>
-                      <div className="text-[11px] text-slate-500">Interactive Advertising Bureau framework string</div>
+                      <div className="text-xs font-bold text-slate-800">Support IAB TCF v2.3</div>
+                      <div className="text-[11px] text-slate-500">Interactive Advertising Bureau framework signaling</div>
                     </div>
-                    <input type="checkbox" defaultChecked className="size-4 rounded text-[#1868db] focus:ring-[#1868db]" />
+                    <input
+                      type="checkbox"
+                      checked={config.enable_iab_tcf !== false}
+                      onChange={(e) => setConfig({ ...config, enable_iab_tcf: e.target.checked })}
+                      className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
+                    />
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -708,6 +729,47 @@ export function BannerStudio() {
                       onChange={(e) => setConfig({ ...config, enable_gpc: e.target.checked })}
                       className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
                     />
+                  </div>
+                </div>
+
+                {/* Multi-Language & Localization Layer */}
+                <div className="space-y-3 pt-2 border-t border-slate-200">
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">Languages & Localization</label>
+                    <div className="relative group cursor-pointer inline-flex items-center">
+                      <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
+                      <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                        UpFront automatically serves localized CMP translations matching the visitor&apos;s browser language while preserving any custom customer copy overrides.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-slate-800">Auto-Detect Browser Language</div>
+                      <div className="text-[11px] text-slate-500">Automatically serve translations matching visitor OS/Browser</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.enable_auto_language !== false}
+                      onChange={(e) => setConfig({ ...config, enable_auto_language: e.target.checked })}
+                      className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-800 block">Default Language Fallback</label>
+                    <select
+                      value={config.default_language || "en"}
+                      onChange={(e) => setConfig({ ...config, default_language: e.target.value })}
+                      className="w-full px-3 py-1.5 text-xs font-semibold rounded-[4px] border border-slate-300 bg-white text-slate-900 shadow-2xs focus:border-[#1868db]"
+                    >
+                      {SUPPORTED_LANGUAGES.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.name} ({l.nativeName}) [{l.code}]
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -1520,8 +1582,24 @@ export function BannerStudio() {
               </button>
             </div>
 
-            {/* Right Action: Draft Status Badge */}
+            {/* Right Action: Language Preview Switcher & Draft Status Badge */}
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                <span className="text-[10px] font-bold text-slate-500 hidden sm:inline">Preview Lang:</span>
+                <select
+                  value={previewLanguage}
+                  onChange={(e) => setPreviewLanguage(e.target.value)}
+                  className="text-xs font-semibold bg-transparent border-0 text-slate-800 focus:outline-hidden cursor-pointer"
+                  title="Simulate visitor browser language"
+                >
+                  {SUPPORTED_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.name} ({l.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {isDraft ? (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                   <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -1641,12 +1719,12 @@ export function BannerStudio() {
                         previewDevice === "mobile" ? "w-full mx-1" : "w-full max-w-[480px]"
                       )}>
                         <div className="flex items-start justify-between">
-                          <h4 className={cn("usrly-banner-title text-sm font-bold leading-snug", config.theme === "dark" ? "text-white" : "text-slate-900")}>{config.title}</h4>
+                          <h4 className={cn("usrly-banner-title text-sm font-bold leading-snug", config.theme === "dark" ? "text-white" : "text-slate-900")}>{getText("title")}</h4>
                           {config.show_close_button && (
                             <button type="button" className={cn("text-xs ml-2", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400 hover:text-slate-700")}>✕</button>
                           )}
                         </div>
-                        <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{config.description}</p>
+                        <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{getText("description")}</p>
 
                         <div className={cn(
                           "usrly-btn-group pt-3 border-t w-full",
@@ -1664,7 +1742,7 @@ export function BannerStudio() {
                                 previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
                               )}
                             >
-                              {config.preferences_label}
+                              {getText("preferences_label")}
                             </button>
                           )}
                           {(config as any).law_template !== "notice_only" && (
@@ -1675,7 +1753,7 @@ export function BannerStudio() {
                                 previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
                               )}
                             >
-                              {config.reject_all_label}
+                              {getText("reject_all_label")}
                             </button>
                           )}
                           <button
@@ -1685,7 +1763,7 @@ export function BannerStudio() {
                               previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "flex-1 min-w-[110px]"
                             )}
                           >
-                            {config.accept_all_label}
+                            {getText("accept_all_label")}
                           </button>
                         </div>
                       </div>
@@ -1703,10 +1781,10 @@ export function BannerStudio() {
                       )}>
                         <div className="usrly-banner-text space-y-1 w-full flex-1">
                           <div className="flex items-center justify-between">
-                            <h4 className={cn("usrly-banner-title text-xs font-bold", config.theme === "dark" ? "text-white" : "text-slate-900")}>{config.title}</h4>
+                            <h4 className={cn("usrly-banner-title text-xs font-bold", config.theme === "dark" ? "text-white" : "text-slate-900")}>{getText("title")}</h4>
                             {config.show_close_button && <button type="button" className={cn("text-xs ml-2", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400")}>✕</button>}
                           </div>
-                          <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{config.description}</p>
+                          <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{getText("description")}</p>
                         </div>
 
                         <div className={cn(
@@ -1724,7 +1802,7 @@ export function BannerStudio() {
                                 previewDevice === "mobile" ? "w-full" : "min-w-fit"
                               )}
                             >
-                              {config.preferences_label}
+                              {getText("preferences_label")}
                             </button>
                           )}
                           {(config as any).law_template !== "notice_only" && (
@@ -1735,7 +1813,7 @@ export function BannerStudio() {
                                 previewDevice === "mobile" ? "w-full" : "min-w-fit"
                               )}
                             >
-                              {config.reject_all_label}
+                              {getText("reject_all_label")}
                             </button>
                           )}
                           <button
@@ -1745,7 +1823,7 @@ export function BannerStudio() {
                               previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "min-w-fit"
                             )}
                           >
-                            {config.accept_all_label}
+                            {getText("accept_all_label")}
                           </button>
                         </div>
                       </div>
@@ -1768,10 +1846,10 @@ export function BannerStudio() {
                       )}
                     >
                       <div className="flex items-start justify-between">
-                        <h4 className={cn("usrly-banner-title text-xs font-bold leading-snug", config.theme === "dark" ? "text-white" : "text-slate-900")}>{config.title}</h4>
+                        <h4 className={cn("usrly-banner-title text-xs font-bold leading-snug", config.theme === "dark" ? "text-white" : "text-slate-900")}>{getText("title")}</h4>
                         {config.show_close_button && <button type="button" className={cn("text-xs ml-2", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400")}>✕</button>}
                       </div>
-                      <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{config.description}</p>
+                      <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{getText("description")}</p>
 
                       <div className={cn(
                         "usrly-btn-group pt-2 w-full",
@@ -1788,7 +1866,7 @@ export function BannerStudio() {
                               previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
                             )}
                           >
-                            {config.preferences_label}
+                            {getText("preferences_label")}
                           </button>
                         )}
                         {(config as any).law_template !== "notice_only" && (
@@ -1799,7 +1877,7 @@ export function BannerStudio() {
                               previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
                             )}
                           >
-                            {config.reject_all_label}
+                            {getText("reject_all_label")}
                           </button>
                         )}
                         <button
@@ -1809,7 +1887,7 @@ export function BannerStudio() {
                             previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "flex-1 min-w-[90px]"
                           )}
                         >
-                          {config.accept_all_label}
+                          {getText("accept_all_label")}
                         </button>
                       </div>
                     </div>
@@ -1830,7 +1908,7 @@ export function BannerStudio() {
                       config.theme === "dark" ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
                     )}>
                       <h3 className="usrly-modal-title text-xs font-bold">
-                        {config.preference_title || "Customise Consent Preferences"}
+                        {getText("preferences_title")}
                       </h3>
                       <button
                         type="button"
@@ -1848,16 +1926,15 @@ export function BannerStudio() {
                     )}>
                       <div className={cn("leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-500")}>
                         <span className={cn(!isPrefDescExpanded && "line-clamp-2")}>
-                          {config.preference_description ||
-                            "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below."}
+                          {getText("preferences_description")}
                         </span>
-                        {(config.preference_description || "").length > 80 && (
+                        {(getText("preferences_description") || "").length > 80 && (
                           <button
                             type="button"
                             onClick={() => setIsPrefDescExpanded(!isPrefDescExpanded)}
                             className="text-[#1868db] font-bold hover:underline ml-1 inline-block cursor-pointer"
                           >
-                            {isPrefDescExpanded ? (config.show_less_label || "Show less") : (config.show_more_label || "Show more")}
+                            {isPrefDescExpanded ? (getText("show_less_label") || "Show less") : (getText("show_more_label") || "Show more")}
                           </button>
                         )}
                       </div>
@@ -1882,17 +1959,16 @@ export function BannerStudio() {
                         >
                           <div className={cn("flex items-center gap-1.5 font-bold", config.theme === "dark" ? "text-white" : "text-slate-900")}>
                             <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.necessary && "rotate-90")} />
-                            {config.necessary_title || "Necessary"}
+                            {getText("necessary_title")}
                           </div>
                           <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                            {config.always_active_label || "Always Active"}
+                            {getText("always_active_label")}
                           </span>
                         </div>
                         {mockExpanded.necessary && (
                           <div className="pl-4 space-y-2">
                             <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
-                              {config.necessary_description ||
-                                "Necessary cookies are required to enable basic features of this site, such as providing secure log-in or adjusting consent preferences."}
+                              {getText("necessary_description")}
                             </p>
                             {config.show_cookie_list_on_banner !== false && (
                               <div className={cn(
@@ -1903,9 +1979,9 @@ export function BannerStudio() {
                                   "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
                                   config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-700 border-slate-200"
                                 )}>
-                                  <span className="col-span-4">{config.cookie_column_label || "Cookie"}</span>
-                                  <span className="col-span-3">{config.duration_column_label || "Duration"}</span>
-                                  <span className="col-span-5">{config.description_column_label || "Description"}</span>
+                                  <span className="col-span-4">{getText("cookie_column_label")}</span>
+                                  <span className="col-span-3">{getText("duration_column_label")}</span>
+                                  <span className="col-span-5">{getText("description_column_label")}</span>
                                 </div>
                                 <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
                                   <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>usrly_consent</span>
@@ -1932,7 +2008,7 @@ export function BannerStudio() {
                               onClick={() => toggleMockAccordion("functional")}
                             >
                               <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.functional && "rotate-90")} />
-                              {config.functional_title || "Functional"}
+                              {getText("functional_title")}
                             </div>
                             <input
                               type="checkbox"
@@ -1944,8 +2020,7 @@ export function BannerStudio() {
                           {mockExpanded.functional && (
                             <div className="pl-4 space-y-2">
                               <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
-                                {config.functional_description ||
-                                  "Functional cookies help perform functionalities like sharing content on social media, collecting feedback, and video embeds."}
+                                {getText("functional_description")}
                               </p>
                               {config.show_cookie_list_on_banner !== false && (
                                 <div className={cn(
@@ -1956,9 +2031,9 @@ export function BannerStudio() {
                                     "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
                                     config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-700 border-slate-200"
                                   )}>
-                                    <span className="col-span-4">{config.cookie_column_label || "Cookie"}</span>
-                                    <span className="col-span-3">{config.duration_column_label || "Duration"}</span>
-                                    <span className="col-span-5">{config.description_column_label || "Description"}</span>
+                                    <span className="col-span-4">{getText("cookie_column_label")}</span>
+                                    <span className="col-span-3">{getText("duration_column_label")}</span>
+                                    <span className="col-span-5">{getText("description_column_label")}</span>
                                   </div>
                                   <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
                                     <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>i18n_lang</span>
@@ -1981,7 +2056,7 @@ export function BannerStudio() {
                               onClick={() => toggleMockAccordion("analytics")}
                             >
                               <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.analytics && "rotate-90")} />
-                              {config.analytics_title || "Analytics"}
+                              {getText("analytics_title")}
                             </div>
                             <input
                               type="checkbox"
@@ -1993,8 +2068,7 @@ export function BannerStudio() {
                           {mockExpanded.analytics && (
                             <div className="pl-4 space-y-2">
                               <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
-                                {config.analytics_description ||
-                                  "Analytical cookies are used to understand visitor interaction, bounce rate, traffic source, etc."}
+                                {getText("analytics_description")}
                               </p>
                               {config.show_cookie_list_on_banner !== false && (
                                 <div className={cn(
@@ -2005,9 +2079,9 @@ export function BannerStudio() {
                                     "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
                                     config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-700 border-slate-200"
                                   )}>
-                                    <span className="col-span-4">{config.cookie_column_label || "Cookie"}</span>
-                                    <span className="col-span-3">{config.duration_column_label || "Duration"}</span>
-                                    <span className="col-span-5">{config.description_column_label || "Description"}</span>
+                                    <span className="col-span-4">{getText("cookie_column_label")}</span>
+                                    <span className="col-span-3">{getText("duration_column_label")}</span>
+                                    <span className="col-span-5">{getText("description_column_label")}</span>
                                   </div>
                                   <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
                                     <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>_ga</span>
@@ -2035,7 +2109,7 @@ export function BannerStudio() {
                               onClick={() => toggleMockAccordion("performance")}
                             >
                               <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.performance && "rotate-90")} />
-                              {config.performance_title || "Performance"}
+                              {getText("performance_title")}
                             </div>
                             <input
                               type="checkbox"
@@ -2047,8 +2121,7 @@ export function BannerStudio() {
                           {mockExpanded.performance && (
                             <div className="pl-4 space-y-2">
                               <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
-                                {config.performance_description ||
-                                  "Performance cookies are used to understand and analyze key performance indexes of the website."}
+                                {getText("performance_description")}
                               </p>
                               {config.show_cookie_list_on_banner !== false && (
                                 <div className={cn(
@@ -2056,7 +2129,7 @@ export function BannerStudio() {
                                   config.theme === "dark" ? "bg-slate-800/40 border-slate-700" : "bg-slate-50/70 border-slate-200"
                                 )}>
                                   <span className={cn("text-[10px] italic font-medium", config.theme === "dark" ? "text-slate-400" : "text-slate-400")}>
-                                    {config.no_cookies_to_display_label || "No cookies to display"}
+                                    {getText("no_cookies_to_display_label")}
                                   </span>
                                 </div>
                               )}
@@ -2074,7 +2147,7 @@ export function BannerStudio() {
                               onClick={() => toggleMockAccordion("advertisement")}
                             >
                               <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.advertisement && "rotate-90")} />
-                              {config.advertisement_title || "Advertisement"}
+                              {getText("advertisement_title")}
                             </div>
                             <input
                               type="checkbox"
@@ -2086,8 +2159,7 @@ export function BannerStudio() {
                           {mockExpanded.advertisement && (
                             <div className="pl-4 space-y-2">
                               <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
-                                {config.advertisement_description ||
-                                  "Advertisement cookies are used to provide customized ads and measure campaign effectiveness."}
+                                {getText("advertisement_description")}
                               </p>
                               {config.show_cookie_list_on_banner !== false && (
                                 <div className={cn(
@@ -2098,9 +2170,9 @@ export function BannerStudio() {
                                     "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
                                     config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-700 border-slate-200"
                                   )}>
-                                    <span className="col-span-4">{config.cookie_column_label || "Cookie"}</span>
-                                    <span className="col-span-3">{config.duration_column_label || "Duration"}</span>
-                                    <span className="col-span-5">{config.description_column_label || "Description"}</span>
+                                    <span className="col-span-4">{getText("cookie_column_label")}</span>
+                                    <span className="col-span-3">{getText("duration_column_label")}</span>
+                                    <span className="col-span-5">{getText("description_column_label")}</span>
                                   </div>
                                   <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
                                     <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>_fbp</span>
@@ -2129,7 +2201,7 @@ export function BannerStudio() {
                           previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[100px]"
                         )}
                       >
-                        {config.pref_reject_all_label || "Reject All"}
+                        {getText("pref_reject_all_label")}
                       </button>
                       <button
                         type="button"
@@ -2139,7 +2211,7 @@ export function BannerStudio() {
                           previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[120px]"
                         )}
                       >
-                        {config.save_preferences_label || "Save My Preferences"}
+                        {getText("save_preferences_label")}
                       </button>
                       <button
                         type="button"
@@ -2149,7 +2221,7 @@ export function BannerStudio() {
                           previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[100px]"
                         )}
                       >
-                        {config.pref_accept_all_label || "Accept All"}
+                        {getText("pref_accept_all_label")}
                       </button>
                     </div>
 

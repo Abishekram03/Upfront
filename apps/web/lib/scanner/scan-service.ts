@@ -7,7 +7,7 @@
  * Coordinates SSRF validation, HTTP static probing, and Playwright browser runtime execution.
  */
 
-import { pool, ensureTables } from "@/lib/db"
+import { pool, ensureTables } from "../db"
 import { randomUUID } from "node:crypto"
 import { sanitizeDomain, validateTargetUrl } from "./ssrf-protection"
 import { runHttpScan } from "./http-scanner"
@@ -32,13 +32,17 @@ export class ScanService {
 
     const scanId = randomUUID()
     const scanType = options.skipBrowser ? "http_only" : "hybrid"
+    const triggerSource = options.triggerSource || "manual"
+    const scheduleId = options.scheduleId || null
+    const scheduledOccurrence = options.scheduledOccurrence || null
 
     await pool.query(
       `INSERT INTO scans (
-        id, site_id, domain, status, scan_type, cookies_found, scripts_found,
-        leaks_found, dark_patterns_found, findings, created_at
-      ) VALUES ($1, $2, $3, $4, $5, 0, 0, 0, 0, '[]'::jsonb, NOW())`,
-      [scanId, siteId, domain, "queued", scanType]
+        id, site_id, domain, status, scan_type, trigger_source, schedule_id,
+        scheduled_occurrence, cookies_found, scripts_found, leaks_found,
+        dark_patterns_found, findings, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 0, 0, 0, '[]'::jsonb, NOW())`,
+      [scanId, siteId, domain, "queued", scanType, triggerSource, scheduleId, scheduledOccurrence]
     )
 
     return {
@@ -47,6 +51,9 @@ export class ScanService {
       domain,
       status: "queued",
       scan_type: scanType,
+      trigger_source: triggerSource,
+      schedule_id: scheduleId,
+      scheduled_occurrence: scheduledOccurrence,
       cookies_found: 0,
       scripts_found: 0,
       leaks_found: 0,

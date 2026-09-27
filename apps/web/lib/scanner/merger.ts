@@ -9,8 +9,8 @@
  * 5. NEVER persists cookie values.
  */
 
-import { pool } from "@/lib/db"
-import { classifyCookieName } from "@/lib/consentos/open-cookie-db"
+import { pool } from "../db"
+import { classifyCookieName } from "../consentos/open-cookie-db"
 import { randomUUID } from "node:crypto"
 import type { DiscoveredCookieRaw, FindingItem } from "./types"
 

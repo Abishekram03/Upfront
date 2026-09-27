@@ -190,6 +190,10 @@ export interface ConsentConfig {
   show_revisit_button: boolean
   revisit_button_position: "bottom_left" | "bottom_right"
   enable_consent_mode_v2: boolean
+  enable_iab_tcf?: boolean
+  enable_auto_language?: boolean
+  default_language?: string
+  supported_languages?: string[]
   geo_targeting: "all" | "eu_uk_only" | "eu_uk_us_only"
   enable_gpc?: boolean
   consent_version?: string

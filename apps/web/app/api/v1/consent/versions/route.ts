@@ -120,8 +120,9 @@ export async function POST(req: Request) {
         duration_column_label, description_column_label,
         enable_necessary_category, enable_functional_category,
         enable_analytics_category, enable_performance_category, enable_advertisement_category,
-        show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
+        show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf, geo_targeting,
         enable_gpc, consent_version,
+        enable_auto_language, default_language, supported_languages,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
@@ -131,8 +132,9 @@ export async function POST(req: Request) {
         $20, $21,
         $22, $23,
         $24, $25, $26,
-        $27, $28, $29, $30,
-        $31, $32,
+        $27, $28, $29, $30, $31,
+        $32, $33,
+        $34, $35, $36,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -163,9 +165,13 @@ export async function POST(req: Request) {
         show_revisit_button = EXCLUDED.show_revisit_button,
         revisit_button_position = EXCLUDED.revisit_button_position,
         enable_consent_mode_v2 = EXCLUDED.enable_consent_mode_v2,
+        enable_iab_tcf = EXCLUDED.enable_iab_tcf,
         geo_targeting = EXCLUDED.geo_targeting,
         enable_gpc = EXCLUDED.enable_gpc,
         consent_version = EXCLUDED.consent_version,
+        enable_auto_language = EXCLUDED.enable_auto_language,
+        default_language = EXCLUDED.default_language,
+        supported_languages = EXCLUDED.supported_languages,
         updated_at = NOW()
       RETURNING *`,
       [
@@ -198,9 +204,13 @@ export async function POST(req: Request) {
         historicalConfig.show_revisit_button !== undefined ? historicalConfig.show_revisit_button : true,
         historicalConfig.revisit_button_position || "bottom_left",
         historicalConfig.enable_consent_mode_v2 !== undefined ? historicalConfig.enable_consent_mode_v2 : true,
+        historicalConfig.enable_iab_tcf !== undefined ? historicalConfig.enable_iab_tcf : true,
         historicalConfig.geo_targeting || "all",
         historicalConfig.enable_gpc !== undefined ? historicalConfig.enable_gpc : true,
         newVersion,
+        historicalConfig.enable_auto_language !== undefined ? historicalConfig.enable_auto_language : true,
+        historicalConfig.default_language || "en",
+        historicalConfig.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi"],
       ]
     )
 

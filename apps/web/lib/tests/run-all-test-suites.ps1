@@ -19,7 +19,10 @@ $suites = @(
     "run-proof-of-consent-country-verification.ps1",
     "run-proof-of-consent-verification.ps1",
     "run-script-rules-verification.ps1",
-    "verify-runtime-gate.ps1"
+    "run-tcf-verification.ps1",
+    "run-multilang-verification.ps1",
+    "verify-runtime-gate.ps1",
+    "run-scheduled-scans-verification.ps1"
 )
 
 $totalSuites = $suites.Count

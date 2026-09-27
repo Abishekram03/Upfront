@@ -29,6 +29,8 @@ import {
   Globe,
   HelpCircle,
   Code,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@/lib/utils"
@@ -57,8 +59,28 @@ interface ScanRecord {
   cookies_found: number
   scripts_found: number
   leaks_found?: number
+  trigger_source?: "manual" | "scheduled"
+  schedule_id?: string
   created_at: string
   findings?: any
+  error_message?: string
+}
+
+interface ScanScheduleRecord {
+  id: string
+  domain: string
+  enabled: boolean
+  frequency: "daily" | "weekly" | "monthly"
+  day_of_week?: number | null
+  day_of_month?: number | null
+  time_of_day: string
+  timezone: string
+  next_run_at: string
+  last_run_at?: string | null
+  last_run_status?: "completed" | "failed" | "skipped" | null
+  last_error?: string | null
+  created_at?: string
+  updated_at?: string
 }
 
 interface CategoryConfig {
@@ -243,9 +265,38 @@ export function CookieManager() {
     script_pattern_regex: "",
   })
 
-  // Schedule Modal
+  // Schedule State & Form
+  const [schedule, setSchedule] = useState<ScanScheduleRecord | null>(null)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
-  const [scheduleFreq, setScheduleFreq] = useState("monthly")
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false)
+  const [scheduleSuccessMsg, setScheduleSuccessMsg] = useState<string | null>(null)
+  const [scheduleErrorMsg, setScheduleErrorMsg] = useState<string | null>(null)
+
+  const [scheduleForm, setScheduleForm] = useState<{
+    enabled: boolean
+    frequency: "daily" | "weekly" | "monthly"
+    day_of_week: number
+    day_of_month: number
+    time_of_day: string
+    timezone: string
+  }>({
+    enabled: true,
+    frequency: "monthly",
+    day_of_week: 1,
+    day_of_month: 1,
+    time_of_day: "09:00",
+    timezone: "UTC",
+  })
+
+  // Set default timezone from browser once on mount
+  useEffect(() => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (tz) {
+        setScheduleForm((prev) => ({ ...prev, timezone: tz }))
+      }
+    } catch {}
+  }, [])
 
   // Active action menu item id
   const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null)
@@ -262,9 +313,10 @@ export function CookieManager() {
     if (!activeDomain) return
     setIsLoading(true)
     try {
-      const [cookiesRes, scanRes] = await Promise.all([
+      const [cookiesRes, scanRes, schedRes] = await Promise.all([
         fetch(`/api/v1/consent/cookies?domain=${encodeURIComponent(activeDomain)}`),
         fetch(`/api/v1/consent/scanner?domain=${encodeURIComponent(activeDomain)}`),
+        fetch(`/api/v1/consent/scanner/schedule?domain=${encodeURIComponent(activeDomain)}`),
       ])
 
       if (cookiesRes.ok) {
@@ -277,10 +329,90 @@ export function CookieManager() {
         setLatestScan(scanData.latest_scan || null)
         setScanHistory(scanData.scan_history || [])
       }
+
+      if (schedRes.ok) {
+        const schedData = await schedRes.json()
+        if (schedData.schedule) {
+          const s = schedData.schedule
+          setSchedule(s)
+          setScheduleForm({
+            enabled: s.enabled !== false,
+            frequency: s.frequency || "monthly",
+            day_of_week: s.day_of_week || 1,
+            day_of_month: s.day_of_month || 1,
+            time_of_day: s.time_of_day || "09:00",
+            timezone: s.timezone || "UTC",
+          })
+        } else {
+          setSchedule(null)
+        }
+      }
     } catch (err) {
       console.error("Failed to load cookie manager data:", err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleSaveSchedule = async () => {
+    if (!activeDomain) return
+    setIsSavingSchedule(true)
+    setScheduleSuccessMsg(null)
+    setScheduleErrorMsg(null)
+
+    try {
+      const res = await fetch("/api/v1/consent/scanner/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: activeDomain,
+          enabled: scheduleForm.enabled,
+          frequency: scheduleForm.frequency,
+          time_of_day: scheduleForm.time_of_day,
+          timezone: scheduleForm.timezone,
+          day_of_week: scheduleForm.frequency === "weekly" ? scheduleForm.day_of_week : null,
+          day_of_month: scheduleForm.frequency === "monthly" ? scheduleForm.day_of_month : null,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to save schedule")
+      }
+
+      setSchedule(data.schedule)
+      setScheduleSuccessMsg("Schedule saved successfully!")
+      setTimeout(() => {
+        setIsScheduleModalOpen(false)
+        setScheduleSuccessMsg(null)
+      }, 1200)
+    } catch (err: any) {
+      setScheduleErrorMsg(err.message || "Failed to save schedule")
+    } finally {
+      setIsSavingSchedule(false)
+    }
+  }
+
+  const handleDeleteSchedule = async () => {
+    if (!activeDomain) return
+    setIsSavingSchedule(true)
+    setScheduleErrorMsg(null)
+
+    try {
+      const res = await fetch(`/api/v1/consent/scanner/schedule?domain=${encodeURIComponent(activeDomain)}`, {
+        method: "DELETE",
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.detail || "Failed to delete schedule")
+      }
+
+      setSchedule(null)
+      setIsScheduleModalOpen(false)
+    } catch (err: any) {
+      setScheduleErrorMsg(err.message || "Failed to delete schedule")
+    } finally {
+      setIsSavingSchedule(false)
     }
   }
 
@@ -607,6 +739,11 @@ export function CookieManager() {
                 <Clock className="size-3.5" />
               </div>
               <span className="text-xs font-bold text-slate-900">Next scan</span>
+              {schedule?.enabled && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-[#1868db] border border-blue-200 capitalize">
+                  {schedule.frequency}
+                </span>
+              )}
             </div>
             <Button
               type="button"
@@ -614,14 +751,31 @@ export function CookieManager() {
               className="text-xs font-semibold bg-[#1868db] hover:bg-[#1559be] text-white h-8 px-3.5 rounded-[4px] cursor-pointer flex items-center gap-1.5"
             >
               <Calendar className="size-3" />
-              Schedule scan
+              {schedule ? "Edit schedule" : "Schedule scan"}
             </Button>
           </div>
 
           <div className="mt-3">
-            <p className="text-xs text-slate-500 font-medium">
-              {scheduleFreq === "monthly" ? "Monthly automatic audit scheduled" : "Not scheduled"}
-            </p>
+            {schedule && schedule.enabled ? (
+              <div className="space-y-1">
+                <p className="text-xs text-slate-700 font-semibold">
+                  {formatDate(schedule.next_run_at)}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {schedule.frequency === "daily" && `Daily at ${schedule.time_of_day} (${schedule.timezone})`}
+                  {schedule.frequency === "weekly" && `Weekly on ${["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][(schedule.day_of_week || 1) - 1]} at ${schedule.time_of_day} (${schedule.timezone})`}
+                  {schedule.frequency === "monthly" && `Monthly on day ${schedule.day_of_month || 1} at ${schedule.time_of_day} (${schedule.timezone})`}
+                </p>
+              </div>
+            ) : schedule && !schedule.enabled ? (
+              <p className="text-xs text-slate-500 font-medium">
+                Recurring scan is currently <span className="text-amber-600 font-bold">disabled</span>
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500 font-medium">
+                Not scheduled (Click &quot;Schedule scan&quot; to automate)
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -993,12 +1147,12 @@ export function CookieManager() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   <tr>
-                    <th className="px-4 py-3">Scan Date (UTC)</th>
-                    <th className="px-4 py-3">Scan Status</th>
-                    <th className="px-4 py-3 text-center">Urls Scanned</th>
-                    <th className="px-4 py-3 text-center">Categories</th>
-                    <th className="px-4 py-3 text-center">Cookies</th>
+                    <th className="px-4 py-3">Scan Date</th>
+                    <th className="px-4 py-3">Trigger</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-center">Cookies Found</th>
                     <th className="px-4 py-3 text-center">Scripts</th>
+                    <th className="px-4 py-3 text-center">Pre-Consent Leaks</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1010,40 +1164,86 @@ export function CookieManager() {
                       </td>
                     </tr>
                   ) : (
-                    (scanHistory.length > 0 ? scanHistory : latestScan ? [latestScan] : []).map((scan, idx) => (
-                      <tr key={scan.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
-                          {formatDate(scan.created_at)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="size-3" />
-                            Completed
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-600 font-semibold">
-                          9
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-600 font-semibold">
-                          {(Object.values(categoryCounts) as number[]).filter((c) => (c ?? 0) > 0).length || 4}
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-900 font-bold">
-                          {scan.cookies_found || cookies.length || 0}
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-600 font-semibold">
-                          {scan.scripts_found || 4}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setActiveMainTab("cookies")}
-                            className="text-xs font-bold text-[#1868db] hover:underline cursor-pointer"
-                          >
-                            View cookies
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    (scanHistory.length > 0 ? scanHistory : latestScan ? [latestScan] : []).map((scan, idx) => {
+                      const isScheduled = scan.trigger_source === "scheduled" || Boolean(scan.schedule_id)
+                      const isCompleted = scan.status === "completed"
+                      const isFailed = scan.status === "failed"
+
+                      return (
+                        <tr key={scan.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
+                            {formatDate(scan.created_at)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border",
+                                isScheduled
+                                  ? "bg-purple-50 text-purple-700 border-purple-200"
+                                  : "bg-slate-100 text-slate-700 border-slate-200"
+                              )}
+                            >
+                              {isScheduled ? (
+                                <>
+                                  <Calendar className="size-2.5" />
+                                  Scheduled
+                                </>
+                              ) : (
+                                <>
+                                  <Zap className="size-2.5" />
+                                  Manual
+                                </>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {isCompleted ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="size-3" />
+                                Completed
+                              </span>
+                            ) : isFailed ? (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200"
+                                title={scan.error_message || "Scan failed"}
+                              >
+                                <AlertTriangle className="size-3" />
+                                Failed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                <RefreshCw className="size-3 animate-spin" />
+                                {scan.status || "Running"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center text-slate-900 font-bold">
+                            {scan.cookies_found ?? 0}
+                          </td>
+                          <td className="px-4 py-3 text-center text-slate-600 font-semibold">
+                            {scan.scripts_found ?? 0}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {(scan.leaks_found ?? 0) > 0 ? (
+                              <span className="text-rose-600 font-bold bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded text-[11px]">
+                                {scan.leaks_found} leaks
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600 font-semibold text-[11px]">0</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setActiveMainTab("cookies")}
+                              className="text-xs font-bold text-[#1868db] hover:underline cursor-pointer"
+                            >
+                              View cookies
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>
@@ -1395,71 +1595,250 @@ export function CookieManager() {
       {/* MODAL 3: SCHEDULE SCAN MODAL                              */}
       {/* ========================================================= */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white rounded-[6px] border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50/50">
-              <h3 className="text-sm font-bold text-slate-900">Schedule Automatic Scans</h3>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50/70">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-blue-100/70 text-blue-700 rounded-md">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Scheduled Cookie Scans</h3>
+                  <p className="text-[11px] text-slate-500">Automate recurring scans for {activeDomain || "your site"}</p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsScheduleModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-sm cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 text-sm cursor-pointer p-1"
               >
                 ✕
               </button>
             </div>
 
+            {/* Body */}
             <div className="p-5 space-y-4 text-xs">
-              <p className="text-slate-600">
-                Configure automatic background scans to detect new cookies, third-party trackers, and script changes on{" "}
-                <strong className="text-slate-900">{activeDomain || "your site"}</strong>.
-              </p>
+              {scheduleErrorMsg && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{scheduleErrorMsg}</span>
+                </div>
+              )}
 
-              <div className="space-y-2">
-                {[
-                  { id: "weekly", label: "Weekly (Every 7 days)" },
-                  { id: "monthly", label: "Monthly (Every 30 days) — Recommended" },
-                  { id: "quarterly", label: "Quarterly (Every 90 days)" },
-                  { id: "disabled", label: "Disable automatic schedule" },
-                ].map((option) => (
-                  <label
-                    key={option.id}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-[4px] border cursor-pointer transition-all",
-                      scheduleFreq === option.id
-                        ? "border-[#1868db] bg-blue-50/40 font-bold text-slate-900"
-                        : "border-slate-200 hover:bg-slate-50 text-slate-700"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="schedule_freq"
-                      checked={scheduleFreq === option.id}
-                      onChange={() => setScheduleFreq(option.id)}
-                      className="text-[#1868db] focus:ring-[#1868db]"
-                    />
-                    <span>{option.label}</span>
+              {scheduleSuccessMsg && (
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded text-xs flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{scheduleSuccessMsg}</span>
+                </div>
+              )}
+
+              {/* Enable Toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+                <div>
+                  <label htmlFor="sched-enable-toggle" className="font-bold text-slate-800 text-xs block cursor-pointer">
+                    Enable Scheduled Scanning
                   </label>
-                ))}
+                  <p className="text-[11px] text-slate-500">
+                    Automatically crawl URLs and detect new cookies according to the schedule.
+                  </p>
+                </div>
+                <input
+                  id="sched-enable-toggle"
+                  type="checkbox"
+                  checked={scheduleForm.enabled}
+                  onChange={(e) => setScheduleForm({ ...scheduleForm, enabled: e.target.checked })}
+                  className="h-4 w-4 rounded border-slate-300 text-[#1868db] focus:ring-[#1868db] cursor-pointer"
+                />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsScheduleModalOpen(false)}
-                  className="text-xs h-8"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => setIsScheduleModalOpen(false)}
-                  className="text-xs h-8 bg-[#1868db] hover:bg-[#1559be] text-white"
-                >
-                  Save Schedule
-                </Button>
+              {/* Frequency Selector */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-700 block">Scan Frequency</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["daily", "weekly", "monthly"] as const).map((freq) => (
+                    <button
+                      key={freq}
+                      type="button"
+                      onClick={() => setScheduleForm({ ...scheduleForm, frequency: freq })}
+                      className={cn(
+                        "py-2 px-3 rounded-md border text-center font-medium capitalize transition-all cursor-pointer",
+                        scheduleForm.frequency === freq
+                          ? "border-[#1868db] bg-blue-50/60 text-[#1868db] font-bold shadow-xs"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      )}
+                    >
+                      {freq}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Frequency Specific Configuration */}
+              {scheduleForm.frequency === "weekly" && (
+                <div className="space-y-1.5 p-3 rounded-md bg-slate-50 border border-slate-200">
+                  <label className="font-bold text-slate-700 block">Day of the Week</label>
+                  <select
+                    value={scheduleForm.day_of_week}
+                    onChange={(e) =>
+                      setScheduleForm({ ...scheduleForm, day_of_week: parseInt(e.target.value, 10) })
+                    }
+                    className="w-full h-8 px-2.5 rounded border border-slate-200 bg-white text-xs text-slate-800 focus:ring-1 focus:ring-[#1868db] focus:outline-hidden"
+                  >
+                    <option value={1}>Monday</option>
+                    <option value={2}>Tuesday</option>
+                    <option value={3}>Wednesday</option>
+                    <option value={4}>Thursday</option>
+                    <option value={5}>Friday</option>
+                    <option value={6}>Saturday</option>
+                    <option value={7}>Sunday</option>
+                  </select>
+                </div>
+              )}
+
+              {scheduleForm.frequency === "monthly" && (
+                <div className="space-y-1.5 p-3 rounded-md bg-slate-50 border border-slate-200">
+                  <label className="font-bold text-slate-700 block">Day of the Month</label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={scheduleForm.day_of_month}
+                      onChange={(e) =>
+                        setScheduleForm({ ...scheduleForm, day_of_month: parseInt(e.target.value, 10) })
+                      }
+                      className="w-32 h-8 px-2.5 rounded border border-slate-200 bg-white text-xs text-slate-800 focus:ring-1 focus:ring-[#1868db] focus:outline-hidden"
+                    >
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                        <option key={day} value={day}>
+                          {day}
+                          {day === 1 ? "st" : day === 2 ? "nd" : day === 3 ? "rd" : "th"} day
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[11px] text-slate-500">
+                      (Clamped to last valid day in shorter months e.g. Feb 28/29)
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Time and Timezone */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block">Time of Day</label>
+                  <input
+                    type="time"
+                    value={scheduleForm.time_of_day}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, time_of_day: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-slate-200 bg-white text-xs font-mono text-slate-800 focus:ring-1 focus:ring-[#1868db] focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-700 block">Timezone (IANA)</label>
+                  <select
+                    value={scheduleForm.timezone}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, timezone: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-slate-200 bg-white text-xs text-slate-800 focus:ring-1 focus:ring-[#1868db] focus:outline-hidden font-mono"
+                  >
+                    {[
+                      "Asia/Kolkata",
+                      "UTC",
+                      "America/New_York",
+                      "America/Chicago",
+                      "America/Denver",
+                      "America/Los_Angeles",
+                      "Europe/London",
+                      "Europe/Paris",
+                      "Europe/Berlin",
+                      "Asia/Dubai",
+                      "Asia/Singapore",
+                      "Asia/Tokyo",
+                      "Australia/Sydney",
+                    ].map((tz) => (
+                      <option key={tz} value={tz}>
+                        {tz}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Status Summary */}
+              {schedule && (
+                <div className="p-3 bg-slate-50 rounded border border-slate-200/80 space-y-1 text-[11px] text-slate-600">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Schedule Status:</span>
+                    <span
+                      className={cn(
+                        "font-semibold uppercase tracking-wider text-[10px]",
+                        schedule.enabled ? "text-emerald-700" : "text-slate-500"
+                      )}
+                    >
+                      {schedule.enabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                  {schedule.next_run_at && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Next Planned Scan:</span>
+                      <span className="font-mono text-slate-800">
+                        {new Date(schedule.next_run_at).toLocaleString(undefined, {
+                          timeZone: schedule.timezone || "UTC",
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}{" "}
+                        ({schedule.timezone})
+                      </span>
+                    </div>
+                  )}
+                  {schedule.last_run_at && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Last Scan:</span>
+                      <span className="font-mono text-slate-800">
+                        {new Date(schedule.last_run_at).toLocaleString()} ({schedule.last_run_status})
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                {schedule ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeleteSchedule}
+                    disabled={isSavingSchedule}
+                    className="text-xs h-8 text-rose-600 border-rose-200 hover:bg-rose-50"
+                  >
+                    Delete Schedule
+                  </Button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsScheduleModalOpen(false)}
+                    disabled={isSavingSchedule}
+                    className="text-xs h-8"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveSchedule}
+                    disabled={isSavingSchedule}
+                    className="text-xs h-8 bg-[#1868db] hover:bg-[#1559be] text-white"
+                  >
+                    {isSavingSchedule ? "Saving..." : "Save Schedule"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

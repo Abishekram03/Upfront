@@ -7,7 +7,7 @@
  * Polls the scans table for 'queued' jobs and processes them via Playwright / HTTP hybrid engine.
  */
 
-import { pool, ensureTables } from "@/lib/db"
+import { pool, ensureTables } from "../db"
 import { ScanService } from "./scan-service"
 
 export async function processNextQueuedScan(): Promise<boolean> {
