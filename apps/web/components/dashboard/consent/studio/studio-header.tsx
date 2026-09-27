@@ -17,6 +17,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+import { UpgradeBadge } from "@/components/ui/upgrade-gate"
+import { useEntitlements } from "@/lib/entitlements-context"
+
 interface StudioHeaderProps {
   activeDomain: string
   publishedVersion: string
@@ -40,6 +43,17 @@ export function StudioHeader({
   onOpenPublishModal,
   onOpenVersionHistory,
 }: StudioHeaderProps) {
+  const { hasCapability, openUpgradeModal } = useEntitlements()
+  const canVersionHistory = hasCapability("cmp.version_history")
+
+  const handleVersionHistoryClick = () => {
+    if (!canVersionHistory) {
+      openUpgradeModal("growth", "Version History & Rollback")
+      return
+    }
+    onOpenVersionHistory()
+  }
+
   return (
     <header className="h-14 shrink-0 border-b border-slate-200 bg-white px-5 flex items-center justify-between select-none">
       {/* Left: Domain & Status */}
@@ -84,11 +98,12 @@ export function StudioHeader({
         {/* Version History Button */}
         <button
           type="button"
-          onClick={onOpenVersionHistory}
+          onClick={handleVersionHistoryClick}
           className="inline-flex items-center gap-1.5 rounded-[4px] border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
         >
           <History className="size-3.5 text-slate-500" />
           <span>Version History</span>
+          {!canVersionHistory && <UpgradeBadge capability="cmp.version_history" size="sm" showText={false} />}
         </button>
 
         {/* Discard Draft Button (if draft changes exist) */}

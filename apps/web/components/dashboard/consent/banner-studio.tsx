@@ -55,6 +55,8 @@ import {
   CMPTranslationDictionary,
   resolveCMPText,
 } from "@/lib/i18n/translations"
+import { UpgradeGate, UpgradeBadge } from "@/components/ui/upgrade-gate"
+import { useEntitlements } from "@/lib/entitlements-context"
 
 export { LAW_PRESETS }
 
@@ -63,7 +65,7 @@ export const DEFAULT_BANNER_CONFIG: Omit<StudioConfig, "domain"> = {
   enable_auto_language: true,
   default_language: "en",
   supported_languages: ["en", "de", "fr", "es", "pt", "it", "nl", "hi"],
-  layout: "floating_bottom_left" as any,
+  layout: "bottom_bar" as any,
   box_position: "bottom_left",
   preference_layout: "center",
   categories_on_first_layer: false,
@@ -124,10 +126,10 @@ export const DEFAULT_BANNER_CONFIG: Omit<StudioConfig, "domain"> = {
 
   show_revisit_button: true,
   revisit_button_position: "bottom_left",
-  enable_consent_mode_v2: true,
-  enable_iab_tcf: true,
+  enable_consent_mode_v2: false,
+  enable_iab_tcf: false,
   geo_targeting: "all",
-  enable_gpc: true,
+  enable_gpc: false,
   consent_version: "1.0",
   custom_css: "",
 }
@@ -142,6 +144,7 @@ const COLOR_PRESETS = [
 
 export function BannerStudio() {
   const { activeDomain, isLoadingSites } = useDomain()
+  const { hasCapability, openUpgradeModal } = useEntitlements()
 
   // Studio vertical tab rail: general | layout | content | colours | custom_css
   const [activeRailTab, setActiveRailTab] = useState<"general" | "layout" | "content" | "colours" | "custom_css">("layout")
@@ -232,7 +235,6 @@ export function BannerStudio() {
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop")
   const [previewView, setPreviewView] = useState<"notice" | "preferences">("notice")
   const [previewLanguage, setPreviewLanguage] = useState<string>("en")
-  const [iframeLoading, setIframeLoading] = useState(true)
 
   // Translation resolver for canvas preview
   const getText = (key: keyof CMPTranslationDictionary): string => {
@@ -255,6 +257,33 @@ export function BannerStudio() {
     advertisement: true,
   })
 
+  // Automatically sanitize and clamp configuration flags based on the active plan tier
+  const sanitizeConfigForTier = (rawConfig: typeof config): typeof config => {
+    const sanitized = { ...rawConfig }
+    if (!hasCapability("cmp.tcf_v23")) {
+      sanitized.enable_iab_tcf = false
+    }
+    if (!hasCapability("cmp.custom_css")) {
+      sanitized.custom_css = ""
+    }
+    if (!hasCapability("cmp.gpc")) {
+      sanitized.enable_gpc = false
+    }
+    if (!hasCapability("cmp.google_consent_mode_v2")) {
+      sanitized.enable_consent_mode_v2 = false
+    }
+    if (!hasCapability("cmp.geo_targeting")) {
+      sanitized.geo_targeting = "all"
+    }
+    if (!hasCapability("cmp.box_layout") && (sanitized.layout?.includes("floating") || sanitized.layout === "box")) {
+      sanitized.layout = "bottom_bar"
+    }
+    if (!hasCapability("cmp.popup_layout") && (sanitized.layout === "center_modal" || sanitized.layout === "popup")) {
+      sanitized.layout = "bottom_bar"
+    }
+    return sanitized
+  }
+
   // Load draft or published config
   const loadStudioData = async () => {
     if (!activeDomain) {
@@ -276,13 +305,16 @@ export function BannerStudio() {
 
       const activeConfig = draftData.config || pubData
       if (activeConfig) {
-        setConfig((prev) => ({
-          ...prev,
-          ...activeConfig,
-          primary_color: activeConfig.primary_color || "#1868db",
-          enable_gpc: activeConfig.enable_gpc !== undefined ? activeConfig.enable_gpc : true,
-          consent_version: activeConfig.consent_version || "1.0",
-        }))
+        setConfig((prev) => {
+          const merged = {
+            ...prev,
+            ...activeConfig,
+            primary_color: activeConfig.primary_color || "#1868db",
+            enable_gpc: activeConfig.enable_gpc !== undefined ? activeConfig.enable_gpc : false,
+            consent_version: activeConfig.consent_version || "1.0",
+          }
+          return sanitizeConfigForTier(merged)
+        })
       }
     } catch (err: any) {
       console.warn("Could not fetch studio draft/config:", err)
@@ -294,6 +326,11 @@ export function BannerStudio() {
   useEffect(() => {
     loadStudioData()
   }, [activeDomain])
+
+  // Automatically enforce plan capabilities whenever entitlements resolve
+  useEffect(() => {
+    setConfig((prev) => sanitizeConfigForTier(prev))
+  }, [hasCapability])
 
   // Track edits to flag draft changes
   const updateConfig = (updater: (prev: typeof config) => typeof config) => {
@@ -309,7 +346,9 @@ export function BannerStudio() {
     if (!activeDomain) return
     setIsSavingDraft(true)
     try {
-      await saveConsentDraft(activeDomain, config, baseVersion)
+      const payload = sanitizeConfigForTier(config)
+      await saveConsentDraft(activeDomain, payload, baseVersion)
+      setConfig(payload)
       setIsDraft(true)
       setToast({ type: "success", message: "Draft saved. Changes will not affect live website until published." })
       setTimeout(() => setToast(null), 4000)
@@ -415,7 +454,9 @@ export function BannerStudio() {
     if (!activeDomain) return
     setIsPublishing(true)
     try {
-      const res = await publishConsentConfig(activeDomain, config, baseVersion)
+      const payload = sanitizeConfigForTier(config)
+      const res = await publishConsentConfig(activeDomain, payload, baseVersion)
+      setConfig(payload)
       setPublishedVersion(res.published_version)
       setBaseVersion(res.published_version)
       setPublishedConfig(res.config)
@@ -486,7 +527,7 @@ export function BannerStudio() {
       )}
 
       {/* Main Studio Frame: Left Rail + Settings Panel + Right Live Canvas */}
-      <div className="flex-1 flex overflow-hidden w-full h-full">
+      <div className="flex-1 min-h-0 flex flex-row overflow-hidden w-full h-full">
         
         {/* FAR-LEFT 58px VERTICAL ICON RAIL */}
         <div className="w-[58px] shrink-0 border-r border-slate-200 bg-slate-50/90 flex flex-col justify-between py-3 items-center select-none">
@@ -496,7 +537,7 @@ export function BannerStudio() {
               { id: "layout", label: "Layout", icon: LayoutGrid },
               { id: "content", label: "Content", icon: FileText },
               { id: "colours", label: "Colours", icon: Palette },
-              { id: "custom_css", label: "Custom CSS", icon: Code2 },
+              { id: "custom_css", label: "Custom CSS", icon: Code2, capability: "cmp.custom_css" as const },
             ].map((tab) => {
               const Icon = tab.icon
               const isActive = activeRailTab === tab.id
@@ -515,6 +556,9 @@ export function BannerStudio() {
                 >
                   <Icon className={cn("size-4", isActive ? "text-[#1868db]" : "text-slate-500")} />
                   <span className="scale-90">{tab.label}</span>
+                  {tab.capability && (
+                    <UpgradeBadge capability={tab.capability} size="sm" showText={false} className="absolute top-1 right-1" />
+                  )}
                 </button>
               )
             })}
@@ -535,8 +579,8 @@ export function BannerStudio() {
         </div>
 
         {/* 400px SETTINGS & CONTROLS PANEL */}
-        <div className="w-[380px] lg:w-[410px] shrink-0 border-r border-slate-200 bg-white flex flex-col justify-between overflow-hidden h-full">
-          <div className="p-4 space-y-4 overflow-y-auto flex-1">
+        <div className="w-[380px] lg:w-[410px] shrink-0 border-r border-slate-200 bg-white flex flex-col justify-between overflow-hidden h-full min-h-0">
+          <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
             
             {/* ======================================================== */}
             {/* TAB 1: GENERAL SETTINGS                                  */}
@@ -550,7 +594,7 @@ export function BannerStudio() {
                       <span>Regulatory Law Template</span>
                       <div className="relative group cursor-pointer inline-flex items-center">
                         <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-                        <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                        <div className="absolute left-0 top-full mt-1.5 hidden group-hover:block w-72 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-2xl z-50 pointer-events-none leading-relaxed border border-slate-700">
                           Selecting a law template instantly applies legally compliant button configurations, copy presets, and default tracking behaviors for your jurisdiction.
                         </div>
                       </div>
@@ -597,7 +641,7 @@ export function BannerStudio() {
                             <span className="text-xs font-bold text-slate-900">{currentPreset.name}</span>
                             <div className="relative group cursor-pointer inline-flex items-center">
                               <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                              <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                              <div className="absolute left-0 top-full mt-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-2xl z-50 pointer-events-none leading-relaxed border border-slate-700">
                                 <strong>Jurisdiction:</strong> {currentPreset.jurisdiction}
                               </div>
                             </div>
@@ -648,130 +692,179 @@ export function BannerStudio() {
                   })()}
                 </div>
 
-                {/* Geo-targeting */}
+                {/* Geo-targeting: Worldwide is Free, Regional is Growth */}
                 <div className="space-y-2 pt-2 border-t border-slate-200">
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-xs font-bold text-slate-800 block">Geo-target banner</label>
-                    <div className="relative group cursor-pointer inline-flex items-center">
-                      <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                      <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-60 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                        Control where the banner is displayed. Restricting to EU/UK avoids showing consent banners in regions where prior consent is not legally required.
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-800 block">Geo-target banner</label>
+                      <div className="relative group cursor-pointer inline-flex items-center">
+                        <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
+                        <div className="absolute left-0 top-full mt-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-2xl z-50 pointer-events-none leading-relaxed border border-slate-700">
+                          Control where the banner is displayed. Restricting to EU/UK avoids showing consent banners in regions where prior consent is not legally required.
+                        </div>
                       </div>
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     {[
-                      { id: "all", label: "Worldwide", desc: "Display banner to all visitors" },
-                      { id: "eu_only", label: "EU Countries & UK Only", desc: "Saves pageview quota on non-regulated traffic" },
-                      { id: "custom", label: "Select Countries", desc: "Granular ISO country selection" },
-                    ].map((opt) => (
-                      <label
-                        key={opt.id}
-                        className={cn(
-                          "flex items-start gap-2.5 p-2.5 rounded-[4px] border cursor-pointer transition-all",
-                          config.geo_targeting === opt.id
-                            ? "border-[#1868db] bg-blue-50/50"
-                            : "border-slate-200 hover:bg-slate-50"
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          name="geo_targeting"
-                          checked={config.geo_targeting === opt.id}
-                          onChange={() => setConfig({ ...config, geo_targeting: opt.id as any })}
-                          className="mt-0.5 text-[#1868db] focus:ring-[#1868db]"
-                        />
-                        <div>
-                          <div className="text-xs font-bold text-slate-900">{opt.label}</div>
-                          <div className="text-[11px] text-slate-500">{opt.desc}</div>
-                        </div>
-                      </label>
-                    ))}
+                      { id: "all", label: "Worldwide", desc: "Display banner to all visitors", isFree: true },
+                      { id: "eu_only", label: "EU Countries & UK Only", desc: "Saves pageview quota on non-regulated traffic", isFree: false },
+                      { id: "custom", label: "Select Countries", desc: "Granular ISO country selection", isFree: false },
+                    ].map((opt) => {
+                      const isSelected = (config.geo_targeting || "all") === opt.id
+                      const canGeoTarget = hasCapability("cmp.geo_targeting")
+                      const isLocked = !opt.isFree && !canGeoTarget
+                      return (
+                        <label
+                          key={opt.id}
+                          onClick={(e) => {
+                            if (isLocked) {
+                              e.preventDefault()
+                              openUpgradeModal("growth", "Geo-targeting")
+                            }
+                          }}
+                          className={cn(
+                            "flex items-start justify-between p-2.5 rounded-[4px] border transition-all cursor-pointer",
+                            isSelected
+                              ? "border-[#1868db] bg-blue-50/50"
+                              : "border-slate-200 hover:bg-slate-50",
+                            isLocked && "opacity-80"
+                          )}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <input
+                              type="radio"
+                              name="geo_targeting"
+                              checked={isSelected}
+                              disabled={isLocked}
+                              onChange={() => {
+                                if (!isLocked) {
+                                  setConfig({ ...config, geo_targeting: opt.id as any })
+                                }
+                              }}
+                              className="mt-0.5 text-[#1868db] focus:ring-[#1868db]"
+                            />
+                            <div>
+                              <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                <span>{opt.label}</span>
+                                {opt.isFree && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Free
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500">{opt.desc}</div>
+                            </div>
+                          </div>
+                          {isLocked && <UpgradeBadge capability="cmp.geo_targeting" size="sm" showText={false} />}
+                        </label>
+                      )
+                    })}
                   </div>
                 </div>
 
                 {/* Framework & Mode Toggles */}
                 <div className="space-y-3 pt-2 border-t border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-slate-800">Support IAB TCF v2.3</div>
-                      <div className="text-[11px] text-slate-500">Interactive Advertising Bureau framework signaling</div>
+                  <UpgradeGate capability="cmp.tcf_v23" featureName="IAB TCF v2.3">
+                    <div className="flex items-center justify-between">
+                      <div className="pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-800">Support IAB TCF v2.3</span>
+                          <UpgradeBadge capability="cmp.tcf_v23" size="sm" />
+                        </div>
+                        <div className="text-[11px] text-slate-500">Interactive Advertising Bureau framework signaling</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.enable_iab_tcf !== false}
+                        onChange={(e) => setConfig({ ...config, enable_iab_tcf: e.target.checked })}
+                        className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={config.enable_iab_tcf !== false}
-                      onChange={(e) => setConfig({ ...config, enable_iab_tcf: e.target.checked })}
-                      className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
-                    />
-                  </div>
+                  </UpgradeGate>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-slate-800">Google Consent Mode v2</div>
-                      <div className="text-[11px] text-slate-500">Sends analytics & ad storage consent signals</div>
+                  <UpgradeGate capability="cmp.google_consent_mode_v2" featureName="Google Consent Mode v2">
+                    <div className="flex items-center justify-between">
+                      <div className="pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-800">Google Consent Mode v2</span>
+                          <UpgradeBadge capability="cmp.google_consent_mode_v2" size="sm" />
+                        </div>
+                        <div className="text-[11px] text-slate-500">Sends analytics & ad storage consent signals</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.enable_consent_mode_v2 !== false}
+                        onChange={(e) => setConfig({ ...config, enable_consent_mode_v2: e.target.checked })}
+                        className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={config.enable_consent_mode_v2 !== false}
-                      onChange={(e) => setConfig({ ...config, enable_consent_mode_v2: e.target.checked })}
-                      className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
-                    />
-                  </div>
+                  </UpgradeGate>
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-slate-800">Global Privacy Control (GPC)</div>
-                      <div className="text-[11px] text-slate-500">Auto-reject ad trackers on GPC header</div>
+                  <UpgradeGate capability="cmp.gpc" featureName="Global Privacy Control (GPC)">
+                    <div className="flex items-center justify-between">
+                      <div className="pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-800">Global Privacy Control (GPC)</span>
+                          <UpgradeBadge capability="cmp.gpc" size="sm" />
+                        </div>
+                        <div className="text-[11px] text-slate-500">Auto-reject ad trackers on GPC header</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.enable_gpc !== false}
+                        onChange={(e) => setConfig({ ...config, enable_gpc: e.target.checked })}
+                        className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={config.enable_gpc !== false}
-                      onChange={(e) => setConfig({ ...config, enable_gpc: e.target.checked })}
-                      className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
-                    />
-                  </div>
+                  </UpgradeGate>
                 </div>
 
                 {/* Multi-Language & Localization Layer */}
-                <div className="space-y-3 pt-2 border-t border-slate-200">
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-xs font-bold text-slate-800 block">Languages & Localization</label>
-                    <div className="relative group cursor-pointer inline-flex items-center">
-                      <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                      <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                        UpFront automatically serves localized CMP translations matching the visitor&apos;s browser language while preserving any custom customer copy overrides.
+                <UpgradeGate capability="cmp.multilingual" featureName="Multi-language Translations">
+                  <div className="space-y-3 pt-2 border-t border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-xs font-bold text-slate-800 block">Languages & Localization</label>
+                        <div className="relative group cursor-pointer inline-flex items-center">
+                          <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
+                          <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
+                            UpFront automatically serves localized CMP translations matching the visitor&apos;s browser language while preserving any custom customer copy overrides.
+                          </div>
+                        </div>
                       </div>
+                      <UpgradeBadge capability="cmp.multilingual" size="sm" />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">Auto-Detect Browser Language</div>
+                        <div className="text-[11px] text-slate-500">Automatically serve translations matching visitor OS/Browser</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.enable_auto_language !== false}
+                        onChange={(e) => setConfig({ ...config, enable_auto_language: e.target.checked })}
+                        className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-800 block">Default Language Fallback</label>
+                      <select
+                        value={config.default_language || "en"}
+                        onChange={(e) => setConfig({ ...config, default_language: e.target.value })}
+                        className="w-full px-3 py-1.5 text-xs font-semibold rounded-[4px] border border-slate-300 bg-white text-slate-900 shadow-2xs focus:border-[#1868db]"
+                      >
+                        {SUPPORTED_LANGUAGES.map((l) => (
+                          <option key={l.code} value={l.code}>
+                            {l.name} ({l.nativeName}) [{l.code}]
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-slate-800">Auto-Detect Browser Language</div>
-                      <div className="text-[11px] text-slate-500">Automatically serve translations matching visitor OS/Browser</div>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={config.enable_auto_language !== false}
-                      onChange={(e) => setConfig({ ...config, enable_auto_language: e.target.checked })}
-                      className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-800 block">Default Language Fallback</label>
-                    <select
-                      value={config.default_language || "en"}
-                      onChange={(e) => setConfig({ ...config, default_language: e.target.value })}
-                      className="w-full px-3 py-1.5 text-xs font-semibold rounded-[4px] border border-slate-300 bg-white text-slate-900 shadow-2xs focus:border-[#1868db]"
-                    >
-                      {SUPPORTED_LANGUAGES.map((l) => (
-                        <option key={l.code} value={l.code}>
-                          {l.name} ({l.nativeName}) [{l.code}]
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                </UpgradeGate>
               </div>
             )}
 
@@ -826,9 +919,9 @@ export function BannerStudio() {
                   <label className="text-xs font-bold text-slate-800 block mb-2">Cookie notice</label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { id: "box", label: "Box", visual: "w-6 h-6 border border-slate-300 rounded-[2px] bg-blue-50 ml-1 mt-1" },
-                      { id: "banner", label: "Banner", visual: "w-8 h-3 border border-slate-300 rounded-[2px] bg-[#1868db] mx-auto mt-2" },
-                      { id: "popup", label: "Popup", visual: "size-4 border border-slate-300 rounded-[2px] bg-slate-400 m-auto mt-2" },
+                      { id: "box", label: "Box", visual: "w-6 h-6 border border-slate-300 rounded-[2px] bg-blue-50 ml-1 mt-1", capability: "cmp.box_layout" as const },
+                      { id: "banner", label: "Banner", visual: "w-8 h-3 border border-slate-300 rounded-[2px] bg-[#1868db] mx-auto mt-2", capability: "cmp.banner" as const },
+                      { id: "popup", label: "Popup", visual: "size-4 border border-slate-300 rounded-[2px] bg-slate-400 m-auto mt-2", capability: "cmp.popup_layout" as const },
                     ].map((form) => {
                       const isSelected =
                         form.id === "box"
@@ -836,22 +929,34 @@ export function BannerStudio() {
                           : form.id === "banner"
                           ? config.layout === "bottom_bar" || config.layout === "top_bar"
                           : config.layout === "center_modal" || config.layout === "popup"
+                      const isLocked = !hasCapability(form.capability)
+
                       return (
                         <button
                           key={form.id}
                           type="button"
                           onClick={() => {
+                            if (isLocked) {
+                              openUpgradeModal("growth", form.id === "box" ? "Floating Box Layout" : "Popup Modal Layout")
+                              return
+                            }
                             if (form.id === "box") setConfig({ ...config, layout: "floating_bottom_left" as any })
                             else if (form.id === "banner") setConfig({ ...config, layout: "bottom_bar" })
                             else setConfig({ ...config, layout: "center_modal" as any })
                           }}
                           className={cn(
-                            "p-2.5 rounded-[4px] border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-18",
+                            "p-2.5 rounded-[4px] border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-18 relative",
                             isSelected
                               ? "border-[#1868db] bg-blue-50/60 text-[#1868db] ring-1 ring-[#1868db]/30 font-bold"
-                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700",
+                            isLocked && "hover:border-amber-400"
                           )}
                         >
+                          {isLocked && (
+                            <div className="absolute top-1 right-1">
+                              <UpgradeBadge capability={form.capability} />
+                            </div>
+                          )}
                           <div className={form.visual} />
                           <span className="text-xs font-semibold">{form.label}</span>
                         </button>
@@ -861,28 +966,30 @@ export function BannerStudio() {
 
                   {/* 4-Corner Positioning for Box */}
                   {(config.layout?.includes("floating") || config.layout === "box") && (
-                    <div className="mt-3 p-3 bg-slate-50/80 rounded-[4px] border border-slate-200 space-y-2">
-                      <span className="text-[11px] font-bold text-slate-700 block">Position on screen</span>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        {[
-                          { id: "floating_bottom_left", label: "Bottom left" },
-                          { id: "floating_bottom_right", label: "Bottom right" },
-                          { id: "floating_top_left", label: "Top left" },
-                          { id: "floating_top_right", label: "Top right" },
-                        ].map((pos) => (
-                          <label key={pos.id} className="flex items-center gap-1.5 cursor-pointer text-slate-700">
-                            <input
-                              type="radio"
-                              name="box_position"
-                              checked={config.layout === pos.id || (pos.id === "floating_bottom_left" && config.layout === "box")}
-                              onChange={() => setConfig({ ...config, layout: pos.id as any })}
-                              className="text-[#1868db] focus:ring-[#1868db]"
-                            />
-                            <span className="text-[11px] font-medium">{pos.label}</span>
-                          </label>
-                        ))}
+                    <UpgradeGate capability="cmp.box_layout" featureName="Floating Box Layout">
+                      <div className="mt-3 p-3 bg-slate-50/80 rounded-[4px] border border-slate-200 space-y-2">
+                        <span className="text-[11px] font-bold text-slate-700 block">Position on screen</span>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {[
+                            { id: "floating_bottom_left", label: "Bottom left" },
+                            { id: "floating_bottom_right", label: "Bottom right" },
+                            { id: "floating_top_left", label: "Top left" },
+                            { id: "floating_top_right", label: "Top right" },
+                          ].map((pos) => (
+                            <label key={pos.id} className="flex items-center gap-1.5 cursor-pointer text-slate-700">
+                              <input
+                                type="radio"
+                                name="box_position"
+                                checked={config.layout === pos.id || (pos.id === "floating_bottom_left" && config.layout === "box")}
+                                onChange={() => setConfig({ ...config, layout: pos.id as any })}
+                                className="text-[#1868db] focus:ring-[#1868db]"
+                              />
+                              <span className="text-[11px] font-medium">{pos.label}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </UpgradeGate>
                   )}
                 </div>
 
@@ -1447,28 +1554,35 @@ export function BannerStudio() {
             {/* ======================================================== */}
             {activeRailTab === "custom_css" && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-slate-800">Custom CSS Overrides</div>
-                  {Boolean(config.custom_css?.trim()) && (
-                    <button
-                      type="button"
-                      onClick={() => updateConfig((prev) => ({ ...prev, custom_css: "" }))}
-                      className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
-                    >
-                      Clear CSS
-                    </button>
-                  )}
-                </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Add custom CSS rules targeting <code>.upfront-banner</code> or <code>.upfront-modal</code>.
-                </p>
-                <textarea
-                  rows={8}
-                  placeholder="/* Custom CSS */&#10;.upfront-banner { font-family: Inter, sans-serif; }"
-                  value={config.custom_css || ""}
-                  onChange={(e) => updateConfig((prev) => ({ ...prev, custom_css: e.target.value }))}
-                  className="w-full p-2 text-xs font-mono rounded-[4px] border border-slate-200 bg-slate-900 text-slate-100 focus:outline-hidden leading-relaxed"
-                />
+                <UpgradeGate capability="cmp.custom_css" featureName="Custom CSS">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs font-bold text-slate-800">Custom CSS Overrides</div>
+                        <UpgradeBadge capability="cmp.custom_css" size="sm" />
+                      </div>
+                      {Boolean(config.custom_css?.trim()) && (
+                        <button
+                          type="button"
+                          onClick={() => updateConfig((prev) => ({ ...prev, custom_css: "" }))}
+                          className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                        >
+                          Clear CSS
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Add custom CSS rules targeting <code>.upfront-banner</code> or <code>.upfront-modal</code>.
+                    </p>
+                    <textarea
+                      rows={8}
+                      placeholder="/* Custom CSS */&#10;.upfront-banner { font-family: Inter, sans-serif; }"
+                      value={config.custom_css || ""}
+                      onChange={(e) => updateConfig((prev) => ({ ...prev, custom_css: e.target.value }))}
+                      className="w-full p-2 text-xs font-mono rounded-[4px] border border-slate-200 bg-slate-900 text-slate-100 focus:outline-hidden leading-relaxed"
+                    />
+                  </div>
+                </UpgradeGate>
 
                 {/* Reset to Default Banner Section */}
                 <div className="pt-3 border-t border-slate-200">
@@ -1496,7 +1610,7 @@ export function BannerStudio() {
           </div>
 
           {/* Sticky Bottom Action */}
-          <div className="p-3 border-t border-slate-200 bg-slate-50/80 flex items-center gap-2">
+          <div className="p-3 border-t border-slate-200 bg-slate-50/80 flex items-center gap-2 shrink-0">
             <button
               type="button"
               disabled={isSavingDraft || isPublishing || !activeDomain}
@@ -1517,7 +1631,7 @@ export function BannerStudio() {
         </div>
 
         {/* CENTER-RIGHT LIVE SIMULATED WEBPAGE CANVAS */}
-        <div className="flex-1 bg-slate-100/70 p-4 sm:p-6 flex flex-col justify-between overflow-hidden h-full">
+        <div className="flex-1 min-h-0 bg-slate-100/70 p-4 sm:p-6 flex flex-col justify-between overflow-hidden h-full">
           
           {/* Canvas Top Bar: Device Switcher + Preview Toggle + Publish Action */}
           <div className="flex items-center justify-between bg-white px-3.5 py-2 rounded-[4px] border border-slate-200 mb-3 shadow-2xs shrink-0 gap-3">
@@ -1582,7 +1696,7 @@ export function BannerStudio() {
               </button>
             </div>
 
-            {/* Right Action: Language Preview Switcher & Draft Status Badge */}
+            {/* Right Action: Language Preview Switcher + Draft Status Badge */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded border border-slate-200">
                 <span className="text-[10px] font-bold text-slate-500 hidden sm:inline">Preview Lang:</span>
@@ -1615,7 +1729,7 @@ export function BannerStudio() {
           </div>
 
           {/* SIMULATED WEBPAGE FRAME */}
-          <div className="flex-1 flex items-center justify-center overflow-hidden py-1">
+          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden py-1">
             <div
               className={cn(
                 "relative bg-white border border-slate-200 rounded-[6px] overflow-hidden shadow-xl transition-all duration-300 flex flex-col justify-between h-[560px] max-h-full upfront-banner-canvas",
@@ -1656,56 +1770,50 @@ export function BannerStudio() {
                 }}
               />
 
-              {/* Webpage Content: Real Live Site via Preview Proxy */}
-              <div className="relative w-full h-full flex-1 overflow-hidden bg-white">
-                {isLoadingSites ? (
-                  <div className="absolute inset-0 bg-slate-50/90 flex flex-col items-center justify-center text-xs text-slate-500 gap-2 z-5">
-                    <div className="size-5 border-2 border-[#1868db] border-t-transparent rounded-full animate-spin" />
-                    <span>Loading website preview...</span>
+              {/* Webpage Content: Clean Sleek Browser Canvas */}
+              <div className="relative w-full h-full flex-1 overflow-hidden bg-slate-50 flex flex-col">
+                {/* Browser Mock Address Bar */}
+                <div className="h-8 bg-slate-100 border-b border-slate-200 px-3 flex items-center gap-2 select-none shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-slate-300" />
+                    <span className="size-2 rounded-full bg-slate-300" />
+                    <span className="size-2 rounded-full bg-slate-300" />
                   </div>
-                ) : activeDomain ? (
-                  <>
-                    {iframeLoading && (
-                      <div className="absolute inset-0 bg-slate-50/90 flex flex-col items-center justify-center text-xs text-slate-500 gap-2 z-5">
-                        <div className="size-5 border-2 border-[#1868db] border-t-transparent rounded-full animate-spin" />
-                        <span>Loading live preview of <strong>{activeDomain}</strong>...</span>
-                      </div>
-                    )}
-                    <iframe
-                      key={activeDomain}
-                      src={`/api/v1/consent/preview-proxy?domain=${encodeURIComponent(activeDomain)}`}
-                      onLoad={() => setIframeLoading(false)}
-                      className="w-full h-full border-0 pointer-events-none opacity-90 select-none bg-white"
-                      title="Live Website Canvas"
-                      sandbox="allow-same-origin allow-scripts"
-                    />
-                  </>
-                ) : (
-                  <div className="w-full h-full p-6 sm:p-10 bg-slate-50 flex flex-col justify-start overflow-hidden select-none pointer-events-none">
-                    <div className="max-w-3xl w-full mx-auto space-y-6 pt-4">
-                      <div className="flex items-center justify-between pb-4 border-b border-slate-200">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-md bg-blue-600/80" />
-                          <div className="h-4 w-24 bg-slate-300 rounded" />
-                        </div>
-                        <div className="flex gap-4">
-                          <div className="h-3 w-12 bg-slate-200 rounded" />
-                          <div className="h-3 w-12 bg-slate-200 rounded" />
-                          <div className="h-3 w-12 bg-slate-200 rounded" />
-                        </div>
-                      </div>
-                      <div className="space-y-3 pt-6">
-                        <div className="h-7 w-3/4 bg-slate-300 rounded" />
-                        <div className="h-4 w-full bg-slate-200 rounded" />
-                        <div className="h-4 w-5/6 bg-slate-200 rounded" />
-                      </div>
-                      <div className="flex gap-3 pt-2">
-                        <div className="h-8 w-24 bg-blue-600/70 rounded" />
-                        <div className="h-8 w-24 bg-slate-200 rounded" />
-                      </div>
+                  <div className="flex-1 max-w-sm mx-auto bg-white border border-slate-200 rounded px-2.5 py-0.5 text-[10px] text-slate-500 font-mono flex items-center justify-center gap-1">
+                    <span className="text-emerald-600 font-bold">🔒</span>
+                    <span className="truncate">https://{activeDomain || "yourwebsite.com"}</span>
+                  </div>
+                </div>
+
+                {/* Clean Canvas Wireframe Content */}
+                <div className="flex-1 p-6 space-y-4 overflow-y-auto select-none pointer-events-none opacity-40">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <div className="h-4 w-24 bg-slate-300 rounded" />
+                    <div className="flex gap-3">
+                      <div className="h-3 w-12 bg-slate-200 rounded" />
+                      <div className="h-3 w-12 bg-slate-200 rounded" />
+                      <div className="h-3 w-16 bg-slate-300 rounded" />
                     </div>
                   </div>
-                )}
+                  <div className="space-y-2 max-w-md mx-auto pt-4 text-center">
+                    <div className="h-6 w-3/4 bg-slate-300 rounded mx-auto" />
+                    <div className="h-3 w-1/2 bg-slate-200 rounded mx-auto" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 pt-4">
+                    <div className="h-20 bg-white border border-slate-200 rounded-md p-3 space-y-2">
+                      <div className="size-4 bg-slate-200 rounded" />
+                      <div className="h-3 w-3/4 bg-slate-200 rounded" />
+                    </div>
+                    <div className="h-20 bg-white border border-slate-200 rounded-md p-3 space-y-2">
+                      <div className="size-4 bg-slate-200 rounded" />
+                      <div className="h-3 w-3/4 bg-slate-200 rounded" />
+                    </div>
+                    <div className="h-20 bg-white border border-slate-200 rounded-md p-3 space-y-2">
+                      <div className="size-4 bg-slate-200 rounded" />
+                      <div className="h-3 w-3/4 bg-slate-200 rounded" />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* LIVE NOTICE BANNER OVERLAY */}

@@ -407,6 +407,37 @@ export async function ensureTables() {
         CREATE INDEX IF NOT EXISTS ix_scan_schedules_next_run ON scan_schedules(enabled, next_run_at);
         CREATE INDEX IF NOT EXISTS ix_scan_schedules_domain ON scan_schedules(domain);
         CREATE INDEX IF NOT EXISTS ix_scan_schedules_site ON scan_schedules(site_id);
+
+        -- Subscriptions & Paddle Billing
+        CREATE TABLE IF NOT EXISTS subscriptions (
+          id VARCHAR(36) PRIMARY KEY,
+          workspace_id VARCHAR(36) UNIQUE NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+          plan VARCHAR(50) NOT NULL DEFAULT 'free',
+          paddle_customer_id VARCHAR(255),
+          paddle_subscription_id VARCHAR(255) UNIQUE,
+          paddle_price_id VARCHAR(255),
+          status VARCHAR(50) NOT NULL DEFAULT 'active',
+          current_period_start TIMESTAMP WITHOUT TIME ZONE,
+          current_period_end TIMESTAMP WITHOUT TIME ZONE,
+          cancel_at_period_end BOOLEAN DEFAULT FALSE,
+          last_event_id VARCHAR(255),
+          last_event_at TIMESTAMP WITHOUT TIME ZONE,
+          created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS ix_subscriptions_workspace ON subscriptions(workspace_id);
+        CREATE INDEX IF NOT EXISTS ix_subscriptions_paddle_sub ON subscriptions(paddle_subscription_id);
+
+        -- Billing Webhook Audit & Deduplication
+        CREATE TABLE IF NOT EXISTS billing_events (
+          id VARCHAR(36) PRIMARY KEY,
+          event_id VARCHAR(255) UNIQUE NOT NULL,
+          event_type VARCHAR(100) NOT NULL,
+          occurred_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+          payload JSONB NOT NULL,
+          processed_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS ix_billing_events_event_id ON billing_events(event_id);
       `)
       tablesInitialized = true
     } finally {

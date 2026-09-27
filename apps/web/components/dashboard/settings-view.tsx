@@ -40,6 +40,9 @@ import { fetchSites, createSite, deleteSite, Site, API_BASE } from "@/lib/api"
 import { useDomain } from "@/lib/domain-context"
 import { useWorkspace, Workspace } from "@/lib/workspace-context"
 import { useSession, authClient } from "@/lib/auth-client"
+import { useEntitlements } from "@/lib/entitlements-context"
+import { PLANS, type PlanId } from "@/lib/billing/plans"
+import { openPaddleCustomerPortal } from "@/lib/billing/paddle-client"
 
 type TabType = "profile" | "workspace" | "billing" | "sites"
 
@@ -48,6 +51,15 @@ export function SettingsView() {
   const searchParams = useSearchParams()
   const { data: session, isPending: isSessionLoading } = useSession()
   const { refreshSites: refreshContextSites } = useDomain()
+  const {
+    entitlements,
+    usage,
+    plan: currentPlan,
+    isPaid,
+    isPastDue,
+    openUpgradeModal,
+    refreshEntitlements,
+  } = useEntitlements()
   const {
     workspaces,
     activeWorkspace,
@@ -1016,141 +1028,407 @@ export function SettingsView() {
       {/* ========================================================================= */}
       {activeTab === "billing" && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          {/* Active Plan Card */}
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-lg p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Current Plan</span>
-                <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-400/30">
-                  Active
-                </span>
+          {/* Past Due Warning Alert */}
+          {isPastDue && (
+            <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 flex items-start gap-3 shadow-xs">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1 text-xs">
+                <p className="font-bold text-sm">Payment Past Due</p>
+                <p>
+                  Your last subscription renewal payment failed. Please update your payment method in the customer portal to maintain uninterrupted Growth/Business access.
+                </p>
+                {entitlements?.paddleCustomerId && (
+                  <button
+                    type="button"
+                    onClick={() => openPaddleCustomerPortal(entitlements.paddleCustomerId!)}
+                    className="mt-2 font-bold text-amber-900 underline hover:text-amber-950 inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Update Payment Method in Paddle</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-              <h2 className="text-2xl font-bold mt-1">Starter Free Plan</h2>
-              <p className="text-xs text-slate-300 mt-1">Ideal for personal sites, early-stage testing, and open-source projects</p>
+            </div>
+          )}
+
+          {/* Active Plan Header Card */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6 border border-slate-800">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Current Workspace Plan</span>
+                <span
+                  className={cn(
+                    "text-[11px] font-bold px-2.5 py-0.5 rounded-full border",
+                    currentPlan === "business"
+                      ? "bg-amber-500/20 text-amber-300 border-amber-400/30"
+                      : currentPlan === "growth"
+                      ? "bg-blue-500/20 text-blue-300 border-blue-400/30"
+                      : "bg-slate-700/60 text-slate-300 border-slate-600"
+                  )}
+                >
+                  {entitlements?.status ? entitlements.status.toUpperCase() : "ACTIVE"}
+                </span>
+                {entitlements?.cancelAtPeriodEnd && (
+                  <span className="bg-rose-500/20 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-400/30">
+                    Cancels at end of period
+                  </span>
+                )}
+              </div>
+              <h2 className="text-3xl font-extrabold mt-1.5 flex items-center gap-2">
+                <span>{PLANS[currentPlan].name}</span>
+                <span className="text-lg font-normal text-slate-400">
+                  ({PLANS[currentPlan].price === 0 ? "Free forever" : `$${PLANS[currentPlan].price}/month`})
+                </span>
+              </h2>
+              <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
+                {PLANS[currentPlan].tagline}
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                className="h-9 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white shadow-sm cursor-pointer"
-                onClick={() => alert("Billing upgrade integration is coming soon! You are currently on the unlimited Starter Tier during preview.")}
-              >
-                Upgrade to Pro
-              </Button>
+            <div className="flex items-center gap-3 shrink-0">
+              {entitlements?.paddleCustomerId ? (
+                <Button
+                  type="button"
+                  onClick={() => openPaddleCustomerPortal(entitlements.paddleCustomerId!)}
+                  className="h-10 text-xs font-bold bg-white text-slate-900 hover:bg-slate-100 shadow-sm cursor-pointer flex items-center gap-2"
+                >
+                  <span>Manage in Paddle</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Button>
+              ) : currentPlan === "free" ? (
+                <Button
+                  type="button"
+                  onClick={() => openUpgradeModal("growth")}
+                  className="h-10 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Upgrade Plan</span>
+                </Button>
+              ) : null}
             </div>
           </div>
 
-          {/* Usage Meters */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-2xs space-y-3">
+          {/* Usage & Limits Breakdown */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 1. Monthly Pageviews */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-700">Monthly Pageviews</span>
-                <span className="font-mono text-slate-500">12,480 / 50,000</span>
-              </div>
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-[#1868db] rounded-full" style={{ width: "25%" }} />
-              </div>
-              <p className="text-[11px] text-slate-400">Resets in 14 days</p>
-            </div>
-
-            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-700">Tracked Domains</span>
-                <span className="font-mono text-slate-500">{sites.length} / 5 Sites</span>
+                <span className="font-mono text-slate-500 font-medium">
+                  {(usage?.pageviewsThisMonth || 0).toLocaleString()} / {(entitlements?.limits.analytics_monthly_pageviews || 50000).toLocaleString()}
+                </span>
               </div>
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500 rounded-full"
-                  style={{ width: `${Math.min(100, (sites.length / 5) * 100)}%` }}
+                  className="h-full bg-blue-600 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, usage?.pageviewPercent || 0)}%` }}
                 />
               </div>
-              <p className="text-[11px] text-slate-400">Unlimited on Pro</p>
+              <p className="text-[11px] text-slate-400">
+                {usage?.pageviewPercent ? `${usage.pageviewPercent}% used this month` : "0% used this month"}
+              </p>
             </div>
 
-            <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-2xs space-y-3">
+            {/* 2. Tracked Websites */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-700">Consent Audit Receipts</span>
-                <span className="font-mono text-slate-500">8,200 / 25,000</span>
+                <span className="font-bold text-slate-700">Websites & Domains</span>
+                <span className="font-mono text-slate-900 font-bold">{sites.length} Active</span>
               </div>
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full" style={{ width: "32%" }} />
+                <div className="h-full bg-emerald-500 rounded-full w-full" />
               </div>
-              <p className="text-[11px] text-slate-400">30-day vault retention</p>
+              <p className="text-[11px] text-emerald-600 font-semibold">
+                ✓ Unlimited websites on all plans
+              </p>
+            </div>
+
+            {/* 3. Scanner Page Limit */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700">Scanner Depth</span>
+                <span className="font-mono text-slate-900 font-bold">
+                  {(entitlements?.limits.scan_pages_per_scan || 100).toLocaleString()} pages/scan
+                </span>
+              </div>
+              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-indigo-500 rounded-full"
+                  style={{
+                    width: currentPlan === "business" ? "100%" : currentPlan === "growth" ? "60%" : "20%",
+                  }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                {currentPlan === "business" ? "5,000 pages per scan" : currentPlan === "growth" ? "1,000 pages per scan" : "100 pages per scan"}
+              </p>
+            </div>
+
+            {/* 4. Consent History Retention */}
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700">Consent History</span>
+                <span className="font-mono text-slate-900 font-bold">
+                  {entitlements?.limits.consent_history_days === 30
+                    ? "30 Days"
+                    : `${(entitlements?.limits.consent_history_days || 30) / 30} Months`}
+                </span>
+              </div>
+              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full"
+                  style={{
+                    width: currentPlan === "business" ? "100%" : currentPlan === "growth" ? "50%" : "15%",
+                  }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                {currentPlan === "business" ? "24 months legal proof" : currentPlan === "growth" ? "12 months legal proof" : "30-day proof history"}
+              </p>
             </div>
           </div>
 
-          {/* Pricing Tier Comparison Cards */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-2xs space-y-5">
+          {/* Pricing Tier Comparison Grid */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-2xs space-y-6">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Available Subscription Plans</h2>
-              <p className="text-xs text-slate-500">Scale your privacy compliance and analytics seamlessly</p>
+              <h2 className="text-lg font-bold text-slate-900">Choose Your Plan</h2>
+              <p className="text-xs text-slate-500">
+                Switch or upgrade anytime. Changes take effect immediately via Paddle billing.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* Starter */}
-              <div className="p-5 rounded-lg border-2 border-[#1868db] bg-blue-50/20 flex flex-col justify-between relative">
-                <div className="space-y-3">
-                  <span className="text-[10px] font-bold bg-[#1868db] text-white px-2 py-0.5 rounded uppercase">Current Plan</span>
-                  <div className="text-base font-bold text-slate-900">Starter</div>
-                  <div className="text-2xl font-black text-slate-900">$0 <span className="text-xs font-normal text-slate-500">/month</span></div>
-                  <ul className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Up to 50,000 pageviews/mo</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Up to 5 tracked domains</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Full IAB TCF & GCM v2 CMP</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> 30-day consent vault</li>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Plan 1: Free */}
+              <div
+                className={cn(
+                  "p-6 rounded-2xl border flex flex-col justify-between transition-all",
+                  currentPlan === "free"
+                    ? "border-slate-400 ring-2 ring-slate-400/20 bg-slate-50/50 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                )}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-900">Free</span>
+                    {currentPlan === "free" && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                        Current Plan
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline">
+                    <span className="text-3xl font-extrabold text-slate-900">$0</span>
+                    <span className="text-xs text-slate-500 ml-1">/month</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Analytics + essential consent management.
+                  </p>
+                  <ul className="space-y-2.5 text-xs text-slate-700 pt-4 border-t border-slate-100">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span><strong>Unlimited</strong> websites</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span><strong>50,000</strong> pageviews/month</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>3 months analytics history</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Essential Cookie Scanner (100 pages)</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Consent Banner & Cookie Policy</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>30-day Consent Proof Vault</span>
+                    </li>
                   </ul>
                 </div>
-                <div className="pt-5">
-                  <Button disabled className="w-full h-8.5 text-xs font-bold bg-slate-200 text-slate-600 cursor-not-allowed">
-                    Active
-                  </Button>
-                </div>
-              </div>
-
-              {/* Pro */}
-              <div className="p-5 rounded-lg border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
-                <div className="space-y-3">
-                  <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded uppercase">Most Popular</span>
-                  <div className="text-base font-bold text-slate-900">Pro</div>
-                  <div className="text-2xl font-black text-slate-900">$29 <span className="text-xs font-normal text-slate-500">/month</span></div>
-                  <ul className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Up to 500,000 pageviews/mo</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Unlimited tracked domains</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Remove UpFront branding</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> 1-year audit vault retention</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Unlimited team members</li>
-                  </ul>
-                </div>
-                <div className="pt-5">
+                <div className="pt-6">
                   <Button
-                    onClick={() => alert("Pro subscription checkout will be available with live Stripe integration.")}
-                    className="w-full h-8.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white cursor-pointer"
-                  >
-                    Upgrade to Pro
-                  </Button>
-                </div>
-              </div>
-
-              {/* Enterprise */}
-              <div className="p-5 rounded-lg border border-slate-200 bg-white shadow-xs flex flex-col justify-between">
-                <div className="space-y-3">
-                  <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded uppercase">Custom Scale</span>
-                  <div className="text-base font-bold text-slate-900">Enterprise</div>
-                  <div className="text-2xl font-black text-slate-900">$199 <span className="text-xs font-normal text-slate-500">/month</span></div>
-                  <ul className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> 10M+ pageviews / month</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> 99.99% Uptime SLA</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Custom legal review & DPA</li>
-                    <li className="flex items-center gap-2"><Check className="size-3.5 text-emerald-600" /> Dedicated compliance engineer</li>
-                  </ul>
-                </div>
-                <div className="pt-5">
-                  <Button
+                    disabled
                     variant="outline"
-                    onClick={() => alert("Please contact enterprise@upfront.io for custom volume inquiries.")}
-                    className="w-full h-8.5 text-xs font-bold border-slate-300 text-slate-800 hover:bg-slate-50 cursor-pointer"
+                    className="w-full text-xs font-semibold bg-slate-100 text-slate-400 cursor-not-allowed"
                   >
-                    Contact Enterprise
+                    {currentPlan === "free" ? "Active Plan" : "Included"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Plan 2: Growth */}
+              <div
+                className={cn(
+                  "p-6 rounded-2xl border flex flex-col justify-between transition-all relative",
+                  currentPlan === "growth"
+                    ? "border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-blue-300"
+                )}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-900">Growth</span>
+                    {currentPlan === "growth" ? (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                        Current Plan
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">
+                        Recommended
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline">
+                    <span className="text-3xl font-extrabold text-slate-900">$19</span>
+                    <span className="text-xs text-slate-500 ml-1">/month</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Full consent management for growing websites.
+                  </p>
+                  <ul className="space-y-2.5 text-xs text-slate-700 pt-4 border-t border-slate-100">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span><strong>Unlimited</strong> websites</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span><strong>250,000</strong> pageviews/month</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>12 months analytics retention</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Full Scanner (1,000 pages/scan)</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Global Privacy Control (GPC)</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Geo-targeting (EU / UK / Global)</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Google Consent Mode v2</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Full Multi-language & Translations</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Monthly Scheduled Scans</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Version History & Rollback</span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="pt-6">
+                  <Button
+                    disabled={currentPlan === "growth"}
+                    onClick={() => openUpgradeModal("growth")}
+                    className={cn(
+                      "w-full text-xs font-semibold shadow-sm transition-all",
+                      currentPlan === "growth"
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                    )}
+                  >
+                    {currentPlan === "growth" ? "Active Plan" : "Upgrade to Growth"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Plan 3: Business */}
+              <div
+                className={cn(
+                  "p-6 rounded-2xl border flex flex-col justify-between transition-all relative",
+                  currentPlan === "business"
+                    ? "border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/20 shadow-sm"
+                    : "border-slate-200 bg-white hover:border-amber-300"
+                )}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-900">Business</span>
+                    {currentPlan === "business" ? (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                        Current Plan
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                        Enterprise
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline">
+                    <span className="text-3xl font-extrabold text-slate-900">$49</span>
+                    <span className="text-xs text-slate-500 ml-1">/month</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Advanced compliance and custom brand styling.
+                  </p>
+                  <ul className="space-y-2.5 text-xs text-slate-700 pt-4 border-t border-slate-100">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span><strong>Unlimited</strong> websites</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span><strong>1,000,000</strong> pageviews/month</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>24 months analytics retention</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Full Scanner (5,000 pages/scan)</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span><strong>IAB TCF v2.3</strong> Framework</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span><strong>Custom CSS</strong> Injection</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Weekly & Daily Scheduled Scans</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>24-month Consent Audit Vault</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Everything in Growth included</span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="pt-6">
+                  <Button
+                    disabled={currentPlan === "business"}
+                    onClick={() => openUpgradeModal("business")}
+                    className={cn(
+                      "w-full text-xs font-semibold shadow-sm transition-all",
+                      currentPlan === "business"
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white cursor-pointer"
+                    )}
+                  >
+                    {currentPlan === "business" ? "Active Plan" : "Upgrade to Business"}
                   </Button>
                 </div>
               </div>

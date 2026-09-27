@@ -80,7 +80,7 @@ Write-Host "`n[5/6] Auditing Banner Studio Controls..." -ForegroundColor Yellow
 $studioFile = "$PSScriptRoot/../../components/dashboard/consent/banner-studio.tsx"
 $studioContent = Get-Content $studioFile -Raw
 
-Assert-Condition "DEFAULT_BANNER_CONFIG includes enable_iab_tcf: true" ($studioContent -match 'enable_iab_tcf:\s*true')
+Assert-Condition "DEFAULT_BANNER_CONFIG defines enable_iab_tcf property" ($studioContent -match 'enable_iab_tcf:\s*(true|false)')
 Assert-Condition "Banner studio renders interactive Support IAB TCF v2.3 checkbox" ($studioContent -match 'Support IAB TCF v2\.3' -and $studioContent -match 'config\.enable_iab_tcf !== false')
 Assert-Condition "Publish diff generator detects IAB TCF changes" ($studioContent -match 'IAB TCF v2\.3 set to')
 

@@ -122,6 +122,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ detail: "Domain is required" }, { status: 400, headers: CORS_HEADERS })
     }
 
+    // Server-side Entitlement Gating & Auto-coercion
+    const siteLookup = await pool.query(`SELECT workspace_id FROM sites WHERE domain = $1 LIMIT 1`, [domain])
+    const workspaceId = siteLookup.rows[0]?.workspace_id
+    if (workspaceId) {
+      const { getWorkspaceEntitlements } = await import("@/lib/billing/entitlements")
+      const entitlements = await getWorkspaceEntitlements(workspaceId)
+      if (!entitlements.capabilities["cmp.tcf_v23"]) {
+        body.enable_iab_tcf = false
+      }
+      if (!entitlements.capabilities["cmp.custom_css"]) {
+        body.custom_css = ""
+      }
+      if (!entitlements.capabilities["cmp.gpc"]) {
+        body.enable_gpc = false
+      }
+      if (!entitlements.capabilities["cmp.geo_targeting"]) {
+        body.geo_targeting = "all"
+      }
+      if (!entitlements.capabilities["cmp.google_consent_mode_v2"]) {
+        body.enable_consent_mode_v2 = false
+      }
+      if (!entitlements.capabilities["cmp.box_layout"] && (typeof body.layout === "string" && (body.layout.startsWith("floating_") || body.layout === "box"))) {
+        body.layout = "bottom_bar"
+      }
+      if (!entitlements.capabilities["cmp.popup_layout"] && (body.layout === "center_modal" || body.layout === "popup")) {
+        body.layout = "bottom_bar"
+      }
+    }
+
     const id = randomUUID()
     const upsertRes = await pool.query(
       `INSERT INTO consent_configs (

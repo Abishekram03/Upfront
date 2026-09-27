@@ -68,10 +68,27 @@ export async function POST(req: Request) {
       }
     }
 
+    // Server-side Entitlement Gating
+    const { pool } = await import("@/lib/db")
+    const siteLookup = await pool.query(`SELECT id, workspace_id FROM sites WHERE domain = $1 LIMIT 1`, [domain])
+    const workspaceId = body.workspaceId || body.workspace_id || siteLookup.rows[0]?.workspace_id
+    const siteId = body.siteId || body.site_id || siteLookup.rows[0]?.id
+
+    if (workspaceId) {
+      const { getWorkspaceEntitlements } = await import("@/lib/billing/entitlements")
+      const entitlements = await getWorkspaceEntitlements(workspaceId)
+      if (!entitlements.capabilities["cmp.scheduled_scans"]) {
+        return NextResponse.json({ detail: "Scheduled cookie scans require the Growth or Business plan.", requiredPlan: "growth" }, { status: 403, headers: CORS_HEADERS })
+      }
+      if ((frequency === "daily" || frequency === "weekly") && !entitlements.capabilities["cmp.scheduled_scan_frequencies"]?.includes(frequency)) {
+        return NextResponse.json({ detail: "Daily and Weekly scheduled scans require the Business plan. Growth includes Monthly scheduled scans.", requiredPlan: "business" }, { status: 403, headers: CORS_HEADERS })
+      }
+    }
+
     const schedule = await ScheduleService.upsertSchedule({
       domain,
-      workspaceId: body.workspaceId || body.workspace_id,
-      siteId: body.siteId || body.site_id,
+      workspaceId,
+      siteId,
       enabled: body.enabled !== false,
       frequency,
       timeOfDay,

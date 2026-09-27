@@ -141,6 +141,35 @@ export async function POST(req: Request) {
     const draftConfig = body.config || body
     const baseVersion = body.base_version
 
+    // Server-side Entitlement Gating & Auto-coercion
+    const siteLookup = await client.query(`SELECT workspace_id FROM sites WHERE domain = $1 LIMIT 1`, [domain])
+    const workspaceId = siteLookup.rows[0]?.workspace_id
+    if (workspaceId) {
+      const { getWorkspaceEntitlements } = await import("@/lib/billing/entitlements")
+      const entitlements = await getWorkspaceEntitlements(workspaceId)
+      if (!entitlements.capabilities["cmp.tcf_v23"]) {
+        draftConfig.enable_iab_tcf = false
+      }
+      if (!entitlements.capabilities["cmp.custom_css"]) {
+        draftConfig.custom_css = ""
+      }
+      if (!entitlements.capabilities["cmp.gpc"]) {
+        draftConfig.enable_gpc = false
+      }
+      if (!entitlements.capabilities["cmp.geo_targeting"]) {
+        draftConfig.geo_targeting = "all"
+      }
+      if (!entitlements.capabilities["cmp.google_consent_mode_v2"]) {
+        draftConfig.enable_consent_mode_v2 = false
+      }
+      if (!entitlements.capabilities["cmp.box_layout"] && (typeof draftConfig.layout === "string" && (draftConfig.layout.startsWith("floating_") || draftConfig.layout === "box"))) {
+        draftConfig.layout = "bottom_bar"
+      }
+      if (!entitlements.capabilities["cmp.popup_layout"] && (draftConfig.layout === "center_modal" || draftConfig.layout === "popup")) {
+        draftConfig.layout = "bottom_bar"
+      }
+    }
+
     // 1. Validation
     const validation = validateConsentConfiguration(draftConfig)
     if (!validation.isValid) {

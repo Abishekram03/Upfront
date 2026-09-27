@@ -35,6 +35,8 @@ import {
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@/lib/utils"
 import { classifyCookieName } from "@/lib/consentos/open-cookie-db"
+import { UpgradeGate, UpgradeBadge } from "@/components/ui/upgrade-gate"
+import { useEntitlements } from "@/lib/entitlements-context"
 
 interface CookieRecord {
   id: string
@@ -204,6 +206,9 @@ const DEFAULT_CATEGORY_CONFIGS: Record<
 
 export function CookieManager() {
   const { activeDomain } = useDomain()
+  const { hasCapability, openUpgradeModal, plan } = useEntitlements()
+  const canScheduledScans = hasCapability("cmp.scheduled_scans")
+  const canCustomScriptRules = plan === "growth" || plan === "business"
 
   // Primary navigation tab: "cookies" | "history"
   const [activeMainTab, setActiveMainTab] = useState<"cookies" | "history">("cookies")
@@ -747,11 +752,18 @@ export function CookieManager() {
             </div>
             <Button
               type="button"
-              onClick={() => setIsScheduleModalOpen(true)}
+              onClick={() => {
+                if (!canScheduledScans) {
+                  openUpgradeModal("growth", "Scheduled Cookie Scans")
+                  return
+                }
+                setIsScheduleModalOpen(true)
+              }}
               className="text-xs font-semibold bg-[#1868db] hover:bg-[#1559be] text-white h-8 px-3.5 rounded-[4px] cursor-pointer flex items-center gap-1.5"
             >
               <Calendar className="size-3" />
-              {schedule ? "Edit schedule" : "Schedule scan"}
+              <span>{schedule ? "Edit schedule" : "Schedule scan"}</span>
+              {!canScheduledScans && <UpgradeBadge capability="cmp.scheduled_scans" size="sm" showText={false} />}
             </Button>
           </div>
 
@@ -1550,22 +1562,37 @@ export function CookieManager() {
               </div>
 
               <div className="p-3 bg-blue-50/50 rounded border border-blue-100 space-y-1">
-                <label className="font-bold text-slate-800 flex items-center justify-between">
-                  <span>Script URL Pattern (Auto-Block Regex)</span>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <span>Script URL Pattern (Auto-Block Regex)</span>
+                    <UpgradeBadge capability="cmp.script_rules" />
+                  </label>
                   <span className="text-[10px] text-slate-400 font-normal">Optional</span>
-                </label>
+                </div>
                 <p className="text-[11px] text-slate-500 leading-normal">
                   Scripts matching this URL substring or regex pattern will be dynamically blocked until the user consents to this category.
                 </p>
-                <input
-                  type="text"
-                  placeholder="e.g. google-analytics.com/gtag/js or connect.facebook.net"
-                  value={cookieForm.script_pattern_regex}
-                  onChange={(e) =>
-                    setCookieForm({ ...cookieForm, script_pattern_regex: e.target.value })
-                  }
-                  className="w-full h-8 px-2.5 rounded border border-blue-200 bg-white text-xs font-mono focus:ring-1 focus:ring-[#1868db] focus:outline-hidden mt-1.5"
-                />
+                {canCustomScriptRules ? (
+                  <input
+                    type="text"
+                    placeholder="e.g. google-analytics.com/gtag/js or connect.facebook.net"
+                    value={cookieForm.script_pattern_regex}
+                    onChange={(e) =>
+                      setCookieForm({ ...cookieForm, script_pattern_regex: e.target.value })
+                    }
+                    className="w-full h-8 px-2.5 rounded border border-blue-200 bg-white text-xs font-mono focus:ring-1 focus:ring-[#1868db] focus:outline-hidden mt-1.5"
+                  />
+                ) : (
+                  <div
+                    onClick={() => openUpgradeModal("growth", "Custom Script Blocking Rules")}
+                    className="mt-1.5 p-2 bg-slate-100/90 border border-dashed border-slate-300 rounded cursor-pointer flex items-center justify-between group hover:border-[#1868db] hover:bg-blue-50/40 transition-colors"
+                  >
+                    <span className="text-xs text-slate-500 font-mono italic">
+                      {cookieForm.script_pattern_regex || "Upgrade to Growth for custom regex auto-block rules"}
+                    </span>
+                    <span className="text-[10px] font-bold text-[#1868db] group-hover:underline">Unlock</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
@@ -1656,21 +1683,36 @@ export function CookieManager() {
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-700 block">Scan Frequency</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["daily", "weekly", "monthly"] as const).map((freq) => (
-                    <button
-                      key={freq}
-                      type="button"
-                      onClick={() => setScheduleForm({ ...scheduleForm, frequency: freq })}
-                      className={cn(
-                        "py-2 px-3 rounded-md border text-center font-medium capitalize transition-all cursor-pointer",
-                        scheduleForm.frequency === freq
-                          ? "border-[#1868db] bg-blue-50/60 text-[#1868db] font-bold shadow-xs"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      )}
-                    >
-                      {freq}
-                    </button>
-                  ))}
+                  {(["daily", "weekly", "monthly"] as const).map((freq) => {
+                    const isBusinessOnly = freq === "daily" || freq === "weekly"
+                    const isLocked = isBusinessOnly && plan !== "business"
+
+                    return (
+                      <button
+                        key={freq}
+                        type="button"
+                        onClick={() => {
+                          if (isLocked) {
+                            openUpgradeModal("business", `${freq === "daily" ? "Daily" : "Weekly"} Scheduled Scans`)
+                            return
+                          }
+                          setScheduleForm({ ...scheduleForm, frequency: freq })
+                        }}
+                        className={cn(
+                          "py-2 px-3 rounded-md border text-center font-medium capitalize transition-all cursor-pointer relative flex flex-col items-center justify-center gap-0.5",
+                          scheduleForm.frequency === freq
+                            ? "border-[#1868db] bg-blue-50/60 text-[#1868db] font-bold shadow-xs"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                          isLocked && "opacity-75"
+                        )}
+                      >
+                        <div className="flex items-center gap-1">
+                          <span>{freq}</span>
+                          {isLocked && <UpgradeBadge requiredPlan="business" size="sm" showText={false} />}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 

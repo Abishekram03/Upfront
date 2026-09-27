@@ -9,7 +9,10 @@ import { ToolType } from "@/components/dashboard/tool-switcher"
 import { DomainProvider, useDomain } from "@/lib/domain-context"
 
 import { WorkspaceProvider } from "@/lib/workspace-context"
+import { EntitlementsProvider } from "@/lib/entitlements-context"
 import { WorkspaceWizardModal } from "@/components/dashboard/workspace-wizard-modal"
+import { UpgradeModal } from "@/components/dashboard/billing/upgrade-modal"
+import { cn } from "@/lib/utils"
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -46,9 +49,11 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const isFullBleedStudio = pathname.startsWith("/consent/studio")
 
   return (
-    <div className="min-h-screen w-full bg-[#f8fafc] text-slate-900 flex flex-col overflow-x-hidden">
+    <div className={cn("w-full bg-[#f8fafc] text-slate-900 flex flex-col", isFullBleedStudio ? "h-screen overflow-hidden" : "min-h-screen overflow-x-hidden")}>
       {/* Workspace Creation Onboarding Wizard (if user has no workspace) */}
       <WorkspaceWizardModal />
+      {/* Global Upgrade Modal for Feature Gating */}
+      <UpgradeModal />
 
       {/* Tabler Top Header */}
       <TablerHeader
@@ -72,7 +77,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       />
 
       {/* Main Content Area */}
-      <main className={isFullBleedStudio ? "flex-1 w-full h-[calc(100vh-106px)] overflow-hidden flex flex-col" : "flex-1 py-6"}>
+      <main className={isFullBleedStudio ? "flex-1 w-full min-h-0 overflow-hidden flex flex-col" : "flex-1 py-6"}>
         {isFullBleedStudio ? (
           children
         ) : (
@@ -102,9 +107,11 @@ export default function DashboardLayout({
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-slate-50" />}>
       <WorkspaceProvider>
-        <DomainProvider>
-          <DashboardInner>{children}</DashboardInner>
-        </DomainProvider>
+        <EntitlementsProvider>
+          <DomainProvider>
+            <DashboardInner>{children}</DashboardInner>
+          </DomainProvider>
+        </EntitlementsProvider>
       </WorkspaceProvider>
     </Suspense>
   )

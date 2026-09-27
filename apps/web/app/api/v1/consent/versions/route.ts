@@ -77,6 +77,17 @@ export async function POST(req: Request) {
       [domain, targetVersion]
     )
 
+    // Server-side Entitlement Gating
+    const siteLookup = await client.query(`SELECT workspace_id FROM sites WHERE domain = $1 LIMIT 1`, [domain])
+    const workspaceId = siteLookup.rows[0]?.workspace_id
+    if (workspaceId) {
+      const { getWorkspaceEntitlements } = await import("@/lib/billing/entitlements")
+      const entitlements = await getWorkspaceEntitlements(workspaceId)
+      if (!entitlements.capabilities["cmp.version_history"]) {
+        return NextResponse.json({ detail: "Version history & rollback requires the Growth or Business plan.", requiredPlan: "growth" }, { status: 403, headers: CORS_HEADERS })
+      }
+    }
+
     if (versionRes.rows.length === 0) {
       return NextResponse.json({ detail: `Historical version ${targetVersion} not found` }, { status: 404, headers: CORS_HEADERS })
     }
