@@ -1,7 +1,6 @@
 /**
  * UpFront - Workspace Onboarding & Installation Verification Test Suite
 */
-
 import { detectUpfrontScriptInHtml } from "../../app/api/v1/sites/verify/route"
 import { pool, ensureTables } from "../db"
 import { randomUUID } from "node:crypto"
