@@ -12,12 +12,16 @@ import { WorkspaceProvider } from "@/lib/workspace-context"
 import { EntitlementsProvider } from "@/lib/entitlements-context"
 import { WorkspaceWizardModal } from "@/components/dashboard/workspace-wizard-modal"
 import { UpgradeModal } from "@/components/dashboard/billing/upgrade-modal"
+import { useWorkspace } from "@/lib/workspace-context"
+import { OnboardingWizard } from "@/components/dashboard/onboarding/onboarding-wizard"
+import { AlertCircle, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { sites, activeDomain, setActiveDomain, isLoadingSites, realtimeVisitors } = useDomain()
+  const { activeWorkspace } = useWorkspace()
 
   // Infer active tool from current path or state
   const isConsentPath = pathname.startsWith("/consent")
@@ -45,13 +49,23 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Check if active domain has pending installation
+  const activeSite = sites.find((s) => s.domain === activeDomain)
+  const isInstallationPending = activeSite && (activeSite.installation_status === "pending" || activeSite.installation_status === "verification_failed")
+
   // Check if we are on full-bleed Studio page
   const isFullBleedStudio = pathname.startsWith("/consent/studio")
 
   return (
     <div className={cn("w-full bg-[#f8fafc] text-slate-900 flex flex-col", isFullBleedStudio ? "h-screen overflow-hidden" : "min-h-screen overflow-x-hidden")}>
-      {/* Workspace Creation Onboarding Wizard (if user has no workspace) */}
+      {/* Workspace Creation Wizard (if user has no workspace) */}
       <WorkspaceWizardModal />
+
+      {/* Workspace Onboarding Wizard (if workspace has not completed onboarding) */}
+      {activeWorkspace && activeWorkspace.onboarding_completed === false && (
+        <OnboardingWizard workspace={activeWorkspace} />
+      )}
+
       {/* Global Upgrade Modal for Feature Gating */}
       <UpgradeModal />
 
@@ -75,6 +89,28 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
       />
+
+      {/* Installation Pending Notice Banner */}
+      {isInstallationPending && !isFullBleedStudio && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 sm:px-6">
+          <div className="mx-auto max-w-7xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-amber-900">
+              <AlertCircle className="size-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>Installation pending:</strong> UpFront script is not yet verified on <strong>{activeDomain}</strong>.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSnippetModalOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-200/90 hover:bg-amber-200 px-3 py-1 rounded-md transition-colors cursor-pointer self-start sm:self-auto shrink-0 shadow-2xs"
+            >
+              Finish Setup
+              <ArrowRight className="size-3" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className={isFullBleedStudio ? "flex-1 w-full min-h-0 overflow-hidden flex flex-col" : "flex-1 py-6"}>

@@ -53,8 +53,12 @@ export interface StatsResponse {
 export interface Site {
   id: string
   domain: string
+  name?: string
   timezone: string
   created_at: string
+  workspace_id?: string
+  installation_status?: "not_started" | "pending" | "detected" | "verification_failed"
+  last_verified_at?: string | null
   status?: "active" | "waiting"
 }
 

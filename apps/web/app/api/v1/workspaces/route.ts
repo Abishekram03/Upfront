@@ -30,6 +30,9 @@ export async function GET() {
         w.name, 
         w.slug, 
         w.owner_id, 
+        COALESCE(w.onboarding_completed, FALSE) as onboarding_completed,
+        COALESCE(w.onboarding_step, 'welcome') as onboarding_step,
+        w.first_site_id,
         w.created_at, 
         w.updated_at,
         wm.role,
@@ -80,11 +83,11 @@ export async function POST(req: Request) {
     const workspaceId = randomUUID()
     const memberId = randomUUID()
 
-    // 1. Create Workspace
+    // 1. Create Workspace with onboarding defaults
     const wRes = await pool.query(
-      `INSERT INTO workspaces (id, name, slug, owner_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, NOW(), NOW())
-       RETURNING *`,
+      `INSERT INTO workspaces (id, name, slug, owner_id, onboarding_completed, onboarding_step, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, FALSE, 'welcome', NOW(), NOW())
+       RETURNING id, name, slug, owner_id, onboarding_completed, onboarding_step, first_site_id, created_at, updated_at`,
       [workspaceId, name, slug, user.id]
     )
 

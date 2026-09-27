@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
     // Fetch sites owned by user or in workspaces user belongs to
     const res = await pool.query(
-      `SELECT DISTINCT s.id, s.domain, s.timezone, s.public, s.created_at, s.workspace_id 
+      `SELECT DISTINCT s.id, s.domain, s.name, s.timezone, s.public, s.installation_status, s.last_verified_at, s.created_at, s.workspace_id 
        FROM sites s 
        LEFT JOIN workspace_members wm ON s.workspace_id = wm.workspace_id 
        WHERE s.user_id = $1 OR wm.user_id = $1 
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
 
     const body = await req.json()
     const cleanDomain = sanitizeDomain(body.domain)
+    const siteName = (body.name || "").trim() || cleanDomain
 
     if (!cleanDomain) {
       return NextResponse.json({ detail: "Domain is required" }, { status: 400 })
@@ -69,20 +70,24 @@ export async function POST(req: Request) {
 
     const timezone = body.timezone || "UTC"
     const existing = await pool.query(
-      "SELECT id, user_id, workspace_id FROM sites WHERE domain = $1",
+      "SELECT id, domain, name, user_id, workspace_id, installation_status, created_at FROM sites WHERE domain = $1",
       [cleanDomain]
     )
 
     if (existing.rows.length > 0) {
       const site = existing.rows[0]
       if (site) {
+        // If site exists in this workspace, return it idempotently
+        if (site.workspace_id === workspaceId) {
+          return NextResponse.json(site)
+        }
         // If site exists but has no user_id (legacy), assign it to this user & workspace
         if (!site.user_id) {
           await pool.query(
-            "UPDATE sites SET user_id = $1, workspace_id = COALESCE($2, workspace_id) WHERE id = $3",
-            [user.id, workspaceId, site.id]
+            "UPDATE sites SET user_id = $1, workspace_id = COALESCE($2, workspace_id), name = COALESCE(name, $3) WHERE id = $4",
+            [user.id, workspaceId, siteName, site.id]
           )
-          return NextResponse.json({ id: site.id, domain: cleanDomain, timezone, public: false, workspace_id: workspaceId })
+          return NextResponse.json({ id: site.id, domain: cleanDomain, name: siteName, timezone, public: false, workspace_id: workspaceId, installation_status: site.installation_status || "not_started" })
         }
         if (site.user_id !== user.id) {
           return NextResponse.json({ detail: "Domain is already registered by another account." }, { status: 400 })
@@ -93,13 +98,26 @@ export async function POST(req: Request) {
 
     const id = randomUUID()
     const insertRes = await pool.query(
-      `INSERT INTO sites (id, domain, timezone, public, user_id, workspace_id, created_at)
-       VALUES ($1, $2, $3, FALSE, $4, $5, NOW())
-       RETURNING id, domain, timezone, public, user_id, workspace_id, created_at`,
-      [id, cleanDomain, timezone, user.id, workspaceId]
+      `INSERT INTO sites (id, domain, name, timezone, public, user_id, workspace_id, installation_status, created_at)
+       VALUES ($1, $2, $3, $4, FALSE, $5, $6, 'not_started', NOW())
+       RETURNING id, domain, name, timezone, public, user_id, workspace_id, installation_status, created_at`,
+      [id, cleanDomain, siteName, timezone, user.id, workspaceId]
     )
 
-    return NextResponse.json(insertRes.rows[0] || null)
+    const newSite = insertRes.rows[0]
+
+    // If workspace exists and has no first_site_id, update workspace onboarding state
+    if (workspaceId) {
+      await pool.query(
+        `UPDATE workspaces
+         SET first_site_id = COALESCE(first_site_id, $1),
+             onboarding_step = CASE WHEN onboarding_step = 'welcome' OR onboarding_step = 'website' THEN 'install' ELSE onboarding_step END
+         WHERE id = $2`,
+        [id, workspaceId]
+      )
+    }
+
+    return NextResponse.json(newSite || null)
   } catch (err: any) {
     console.error("POST /api/v1/sites error:", err)
     return NextResponse.json({ detail: err.message || "Failed to create site" }, { status: 500 })

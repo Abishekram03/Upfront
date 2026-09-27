@@ -145,9 +145,16 @@ export async function ensureTables() {
           name VARCHAR(255) NOT NULL,
           slug VARCHAR(255) UNIQUE NOT NULL,
           owner_id VARCHAR(64) NOT NULL,
+          onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
+          onboarding_step VARCHAR(50) NOT NULL DEFAULT 'welcome',
+          first_site_id VARCHAR(36),
           created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
           updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL
         );
+
+        ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS onboarding_step VARCHAR(50) NOT NULL DEFAULT 'welcome';
+        ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS first_site_id VARCHAR(36);
 
         CREATE TABLE IF NOT EXISTS workspace_members (
           id VARCHAR(36) PRIMARY KEY,
@@ -165,15 +172,21 @@ export async function ensureTables() {
         CREATE TABLE IF NOT EXISTS sites (
           id VARCHAR(36) PRIMARY KEY,
           domain VARCHAR(255) UNIQUE NOT NULL,
+          name VARCHAR(255),
           timezone VARCHAR(64) DEFAULT 'UTC' NOT NULL,
           public BOOLEAN DEFAULT FALSE NOT NULL,
           user_id VARCHAR(64),
           workspace_id VARCHAR(36),
+          installation_status VARCHAR(50) NOT NULL DEFAULT 'not_started',
+          last_verified_at TIMESTAMP WITHOUT TIME ZONE,
           created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL
         );
 
         ALTER TABLE sites ADD COLUMN IF NOT EXISTS user_id VARCHAR(64);
         ALTER TABLE sites ADD COLUMN IF NOT EXISTS workspace_id VARCHAR(36);
+        ALTER TABLE sites ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+        ALTER TABLE sites ADD COLUMN IF NOT EXISTS installation_status VARCHAR(50) NOT NULL DEFAULT 'not_started';
+        ALTER TABLE sites ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMP WITHOUT TIME ZONE;
         CREATE INDEX IF NOT EXISTS ix_sites_workspace ON sites(workspace_id);
 
         CREATE TABLE IF NOT EXISTS sessions (
@@ -260,6 +273,11 @@ export async function ensureTables() {
         CREATE INDEX IF NOT EXISTS ix_consent_receipts_domain_created ON consent_receipts(domain, created_at);
 
         -- Safe Schema Migrations
+        -- Onboarding & Site Verification Migrations
+        UPDATE workspaces SET onboarding_completed = TRUE WHERE onboarding_completed IS FALSE AND id IN (SELECT DISTINCT workspace_id FROM sites WHERE workspace_id IS NOT NULL);
+        UPDATE workspaces SET first_site_id = (SELECT id FROM sites WHERE sites.workspace_id = workspaces.id ORDER BY created_at ASC LIMIT 1) WHERE first_site_id IS NULL AND id IN (SELECT DISTINCT workspace_id FROM sites WHERE workspace_id IS NOT NULL);
+        UPDATE sites SET installation_status = 'detected' WHERE installation_status = 'not_started' AND (id IN (SELECT DISTINCT site_id FROM pageviews UNION SELECT DISTINCT site_id FROM sessions) OR domain IN (SELECT DISTINCT domain FROM consent_configs WHERE is_enabled = TRUE));
+
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_gpc BOOLEAN DEFAULT TRUE;
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS preferences_title VARCHAR(255) DEFAULT 'Customise Consent Preferences';

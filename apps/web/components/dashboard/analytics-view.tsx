@@ -693,6 +693,23 @@ export function AnalyticsView({ domain: propDomain }: { domain?: string }) {
         </CardContent>
       </Card>
 
+      {/* ZERO VISITORS FIRST-RUN EMPTY STATE */}
+      {stats && stats.metrics.pageviews === 0 && stats.metrics.visitors === 0 && (
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs text-center space-y-3">
+          <div className="mx-auto size-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1868db]">
+            <Globe className="size-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-900">
+              Waiting for your first visitors
+            </h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              Your cookieless analytics and real-time visitor metrics will appear here automatically as soon as traffic arrives at <span className="font-semibold text-slate-700 font-mono">{activeDomain}</span>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* MIDDLE ROW: TOP SOURCES & TOP PAGES CARDS */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Top Sources Card */}

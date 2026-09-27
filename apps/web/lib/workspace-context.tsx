@@ -9,6 +9,9 @@ export interface Workspace {
   slug: string
   owner_id: string
   role: "owner" | "admin" | "member" | "viewer"
+  onboarding_completed?: boolean
+  onboarding_step?: "welcome" | "website" | "install" | "verify" | "completed" | string
+  first_site_id?: string | null
   members_count?: number
   sites_count?: number
   created_at: string
@@ -24,6 +27,7 @@ interface WorkspaceContextType {
   refreshWorkspaces: () => Promise<Workspace[]>
   createWorkspace: (name: string, slug?: string) => Promise<Workspace>
   updateWorkspace: (workspaceId: string, name: string) => Promise<Workspace>
+  updateOnboardingState: (workspaceId: string, payload: { step?: string; onboarding_completed?: boolean; first_site_id?: string; skip?: boolean; installation_status?: string }) => Promise<void>
   deleteWorkspace: (workspaceId: string) => Promise<void>
 }
 
@@ -148,6 +152,32 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateOnboardingState = async (
+    workspaceId: string,
+    payload: { step?: string; onboarding_completed?: boolean; first_site_id?: string; skip?: boolean; installation_status?: string }
+  ): Promise<void> => {
+    try {
+      const res = await fetch(`/api/v1/workspaces/${workspaceId}/onboarding`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.workspace) {
+          setWorkspaces((prev) =>
+            prev.map((w) => (w.id === workspaceId ? { ...w, ...data.workspace } : w))
+          )
+          if (activeWorkspace?.id === workspaceId) {
+            setActiveWorkspaceState((prev) => (prev ? { ...prev, ...data.workspace } : null))
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update onboarding state:", err)
+    }
+  }
+
   const hasNoWorkspace = !isLoadingWorkspaces && Boolean(session?.user?.id) && workspaces.length === 0
 
   return (
@@ -161,6 +191,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         refreshWorkspaces,
         createWorkspace,
         updateWorkspace,
+        updateOnboardingState,
         deleteWorkspace,
       }}
     >
