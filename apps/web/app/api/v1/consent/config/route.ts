@@ -31,38 +31,81 @@ export async function GET(req: Request) {
       return NextResponse.json({ detail: "Domain is required" }, { status: 400, headers: CORS_HEADERS })
     }
 
+    const rawHeaderCountry = (
+      req.headers.get("cf-ipcountry") ||
+      req.headers.get("x-vercel-ip-country") ||
+      req.headers.get("cloudfront-viewer-country") ||
+      req.headers.get("x-country-code") ||
+      ""
+    ).trim().toUpperCase().slice(0, 2)
+
+    const isValidCountry = /^[A-Z]{2}$/.test(rawHeaderCountry) && rawHeaderCountry !== "XX" && rawHeaderCountry !== "T1"
+    const detectedCountry: string | null = isValidCountry ? rawHeaderCountry : null
+    const country = detectedCountry || "US"
+
+    const region = (
+      req.headers.get("x-vercel-ip-country-region") ||
+      req.headers.get("x-region") ||
+      ""
+    ).trim().toUpperCase().slice(0, 3)
+
+    const EU_UK_COUNTRIES = new Set([
+      "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "GB", "UK"
+    ])
+
     const res = await pool.query("SELECT * FROM consent_configs WHERE domain = $1", [domain])
-    if (res.rows.length > 0) {
-      return NextResponse.json(res.rows[0] || null, { headers: CORS_HEADERS })
+    let config = res.rows.length > 0 ? res.rows[0] : null
+
+    if (!config) {
+      // Default configuration
+      const id = randomUUID()
+      const insertRes = await pool.query(
+        `INSERT INTO consent_configs (
+          id, domain, is_enabled, layout, theme, primary_color, border_radius,
+          title, description, privacy_policy_url, accept_all_label, reject_all_label,
+          preferences_label, enable_necessary_category, enable_functional_category,
+          enable_analytics_category, enable_performance_category, enable_advertisement_category,
+          show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
+          enable_gpc, consent_version,
+          created_at, updated_at
+        ) VALUES (
+          $1, $2, TRUE, 'bottom_bar', 'light', '#1868db', 'rounded-md',
+          'We value your privacy',
+          'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking ''Accept All'', you consent to our use of cookies.',
+          '/privacy', 'Accept All', 'Reject All', 'Customise',
+          TRUE, TRUE, TRUE, TRUE, TRUE,
+          TRUE, 'bottom_left', TRUE, 'all',
+          TRUE, '1.0',
+          NOW(), NOW()
+        )
+        ON CONFLICT (domain) DO UPDATE SET updated_at = NOW()
+        RETURNING *`,
+        [id, domain]
+      )
+      config = insertRes.rows[0]
     }
 
-    // Default configuration
-    const id = randomUUID()
-    const insertRes = await pool.query(
-      `INSERT INTO consent_configs (
-        id, domain, is_enabled, layout, theme, primary_color, border_radius,
-        title, description, privacy_policy_url, accept_all_label, reject_all_label,
-        preferences_label, enable_necessary_category, enable_functional_category,
-        enable_analytics_category, enable_performance_category, enable_advertisement_category,
-        show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
-        enable_gpc, consent_version,
-        created_at, updated_at
-      ) VALUES (
-        $1, $2, TRUE, 'bottom_bar', 'light', '#1868db', 'rounded-md',
-        'We value your privacy',
-        'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking ''Accept All'', you consent to our use of cookies.',
-        '/privacy', 'Accept All', 'Reject All', 'Customise',
-        TRUE, TRUE, TRUE, TRUE, TRUE,
-        TRUE, 'bottom_left', TRUE, 'all',
-        TRUE, '1.0',
-        NOW(), NOW()
-      )
-      ON CONFLICT (domain) DO UPDATE SET updated_at = NOW()
-      RETURNING *`,
-      [id, domain]
-    )
+    let isInGeoZone = true
+    const geo = (config.geo_targeting || "all").toLowerCase()
+    if (geo === "eu_only" || geo === "eu_uk" || geo === "eu") {
+      isInGeoZone = EU_UK_COUNTRIES.has(country)
+    } else if (geo === "us_ca") {
+      isInGeoZone = country === "US" && (region === "CA" || !region)
+    } else if (geo === "in") {
+      isInGeoZone = country === "IN"
+    } else if (geo === "br") {
+      isInGeoZone = country === "BR"
+    } else if (geo === "all") {
+      isInGeoZone = true
+    }
 
-    return NextResponse.json(insertRes.rows[0] || null, { headers: CORS_HEADERS })
+    return NextResponse.json({
+      ...config,
+      visitor_country: detectedCountry,
+      visitor_region: region || null,
+      is_in_geo_zone: isInGeoZone,
+      is_enabled: config.is_enabled && isInGeoZone,
+    }, { headers: CORS_HEADERS })
   } catch (err: any) {
     console.error("GET /api/v1/consent/config error:", err)
     return NextResponse.json({ detail: err.message || "Failed to fetch consent config" }, { status: 500, headers: CORS_HEADERS })
@@ -90,7 +133,7 @@ export async function POST(req: Request) {
         enable_necessary_category, enable_functional_category,
         enable_analytics_category, enable_performance_category, enable_advertisement_category,
         show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
-        enable_gpc, consent_version,
+        enable_gpc, consent_version, custom_css, law_template,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
@@ -101,7 +144,7 @@ export async function POST(req: Request) {
         $22, $23,
         $24, $25, $26,
         $27, $28, $29, $30,
-        $31, $32,
+        $31, $32, $33, $34,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -135,6 +178,8 @@ export async function POST(req: Request) {
         geo_targeting = EXCLUDED.geo_targeting,
         enable_gpc = EXCLUDED.enable_gpc,
         consent_version = EXCLUDED.consent_version,
+        custom_css = EXCLUDED.custom_css,
+        law_template = EXCLUDED.law_template,
         updated_at = NOW()
       RETURNING *`,
       [
@@ -170,6 +215,8 @@ export async function POST(req: Request) {
         body.geo_targeting || "all",
         body.enable_gpc !== undefined ? body.enable_gpc : true,
         body.consent_version || "1.0",
+        body.custom_css || "",
+        body.law_template || "gdpr",
       ]
     )
 

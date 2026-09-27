@@ -1,6 +1,16 @@
 (function () {
   "use strict";
 
+  if (typeof window !== "undefined") {
+    if (window.__USRLY_PREVIEW_MODE__ || (window.self !== window.top && window.location.pathname.indexOf("preview-proxy") !== -1)) {
+      return;
+    }
+    if (window.__USRLY_INITIALIZED__) {
+      return;
+    }
+    window.__USRLY_INITIALIZED__ = true;
+  }
+
   var currentScript = document.currentScript;
   var domain = (currentScript && currentScript.getAttribute("data-domain")) || window.location.hostname;
   var apiHost = (currentScript && currentScript.getAttribute("data-api")) || (currentScript ? currentScript.src.replace(/\/userly\.js.*/, "") : "");
@@ -9,14 +19,15 @@
   var analyticsEndpoint = apiHost + "/api/v1/event";
   var consentConfigEndpoint = apiHost + "/api/v1/consent/config?domain=" + encodeURIComponent(domain);
   var consentLogEndpoint = apiHost + "/api/v1/consent/log";
+  var policyEndpoint = apiHost + "/api/v1/consent/policy?domain=" + encodeURIComponent(domain);
 
   var STORAGE_KEY = "usrly_consent_" + domain;
+  var consentListeners = [];
   var activeConfig = null;
+  var cachedPolicyCookies = null;
   var isGPCSignal = typeof navigator !== "undefined" && Boolean(navigator.globalPrivacyControl);
 
-  // -------------------------------------------------------------
   // 1. CONSENT MANAGEMENT PLATFORM (CMP) CORE STATE
-  // -------------------------------------------------------------
   function getStoredConsent() {
     try {
       var item = localStorage.getItem(STORAGE_KEY);
@@ -101,9 +112,7 @@
     return false;
   }
 
-  // -------------------------------------------------------------
-  // 2. ANALYTICS ENGINE (CONSENT-GATED)
-  // -------------------------------------------------------------
+  // 2. COOKIELESS ANALYTICS ENGINE (CONSENT-GATED)
   function sendEvent(name, props) {
     if (!isAnalyticsPermitted()) {
       return;
@@ -159,13 +168,16 @@
     window.addEventListener("popstate", triggerPageview);
   }
 
-  window.usrly = function (eventName, props) {
-    if (!isAnalyticsPermitted()) return;
-    sendEvent(eventName, props);
-  };
-  window.userly = window.usrly; // alias
+  function triggerConsentListeners(consent) {
+    for (var i = 0; i < consentListeners.length; i++) {
+      try {
+        consentListeners[i](consent);
+      } catch (e) {
+        if (typeof console !== "undefined" && console.error) console.error(e);
+      }
+    }
+  }
 
-  // Dispatch Google Consent Mode v2 Signals
   function dispatchGoogleConsent(consent) {
     window.dataLayer = window.dataLayer || [];
     function gtag() {
@@ -179,18 +191,18 @@
       ad_personalization: (consent.advertisement || consent.marketing) ? "granted" : "denied",
       functionality_storage: consent.functional ? "granted" : "denied",
       personalization_storage: consent.performance ? "granted" : "denied",
+      security_storage: "granted",
     };
 
     try {
       gtag("consent", "update", consentPayload);
       window.dataLayer.push({
-        event: "usrly_consent_update",
-        usrly_consent: consent,
+        event: "userly_consent_update",
+        userly_consent: consent,
       });
     } catch (e) {}
   }
 
-  // Unblock Gated 3rd-Party Scripts
   function unblockGatedScripts(consent) {
     var gatedScripts = document.querySelectorAll(
       'script[type="text/userly-block"], script[type="text/usrly-block"]'
@@ -223,8 +235,7 @@
     }
   }
 
-  // Log Proof-of-Consent Receipt
-  function logConsentReceipt(consent) {
+  function logConsentReceipt(consent, version) {
     var payload = {
       domain: domain,
       consent_given: consent.consent_given,
@@ -234,6 +245,8 @@
       performance: !!consent.performance,
       advertisement: !!(consent.advertisement || consent.marketing),
       user_agent_category: /mobile/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
+      consent_version: version || (activeConfig && activeConfig.consent_version) || "1.0",
+      country: (activeConfig && activeConfig.visitor_country) || undefined,
     };
 
     var body = JSON.stringify(payload);
@@ -247,9 +260,6 @@
     }
   }
 
-  // -------------------------------------------------------------
-  // 3. SHADOW DOM BANNER & PREFERENCES MODAL INJECTOR
-  // -------------------------------------------------------------
   function checkAndRenderPolicyDeclaration(storedConsent) {
     var declarationEl = document.getElementById("usrly-cookie-declaration") || document.getElementById("usrly-cookie-policy");
     if (!declarationEl) return;
@@ -260,87 +270,150 @@
       return storedConsent[cat] ? "Active / Consented" : "Disabled / Blocked";
     };
 
-    declarationEl.innerHTML = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.6; border: 1px solid #e0ebf8; border-radius: 6px; padding: 24px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e0ebf8; padding-bottom: 16px; margin-bottom: 16px;">
-          <div>
-            <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Cookie Declaration for ${domain}</h3>
-            <p style="font-size: 12px; color: #64748b; margin: 0;">Verified and updated dynamically by usrly CMP</p>
+    function renderDeclaration(cookiesList) {
+      var itemizedRows = "";
+      if (cookiesList && cookiesList.length > 0) {
+        for (var k = 0; k < cookiesList.length; k++) {
+          var c = cookiesList[k];
+          var catKey = (c.category || "functional").toLowerCase();
+          var statusText = isGranted(catKey);
+          var statusColor = catKey === "necessary" ? "#16a34a" : (storedConsent && storedConsent[catKey] ? "#1868db" : "#dc2626");
+          if (!storedConsent) statusColor = "#64748b";
+
+          itemizedRows += '<tr style="border-bottom: 1px solid #f1f5f9;">' +
+            '<td style="padding: 9px 12px; font-weight: 700; color: #0f172a; font-family: monospace;">' + (c.name || "") + '</td>' +
+            '<td style="padding: 9px 12px; text-transform: capitalize; color: #475569;">' + catKey + '</td>' +
+            '<td style="padding: 9px 12px; color: #475569;">' + (c.service_name || "First Party") + '</td>' +
+            '<td style="padding: 9px 12px; color: #64748b;">' + (c.duration || "Session") + '</td>' +
+            '<td style="padding: 9px 12px; color: #475569;">' + (c.description || "Maintains site operation and services.") + '</td>' +
+            '<td style="padding: 9px 12px; font-weight: 700; color: ' + statusColor + ';">' + statusText + '</td>' +
+          '</tr>';
+        }
+      }
+
+      var itemizedSection = "";
+      if (itemizedRows) {
+        itemizedSection = '<div style="margin-top: 24px;">' +
+          '<h4 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;">Itemized Cookie Audit Inventory</h4>' +
+          '<div style="overflow-x: auto;">' +
+            '<table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">' +
+              '<thead>' +
+                '<tr style="background: #f8fbff; border-bottom: 2px solid #e0ebf8; color: #64748b; font-weight: 700;">' +
+                  '<th style="padding: 9px 12px;">Cookie</th>' +
+                  '<th style="padding: 9px 12px;">Category</th>' +
+                  '<th style="padding: 9px 12px;">Provider</th>' +
+                  '<th style="padding: 9px 12px;">Duration</th>' +
+                  '<th style="padding: 9px 12px;">Purpose</th>' +
+                  '<th style="padding: 9px 12px;">Current Status</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody>' + itemizedRows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>';
+      }
+
+      declarationEl.innerHTML = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.6; border: 1px solid #e0ebf8; border-radius: 6px; padding: 24px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e0ebf8; padding-bottom: 16px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Cookie Declaration for ${domain}</h3>
+              <p style="font-size: 12px; color: #64748b; margin: 0;">Verified and updated dynamically by Userly CMP</p>
+            </div>
+            <button id="usrly-open-prefs-btn" style="background: #1868db; color: #ffffff; border: none; padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+              Change Consent Preferences
+            </button>
           </div>
-          <button id="usrly-open-prefs-btn" style="background: #1868db; color: #ffffff; border: none; padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-            Change Consent Preferences
-          </button>
+
+          <table style="width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left;">
+            <thead>
+              <tr style="background: #f8fbff; border-bottom: 2px solid #e0ebf8; color: #64748b; font-weight: 700;">
+                <th style="padding: 10px 12px;">Category</th>
+                <th style="padding: 10px 12px;">Purpose</th>
+                <th style="padding: 10px 12px;">Current Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Necessary</td>
+                <td style="padding: 10px 12px; color: #475569;">Essential for website security, user authentication, and preference storage.</td>
+                <td style="padding: 10px 12px; color: #16a34a; font-weight: 700;">Always Active</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Functional</td>
+                <td style="padding: 10px 12px; color: #475569;">Social media sharing widgets, user feedback, and interactive tools.</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">${isGranted("functional")}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Analytics</td>
+                <td style="padding: 10px 12px; color: #475569;">Aggregated cookieless traffic metrics, bounce rate, and referrer data.</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">${isGranted("analytics")}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Performance</td>
+                <td style="padding: 10px 12px; color: #475569;">Page speed monitoring, latency analysis, and crash reporting.</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">${isGranted("performance")}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Advertisement</td>
+                <td style="padding: 10px 12px; color: #475569;">Targeted advertising scripts (Meta Pixel, Google Ads, TikTok).</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">${isGranted("advertisement")}</td>
+              </tr>
+            </tbody>
+          </table>
+          ${itemizedSection}
         </div>
+      `;
 
-        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left;">
-          <thead>
-            <tr style="background: #f8fbff; border-bottom: 2px solid #e0ebf8; color: #64748b; font-weight: 700;">
-              <th style="padding: 10px 12px;">Category</th>
-              <th style="padding: 10px 12px;">Purpose</th>
-              <th style="padding: 10px 12px;">Current Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Necessary</td>
-              <td style="padding: 10px 12px; color: #475569;">Essential for website security, user authentication, and preference storage.</td>
-              <td style="padding: 10px 12px; color: #16a34a; font-weight: 700;">Always Active</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Functional</td>
-              <td style="padding: 10px 12px; color: #475569;">Social media sharing widgets, user feedback, and interactive tools.</td>
-              <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">${isGranted("functional")}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Analytics</td>
-              <td style="padding: 10px 12px; color: #475569;">Aggregated cookieless traffic metrics, bounce rate, and referrer data.</td>
-              <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">${isGranted("analytics")}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Performance</td>
-              <td style="padding: 10px 12px; color: #475569;">Page speed monitoring, latency analysis, and crash reporting.</td>
-              <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">${isGranted("performance")}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Advertisement</td>
-              <td style="padding: 10px 12px; color: #475569;">Targeted advertising scripts (Meta Pixel, Google Ads, TikTok).</td>
-              <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">${isGranted("advertisement")}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-
-    var btn = declarationEl.querySelector("#usrly-open-prefs-btn");
-    if (btn) {
-      btn.onclick = function() {
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", consentConfigEndpoint, true);
-        xhr.onload = function () {
-          if (xhr.status === 200) {
-            renderCMP(JSON.parse(xhr.responseText), true);
+      var btn = declarationEl.querySelector("#usrly-open-prefs-btn");
+      if (btn) {
+        btn.onclick = function() {
+          if (activeConfig) {
+            renderCMP(activeConfig, true);
+          } else {
+            fetchConfigAndRender(true);
           }
         };
-        xhr.send();
-      };
+      }
     }
+
+    if (cachedPolicyCookies !== null) {
+      renderDeclaration(cachedPolicyCookies);
+    } else {
+      renderDeclaration([]);
+      var pxhr = new XMLHttpRequest();
+      pxhr.open("GET", policyEndpoint, true);
+      pxhr.onload = function() {
+        if (pxhr.status === 200) {
+          try {
+            var pData = JSON.parse(pxhr.responseText);
+            cachedPolicyCookies = pData.cookies || [];
+            renderDeclaration(cachedPolicyCookies);
+          } catch(e) {}
+        }
+      };
+      pxhr.send();
+    }
+  }
+
+  function fetchConfigAndRender(openPreferencesDirectly) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", consentConfigEndpoint, true);
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        try {
+          activeConfig = JSON.parse(xhr.responseText);
+          renderCMP(activeConfig, openPreferencesDirectly);
+        } catch (e) {}
+      }
+    };
+    xhr.send();
   }
 
   function initCMP() {
     var stored = getStoredConsent();
     checkAndRenderPolicyDeclaration(stored);
 
-    if (stored) {
-      if (stored.analytics) {
-        triggerPageview();
-      }
-      dispatchGoogleConsent(stored);
-      unblockGatedScripts(stored);
-      renderRevisitButtonOnly(stored);
-      return;
-    }
-
-    // Fetch config
     var xhr = new XMLHttpRequest();
     xhr.open("GET", consentConfigEndpoint, true);
     xhr.onreadystatechange = function () {
@@ -348,16 +421,69 @@
         if (xhr.status === 200) {
           try {
             var config = JSON.parse(xhr.responseText);
-            if (config.is_enabled) {
-              renderCMP(config);
-            } else {
+            activeConfig = config;
+
+            if (!config.is_enabled) {
               triggerPageview();
+              return;
+            }
+
+            var effective = getEffectiveConsent();
+
+            // GPC Signal Check: if GPC enabled & signal present & no explicit override
+            var isGPC = config.enable_gpc !== false && isGPCSignal;
+            if (isGPC && (!stored || !stored.gpc_explicit_override)) {
+              var gpcConsent = {
+                consent_given: false,
+                necessary: true,
+                functional: false,
+                analytics: false,
+                performance: false,
+                advertisement: false,
+                gpc_applied: true,
+                consent_version: config.consent_version || "1.0",
+                timestamp: new Date().toISOString(),
+              };
+              setStoredConsent(gpcConsent);
+              dispatchGoogleConsent(gpcConsent);
+              triggerConsentListeners(gpcConsent);
+              if (config.show_revisit_button) {
+                renderRevisitButtonOnly(gpcConsent);
+              }
+              return;
+            }
+
+            // Version check: re-prompt if consent_version upgraded
+            if (stored && config.consent_version && stored.consent_version && stored.consent_version !== config.consent_version) {
+              renderCMP(config);
+              return;
+            }
+
+            if (stored) {
+              if (effective && effective.analytics) {
+                triggerPageview();
+              }
+              dispatchGoogleConsent(effective || stored);
+              unblockGatedScripts(effective || stored);
+              triggerConsentListeners(effective || stored);
+              if (config.show_revisit_button) {
+                renderRevisitButtonOnly(effective || stored);
+              }
+            } else {
+              if (effective && effective.analytics) {
+                triggerPageview();
+              }
+              renderCMP(config);
             }
           } catch (e) {
-            triggerPageview();
+            if (isAnalyticsPermitted()) {
+              triggerPageview();
+            }
           }
         } else {
-          triggerPageview();
+          if (isAnalyticsPermitted()) {
+            triggerPageview();
+          }
         }
       }
     };
@@ -365,22 +491,32 @@
   }
 
   function renderRevisitButtonOnly(storedConsent) {
+    var existingRoots = document.querySelectorAll("#usrly-cmp-root, #usrly-revisit-root");
+    for (var r = 0; r < existingRoots.length; r++) {
+      existingRoots[r].remove();
+    }
+
     var host = document.createElement("div");
     host.id = "usrly-revisit-root";
     document.body.appendChild(host);
     var shadow = host.attachShadow({ mode: "open" });
 
+    var posClass = "pos-bottom-left";
+    var posStyle = "bottom: 18px; left: 18px;";
+    if (activeConfig && activeConfig.revisit_button_position === "bottom_right") {
+      posStyle = "bottom: 18px; right: 18px;";
+    }
+
     var style = document.createElement("style");
     style.textContent = `
       .usrly-revisit-btn {
         position: fixed;
-        bottom: 18px;
-        left: 18px;
+        ${posStyle}
         z-index: 2147483645;
         width: 44px;
         height: 44px;
         border-radius: 50%;
-        background: #1868db;
+        background: ${(activeConfig && activeConfig.primary_color) || "#1868db"};
         color: #ffffff;
         border: none;
         cursor: pointer;
@@ -409,6 +545,7 @@
     var btn = document.createElement("button");
     btn.className = "usrly-revisit-btn";
     btn.title = "Consent Preferences";
+    btn.setAttribute("aria-label", "Cookie Consent Preferences");
     btn.innerHTML = `
       <svg viewBox="0 0 24 24">
         <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
@@ -420,47 +557,187 @@
     `;
     btn.onclick = function () {
       host.remove();
-      // Re-fetch config to open modal
-      var xhr = new XMLHttpRequest();
-      xhr.open("GET", consentConfigEndpoint, true);
-      xhr.onload = function () {
-        if (xhr.status === 200) {
-          renderCMP(JSON.parse(xhr.responseText), true);
-        }
-      };
-      xhr.send();
+      if (activeConfig) {
+        renderCMP(activeConfig, true);
+      } else {
+        fetchConfigAndRender(true);
+      }
     };
     shadow.appendChild(btn);
   }
 
   function renderCMP(config, openPreferencesDirectly) {
+    var existingRoots = document.querySelectorAll("#usrly-cmp-root, #usrly-revisit-root");
+    for (var r = 0; r < existingRoots.length; r++) {
+      existingRoots[r].remove();
+    }
+
     var host = document.createElement("div");
     host.id = "usrly-cmp-root";
     document.body.appendChild(host);
 
     var shadow = host.attachShadow({ mode: "open" });
     var primaryColor = config.primary_color || "#1868db";
+    var isDark = config.theme === "dark";
+    var layout = config.layout || "bottom_bar";
+
+    var radiusMap = {
+      "rounded-none": "0px",
+      "rounded-sm": "4px",
+      "rounded-md": "8px",
+      "rounded-lg": "12px",
+      "rounded-full": "24px",
+    };
+    var borderRadius = radiusMap[config.border_radius] || "8px";
+
+    var bgCard = isDark ? "#0f172a" : "#ffffff";
+    var textPrimary = isDark ? "#f8fafc" : "#0f172a";
+    var textMuted = isDark ? "#94a3b8" : "#475569";
+    var borderCard = isDark ? "#334155" : "#e2e8f0";
+
+    var layoutStyles = "";
+    if (layout === "top_bar") {
+      layoutStyles = `
+        .usrly-banner-wrapper {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          border-bottom: 1px solid ${borderCard};
+          border-radius: 0;
+        }
+      `;
+    } else if (layout === "floating_bottom_left" || (layout === "box" && config.revisit_button_position !== "bottom_right")) {
+      layoutStyles = `
+        .usrly-banner-wrapper {
+          position: fixed;
+          bottom: 24px;
+          left: 24px;
+          max-width: 440px;
+          width: calc(100% - 32px);
+          border-radius: ${borderRadius};
+          border: 1px solid ${borderCard};
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2);
+        }
+        .usrly-banner-inner {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+        }
+        .usrly-btn-group {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          width: 100% !important;
+          gap: 6px !important;
+        }
+        .usrly-btn-group .usrly-btn {
+          width: 100% !important;
+          padding: 8px 4px !important;
+          font-size: 12px !important;
+          text-align: center !important;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+      `;
+    } else if (layout === "floating_bottom_right" || (layout === "box" && config.revisit_button_position === "bottom_right") || layout === "floating_box") {
+      layoutStyles = `
+        .usrly-banner-wrapper {
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          max-width: 440px;
+          width: calc(100% - 32px);
+          border-radius: ${borderRadius};
+          border: 1px solid ${borderCard};
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.2);
+        }
+        .usrly-banner-inner {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+        }
+        .usrly-btn-group {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          width: 100% !important;
+          gap: 6px !important;
+        }
+        .usrly-btn-group .usrly-btn {
+          width: 100% !important;
+          padding: 8px 4px !important;
+          font-size: 12px !important;
+          text-align: center !important;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+      `;
+    } else if (layout === "center_modal" || layout === "popup" || layout === "modal") {
+      layoutStyles = `
+        .usrly-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.45);
+          backdrop-filter: blur(2px);
+          z-index: 2147483645;
+        }
+        .usrly-banner-wrapper {
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          max-width: 440px;
+          width: calc(100% - 32px);
+          border-radius: ${borderRadius};
+          border: 1px solid ${borderCard};
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+          z-index: 2147483646;
+        }
+        .usrly-banner-inner {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+        }
+        .usrly-btn-group {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          width: 100% !important;
+          gap: 6px !important;
+        }
+        .usrly-btn-group .usrly-btn {
+          width: 100% !important;
+          padding: 8px 4px !important;
+          font-size: 12px !important;
+          text-align: center !important;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+      `;
+    } else {
+      // Default bottom_bar
+      layoutStyles = `
+        .usrly-banner-wrapper {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          border-top: 1px solid ${borderCard};
+          border-radius: 0;
+        }
+      `;
+    }
 
     var style = document.createElement("style");
     style.textContent = `
       * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
       
-      /* Primary Banner Container */
       .usrly-banner-wrapper {
-        position: fixed;
         z-index: 2147483646;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: #ffffff;
-        border-top: 1px solid #e2e8f0;
+        background: ${bgCard};
         box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
         padding: 20px 24px;
-        color: #1e293b;
+        color: ${textPrimary};
         animation: usrlySlideUp 0.3s ease-out;
       }
+      ${layoutStyles}
       @keyframes usrlySlideUp {
-        from { transform: translateY(100%); opacity: 0; }
+        from { transform: translateY(30px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
       .usrly-banner-inner {
@@ -483,12 +760,12 @@
       .usrly-banner-title {
         font-size: 15px;
         font-weight: 700;
-        color: #0f172a;
+        color: ${textPrimary};
         margin-bottom: 4px;
       }
       .usrly-banner-desc {
         font-size: 13px;
-        color: #475569;
+        color: ${textMuted};
         line-height: 1.5;
       }
       .usrly-banner-desc a {
@@ -502,7 +779,6 @@
         gap: 8px;
       }
       
-      /* Rectangular CookieYes Buttons */
       .usrly-btn {
         display: inline-flex;
         align-items: center;
@@ -510,7 +786,7 @@
         padding: 9px 18px;
         font-size: 13px;
         font-weight: 600;
-        border-radius: 6px;
+        border-radius: ${borderRadius};
         cursor: pointer;
         transition: all 0.15s ease;
         border: 1px solid transparent;
@@ -526,24 +802,43 @@
         filter: brightness(0.92);
       }
       .usrly-btn-outline {
-        background: #ffffff;
+        background: transparent;
         color: ${primaryColor};
         border-color: ${primaryColor};
       }
       .usrly-btn-outline:hover {
-        background: #eff6ff;
+        background: ${isDark ? "rgba(24, 104, 219, 0.15)" : "#eff6ff"};
       }
       .usrly-btn-secondary {
-        background: #ffffff;
-        color: #334155;
-        border-color: #cbd5e1;
+        background: ${isDark ? "#1e293b" : "#ffffff"};
+        color: ${textPrimary};
+        border-color: ${borderCard};
       }
       .usrly-btn-secondary:hover {
-        background: #f8fafc;
-        border-color: #94a3b8;
+        background: ${isDark ? "#334155" : "#f8fafc"};
       }
 
-      /* Preferences Center Modal (CookieYes Replica) */
+      @media (max-width: 640px) {
+        .usrly-banner-inner {
+          flex-direction: column !important;
+          align-items: stretch !important;
+        }
+        .usrly-btn-group {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          width: 100% !important;
+          gap: 6px !important;
+        }
+        .usrly-btn-group .usrly-btn {
+          width: 100% !important;
+          padding: 8px 4px !important;
+          font-size: 11.5px !important;
+          text-align: center !important;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+      }
+
       .usrly-modal-overlay {
         position: fixed;
         inset: 0;
@@ -561,77 +856,56 @@
         to { opacity: 1; }
       }
       .usrly-modal-card {
-        background: #ffffff;
+        background: ${bgCard};
         width: 100%;
         max-width: 680px;
         max-height: 90vh;
-        border-radius: 8px;
-        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
+        border-radius: ${borderRadius};
+        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.35);
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        border: 1px solid ${borderCard};
       }
       .usrly-modal-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 18px 24px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid ${borderCard};
       }
       .usrly-modal-title {
         font-size: 17px;
         font-weight: 700;
-        color: #0f172a;
+        color: ${textPrimary};
       }
       .usrly-modal-close {
         background: transparent;
         border: none;
         cursor: pointer;
-        color: #64748b;
+        color: ${textMuted};
         font-size: 20px;
         line-height: 1;
         padding: 4px;
       }
       .usrly-modal-close:hover {
-        color: #0f172a;
+        color: ${textPrimary};
       }
       .usrly-modal-body {
         padding: 20px 24px;
         overflow-y: auto;
         flex: 1;
         font-size: 13px;
-        color: #334155;
+        color: ${textMuted};
         line-height: 1.55;
-        scrollbar-width: thin;
-        scrollbar-color: #c7dcf7 transparent;
-      }
-      .usrly-modal-body::-webkit-scrollbar {
-        width: 5px;
-      }
-      .usrly-modal-body::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .usrly-modal-body::-webkit-scrollbar-thumb {
-        background: #c7dcf7;
-        border-radius: 9999px;
-      }
-      .usrly-modal-body::-webkit-scrollbar-thumb:hover {
-        background: #a3c7f3;
       }
       .usrly-intro-text {
         margin-bottom: 18px;
-        color: #475569;
-      }
-      .usrly-show-more {
-        color: ${primaryColor};
-        font-weight: 600;
-        cursor: pointer;
-        margin-left: 4px;
+        color: ${textMuted};
       }
 
-      /* Category Accordions */
       .usrly-category-item {
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid ${borderCard};
         padding: 14px 0;
       }
       .usrly-cat-header {
@@ -647,7 +921,7 @@
       }
       .usrly-cat-arrow {
         font-size: 12px;
-        color: #64748b;
+        color: ${textMuted};
         transition: transform 0.2s;
       }
       .usrly-cat-arrow.expanded {
@@ -656,7 +930,7 @@
       .usrly-cat-title {
         font-size: 14px;
         font-weight: 700;
-        color: #0f172a;
+        color: ${textPrimary};
       }
       .usrly-cat-always-active {
         color: #16a34a;
@@ -666,7 +940,7 @@
       .usrly-cat-desc {
         padding: 10px 0 4px 20px;
         font-size: 12.5px;
-        color: #64748b;
+        color: ${textMuted};
         line-height: 1.5;
         display: none;
       }
@@ -674,7 +948,6 @@
         display: block;
       }
 
-      /* iOS Style Toggle Switch */
       .usrly-switch {
         position: relative;
         display: inline-block;
@@ -690,7 +963,7 @@
         position: absolute;
         cursor: pointer;
         inset: 0;
-        background-color: #cbd5e1;
+        background-color: ${isDark ? "#334155" : "#cbd5e1"};
         transition: 0.2s;
         border-radius: 24px;
       }
@@ -713,10 +986,9 @@
         transform: translateX(20px);
       }
 
-      /* Modal Footer Actions */
       .usrly-modal-footer {
         padding: 16px 24px;
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid ${borderCard};
         display: flex;
         gap: 10px;
       }
@@ -726,78 +998,131 @@
         font-size: 13.5px;
       }
       .usrly-powered-bar {
-        background: #f8fafc;
+        background: ${isDark ? "#0b1120" : "#f8fafc"};
         padding: 8px 24px;
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid ${borderCard};
         text-align: right;
         font-size: 11px;
-        color: #64748b;
+        color: ${textMuted};
       }
       .usrly-powered-bar strong {
-        color: #0f172a;
+        color: ${textPrimary};
       }
     `;
     shadow.appendChild(style);
 
-    var functionalChecked = true;
-    var analyticsChecked = true;
-    var performanceChecked = true;
-    var adChecked = true;
+    if (config.custom_css && typeof config.custom_css === "string" && config.custom_css.trim().length > 0) {
+      var dangerousPatterns = [
+        /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+        /javascript\s*:/gi,
+        /expression\s*\(/gi,
+        /behavior\s*:/gi,
+        /-moz-binding\s*:/gi,
+        /@import\s+(?:url\(['"]?)?https?:\/\//gi,
+      ];
+      var isSafe = true;
+      for (var p = 0; p < dangerousPatterns.length; p++) {
+        if (dangerousPatterns[p].test(config.custom_css)) {
+          isSafe = false;
+          break;
+        }
+      }
+      if (isSafe) {
+        var customStyle = document.createElement("style");
+        customStyle.setAttribute("data-usrly-custom-css", "true");
+        customStyle.textContent = config.custom_css;
+        shadow.appendChild(customStyle);
+      }
+    }
+
+    var eff = getEffectiveConsent();
+    var stored = getStoredConsent();
+    var isNoticeOnly = config.law_template === "notice_only";
+    var isCCPA = config.law_template === "ccpa";
+    var isOptInModel = !isCCPA && !isNoticeOnly;
+
+    var functionalChecked = false;
+    var analyticsChecked = false;
+    var performanceChecked = false;
+    var adChecked = false;
+
+    if (eff) {
+      functionalChecked = Boolean(eff.functional);
+      analyticsChecked = Boolean(eff.analytics);
+      performanceChecked = Boolean(eff.performance);
+      adChecked = Boolean(eff.advertisement || eff.marketing);
+    } else if (!isOptInModel) {
+      functionalChecked = config.default_functional !== false;
+      analyticsChecked = config.default_analytics !== false;
+      performanceChecked = config.default_performance !== false;
+      adChecked = config.default_advertisement !== false;
+    } else {
+      functionalChecked = Boolean(config.default_functional);
+      analyticsChecked = Boolean(config.default_analytics);
+      performanceChecked = Boolean(config.default_performance);
+      adChecked = Boolean(config.default_advertisement);
+    }
 
     function applyAndClose(consentData) {
+      consentData.consent_version = config.consent_version || "1.0";
+      consentData.timestamp = new Date().toISOString();
+      if (isGPCSignal) {
+        consentData.gpc_explicit_override = true;
+      }
       setStoredConsent(consentData);
       dispatchGoogleConsent(consentData);
       unblockGatedScripts(consentData);
-      logConsentReceipt(consentData);
+      logConsentReceipt(consentData, config.consent_version);
+      triggerConsentListeners(consentData);
+      checkAndRenderPolicyDeclaration(consentData);
 
       if (consentData.analytics) {
         triggerPageview();
       }
 
       host.remove();
-      renderRevisitButtonOnly(consentData);
+      if (config.show_revisit_button) {
+        renderRevisitButtonOnly(consentData);
+      }
     }
 
-    // Modal Builder
     function showPreferencesModal() {
       var existingBanner = shadow.querySelector(".usrly-banner-wrapper");
       if (existingBanner) existingBanner.style.display = "none";
 
       var overlay = document.createElement("div");
-      overlay.className = "usrly-modal-overlay";
+      overlay.className = "usrly-modal-overlay upfront-modal-overlay";
 
       overlay.innerHTML = `
-        <div class="usrly-modal-card">
+        <div class="usrly-modal-card upfront-modal">
           <div class="usrly-modal-header">
-            <h3 class="usrly-modal-title">Customise Consent Preferences</h3>
-            <button class="usrly-modal-close" id="usrly-close-modal">✕</button>
+            <h3 class="usrly-modal-title">${config.preferences_title || "Customise Consent Preferences"}</h3>
+            <button class="usrly-modal-close" id="usrly-close-modal" aria-label="Close">✕</button>
           </div>
           <div class="usrly-modal-body">
             <p class="usrly-intro-text">
-              We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.
-              The cookies that are categorised as "Necessary" are stored on your browser as they are essential for enabling basic functionalities of the site.
+              ${config.preferences_description || "We respect your privacy preferences. You can customize which category of cookies or tracking scripts you permit on " + domain + ". Essential cookies cannot be turned off."}
             </p>
 
-            <!-- 1. Necessary -->
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-nec">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Necessary</span>
+                  <span class="usrly-cat-title">${config.necessary_title || "Necessary"}</span>
                 </div>
-                <span class="usrly-cat-always-active">Always Active</span>
+                <span class="usrly-cat-always-active">${config.always_active_label || "Always Active"}</span>
               </div>
               <div class="usrly-cat-desc visible" id="desc-nec">
-                Necessary cookies are required to enable the basic features of this site, such as providing secure log-in or adjusting your consent preferences. These cookies do not store any personally identifiable data.
+                ${config.necessary_description || "Necessary cookies are essential for page rendering, session management, and storing your consent preferences."}
               </div>
             </div>
 
-            <!-- 2. Functional -->
+            ${config.enable_functional_category !== false ? `
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-func">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Functional</span>
+                  <span class="usrly-cat-title">${config.functional_title || "Functional"}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-func" ${functionalChecked ? "checked" : ""}>
@@ -805,16 +1130,17 @@
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-func">
-                Functional cookies help perform certain functionalities like sharing the content of the website on social media platforms, collecting feedback, and other third-party features.
+                ${config.functional_description || "Functional features enable live chat widgets, video embeds, language selectors, and interactive tools."}
               </div>
             </div>
+            ` : ""}
 
-            <!-- 3. Analytics -->
+            ${config.enable_analytics_category !== false ? `
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-ana">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Analytics</span>
+                  <span class="usrly-cat-title">${config.analytics_title || "Analytics"}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-ana" ${analyticsChecked ? "checked" : ""}>
@@ -822,16 +1148,17 @@
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-ana">
-                Analytical cookies are used to understand how visitors interact with the website. These cookies help provide information on metrics such as the number of visitors, bounce rate, traffic source, etc.
+                ${config.analytics_description || "Analytical cookies help measure traffic, bounce rates, and popular pages to improve website performance."}
               </div>
             </div>
+            ` : ""}
 
-            <!-- 4. Performance -->
+            ${config.enable_performance_category !== false ? `
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-perf">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Performance</span>
+                  <span class="usrly-cat-title">${config.performance_title || "Performance"}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-perf" ${performanceChecked ? "checked" : ""}>
@@ -839,16 +1166,17 @@
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-perf">
-                Performance cookies are used to understand and analyse the key performance indexes of the website which helps in delivering a better user experience for the visitors.
+                ${config.performance_description || "Performance cookies monitor site speed, server response times, and frontend error telemetry."}
               </div>
             </div>
+            ` : ""}
 
-            <!-- 5. Advertisement -->
+            ${config.enable_advertisement_category !== false ? `
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-ad">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">Advertisement</span>
+                  <span class="usrly-cat-title">${config.advertisement_title || "Advertisement"}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-ad" ${adChecked ? "checked" : ""}>
@@ -856,26 +1184,26 @@
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-ad">
-                Advertisement cookies are used to provide visitors with customised advertisements based on the pages you visited previously and to analyse the effectiveness of the ad campaigns.
+                ${config.advertisement_description || "Marketing cookies enable personalized advertising and attribution tracking across third-party platforms."}
               </div>
             </div>
+            ` : ""}
           </div>
 
           <div class="usrly-modal-footer">
-            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-reject">Reject All</button>
-            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-save">Save My Preferences</button>
-            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-accept">Accept All</button>
+            <button class="usrly-btn usrly-btn-secondary" id="usrly-modal-reject">${config.pref_reject_all_label || config.reject_all_label || "Reject All"}</button>
+            <button class="usrly-btn usrly-btn-outline" id="usrly-modal-save">${config.save_preferences_label || "Save My Preferences"}</button>
+            <button class="usrly-btn usrly-btn-primary" id="usrly-modal-accept">${config.pref_accept_all_label || config.accept_all_label || "Accept All"}</button>
           </div>
 
           <div class="usrly-powered-bar">
-            Powered by <strong>usrly</strong>
+            Powered by <strong>Upfront CMP</strong>
           </div>
         </div>
       `;
 
       shadow.appendChild(overlay);
 
-      // Accordion click handlers
       var headers = overlay.querySelectorAll(".usrly-cat-header");
       headers.forEach(function (h) {
         h.addEventListener("click", function (e) {
@@ -892,7 +1220,6 @@
         });
       });
 
-      // Close handler
       function closeModal() {
         overlay.remove();
         if (existingBanner) {
@@ -912,7 +1239,6 @@
         }
       };
 
-      // Modal Action Handlers
       overlay.querySelector("#usrly-modal-accept").onclick = function () {
         applyAndClose({
           consent_given: true,
@@ -924,22 +1250,42 @@
         });
       };
 
-      overlay.querySelector("#usrly-modal-reject").onclick = function () {
-        applyAndClose({
-          consent_given: false,
-          necessary: true,
-          functional: false,
-          analytics: false,
-          performance: false,
-          advertisement: false,
-        });
-      };
+      var modalReject = overlay.querySelector("#usrly-modal-reject");
+      if (modalReject) {
+        modalReject.onclick = function () {
+          if (isCCPA) {
+            applyAndClose({
+              consent_given: false,
+              necessary: true,
+              functional: true,
+              analytics: true,
+              performance: true,
+              advertisement: false,
+              ccpa_opted_out: true,
+            });
+          } else {
+            applyAndClose({
+              consent_given: false,
+              necessary: true,
+              functional: false,
+              analytics: false,
+              performance: false,
+              advertisement: false,
+            });
+          }
+        };
+      }
 
       overlay.querySelector("#usrly-modal-save").onclick = function () {
-        var funcVal = overlay.querySelector("#usrly-toggle-func").checked;
-        var anaVal = overlay.querySelector("#usrly-toggle-ana").checked;
-        var perfVal = overlay.querySelector("#usrly-toggle-perf").checked;
-        var adVal = overlay.querySelector("#usrly-toggle-ad").checked;
+        var funcEl = overlay.querySelector("#usrly-toggle-func");
+        var anaEl = overlay.querySelector("#usrly-toggle-ana");
+        var perfEl = overlay.querySelector("#usrly-toggle-perf");
+        var adEl = overlay.querySelector("#usrly-toggle-ad");
+
+        var funcVal = funcEl ? funcEl.checked : false;
+        var anaVal = anaEl ? anaEl.checked : false;
+        var perfVal = perfEl ? perfEl.checked : false;
+        var adVal = adEl ? adEl.checked : false;
 
         applyAndClose({
           consent_given: funcVal || anaVal || perfVal || adVal,
@@ -957,55 +1303,154 @@
       return;
     }
 
-    // First-visit Banner
+    if (layout === "center_modal" || layout === "popup" || layout === "modal") {
+      var backdrop = document.createElement("div");
+      backdrop.className = "usrly-backdrop";
+      shadow.appendChild(backdrop);
+    }
+
     var banner = document.createElement("div");
-    banner.className = "usrly-banner-wrapper";
+    banner.className = "usrly-banner-wrapper upfront-banner";
     banner.innerHTML = `
       <div class="usrly-banner-inner">
         <div class="usrly-banner-text">
           <div class="usrly-banner-title">${config.title || "We value your privacy"}</div>
           <div class="usrly-banner-desc">
-            ${config.description || "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies."}
-            ${config.privacy_policy_url ? `<a href="${config.privacy_policy_url}" target="_blank">Read More</a>` : ""}
+            ${config.description || "We use cookies and privacy-friendly telemetry to analyze site traffic and enhance your browsing experience. Choose your preferences below."}
+            ${config.privacy_policy_url ? `<a href="${config.privacy_policy_url}" target="_blank" rel="noopener noreferrer">Read Privacy Policy</a>` : ""}
           </div>
         </div>
         <div class="usrly-btn-group">
-          <button class="usrly-btn usrly-btn-outline" id="usrly-btn-customise">${config.preferences_label || "Customise"}</button>
-          <button class="usrly-btn usrly-btn-primary" id="usrly-btn-reject">${config.reject_all_label || "Reject All"}</button>
-          <button class="usrly-btn usrly-btn-primary" id="usrly-btn-accept">${config.accept_all_label || "Accept All"}</button>
+          ${!isNoticeOnly ? `<button class="usrly-btn usrly-btn-outline" id="usrly-btn-customise">${config.preferences_label || "Customise"}</button>` : ""}
+          ${!isNoticeOnly ? `<button class="usrly-btn usrly-btn-secondary" id="usrly-btn-reject">${config.reject_all_label || (isCCPA ? "Do Not Sell My Info" : "Reject All")}</button>` : ""}
+          <button class="usrly-btn usrly-btn-primary" id="usrly-btn-accept">${config.accept_all_label || (isNoticeOnly ? "Got it!" : (isCCPA ? "Accept & Continue" : "Accept All"))}</button>
         </div>
       </div>
     `;
     shadow.appendChild(banner);
 
-    banner.querySelector("#usrly-btn-accept").onclick = function () {
-      applyAndClose({
-        consent_given: true,
-        necessary: true,
-        functional: true,
-        analytics: true,
-        performance: true,
-        advertisement: true,
-      });
-    };
+    var btnAccept = banner.querySelector("#usrly-btn-accept");
+    if (btnAccept) {
+      btnAccept.onclick = function () {
+        applyAndClose({
+          consent_given: true,
+          necessary: true,
+          functional: true,
+          analytics: true,
+          performance: true,
+          advertisement: true,
+        });
+      };
+    }
 
-    banner.querySelector("#usrly-btn-reject").onclick = function () {
-      applyAndClose({
-        consent_given: false,
-        necessary: true,
-        functional: false,
-        analytics: false,
-        performance: false,
-        advertisement: false,
-      });
-    };
+    var btnReject = banner.querySelector("#usrly-btn-reject");
+    if (btnReject) {
+      btnReject.onclick = function () {
+        if (isCCPA) {
+          applyAndClose({
+            consent_given: false,
+            necessary: true,
+            functional: true,
+            analytics: true,
+            performance: true,
+            advertisement: false,
+            ccpa_opted_out: true,
+          });
+        } else {
+          applyAndClose({
+            consent_given: false,
+            necessary: true,
+            functional: false,
+            analytics: false,
+            performance: false,
+            advertisement: false,
+          });
+        }
+      };
+    }
 
-    banner.querySelector("#usrly-btn-customise").onclick = function () {
-      showPreferencesModal();
-    };
+    var btnCustomise = banner.querySelector("#usrly-btn-customise");
+    if (btnCustomise) {
+      btnCustomise.onclick = function () {
+        showPreferencesModal();
+      };
+    }
   }
 
-  // Auto-start CMP & Tracking
+  // 3. EXPOSE DEVELOPER SDK ON window.Userly & window.usrly
+  window.Userly = {
+    track: function (eventName, props) {
+      sendEvent(eventName, props);
+    },
+    showBanner: function () {
+      if (activeConfig) {
+        renderCMP(activeConfig, false);
+      } else {
+        fetchConfigAndRender(false);
+      }
+    },
+    hideBanner: function () {
+      var root = document.getElementById("usrly-cmp-root");
+      if (root) root.remove();
+    },
+    showPreferences: function () {
+      if (activeConfig) {
+        renderCMP(activeConfig, true);
+      } else {
+        fetchConfigAndRender(true);
+      }
+    },
+    getConsent: function () {
+      return getStoredConsent();
+    },
+    hasConsent: function (category) {
+      var c = getStoredConsent();
+      if (!c) return false;
+      if (category) return Boolean(c[category]);
+      return Boolean(c.consent_given);
+    },
+    onConsent: function (callback) {
+      if (typeof callback === "function") {
+        consentListeners.push(callback);
+        var current = getStoredConsent();
+        if (current) {
+          try { callback(current); } catch (e) {}
+        }
+      }
+    },
+    updateConsent: function (categories) {
+      var stored = getStoredConsent() || { necessary: true };
+      var wasAnalytics = Boolean(stored.analytics);
+      var merged = Object.assign({}, stored, categories);
+      merged.consent_given = Boolean(merged.functional || merged.analytics || merged.performance || merged.advertisement);
+      setStoredConsent(merged);
+      dispatchGoogleConsent(merged);
+      unblockGatedScripts(merged);
+      logConsentReceipt(merged);
+      triggerConsentListeners(merged);
+      if (!wasAnalytics && merged.analytics) {
+        triggerPageview();
+      }
+    },
+    resetConsent: function () {
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      initCMP();
+    },
+    isGPC: function () {
+      return isGPCSignal;
+    },
+    isAnalyticsAllowed: function () {
+      return isAnalyticsPermitted();
+    },
+    version: "2.1.0",
+  };
+
+  window.usrly = function (eventName, props) {
+    if (!isAnalyticsPermitted()) return;
+    sendEvent(eventName, props);
+  };
+  window.userly = window.usrly;
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initCMP);
   } else {

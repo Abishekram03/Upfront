@@ -1,9 +1,10 @@
 export function validateAndSanitizeCSS(css?: string | null): {
   isSafe: boolean
   error?: string
+  sanitizedCss: string
 } {
   if (!css || typeof css !== "string" || css.trim().length === 0) {
-    return { isSafe: true }
+    return { isSafe: true, sanitizedCss: "" }
   }
 
   const dangerousPatterns = [
@@ -17,9 +18,9 @@ export function validateAndSanitizeCSS(css?: string | null): {
 
   for (const { pattern, reason } of dangerousPatterns) {
     if (pattern.test(css)) {
-      return { isSafe: false, error: reason }
+      return { isSafe: false, error: reason, sanitizedCss: "" }
     }
   }
 
-  return { isSafe: true }
+  return { isSafe: true, sanitizedCss: css.trim() }
 }

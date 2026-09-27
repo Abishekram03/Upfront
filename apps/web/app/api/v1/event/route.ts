@@ -98,8 +98,19 @@ export async function POST(req: Request) {
     const pathname = urlObj.pathname || "/"
     const referrerSource = parseReferrer(body.referrer, rawDomain)
     const { browser, os, device } = parseUserAgent(ua)
-    const country = req.headers.get("x-vercel-ip-country") || "US"
-    const city = req.headers.get("x-vercel-ip-city") || "Washington"
+    const country = (
+      req.headers.get("cf-ipcountry") ||
+      req.headers.get("x-vercel-ip-country") ||
+      req.headers.get("cloudfront-viewer-country") ||
+      req.headers.get("x-country-code") ||
+      "US"
+    ).toUpperCase().slice(0, 2)
+    const city = (
+      req.headers.get("cf-ipcity") ||
+      req.headers.get("x-vercel-ip-city") ||
+      req.headers.get("cloudfront-viewer-city") ||
+      "Washington"
+    )
 
     // Check active session within last 30 minutes
     const sessionRes = await pool.query(

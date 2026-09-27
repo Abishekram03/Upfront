@@ -198,7 +198,7 @@ export async function POST(req: Request) {
         enable_necessary_category, enable_functional_category,
         enable_analytics_category, enable_performance_category, enable_advertisement_category,
         show_revisit_button, revisit_button_position, enable_consent_mode_v2, geo_targeting,
-        enable_gpc, consent_version,
+        enable_gpc, consent_version, custom_css, law_template,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
@@ -209,7 +209,7 @@ export async function POST(req: Request) {
         $22, $23,
         $24, $25, $26,
         $27, $28, $29, $30,
-        $31, $32,
+        $31, $32, $33, $34,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -243,6 +243,8 @@ export async function POST(req: Request) {
         geo_targeting = EXCLUDED.geo_targeting,
         enable_gpc = EXCLUDED.enable_gpc,
         consent_version = EXCLUDED.consent_version,
+        custom_css = EXCLUDED.custom_css,
+        law_template = EXCLUDED.law_template,
         updated_at = NOW()
       RETURNING *`,
       [
@@ -278,6 +280,8 @@ export async function POST(req: Request) {
         draftConfig.geo_targeting || "all",
         draftConfig.enable_gpc !== undefined ? draftConfig.enable_gpc : true,
         newVersion,
+        draftConfig.custom_css || "",
+        draftConfig.law_template || "gdpr",
       ]
     )
 

@@ -5,6 +5,16 @@ import path from "node:path"
 const TRACKER_SCRIPT = `(function () {
   "use strict";
 
+  if (typeof window !== "undefined") {
+    if (window.__USRLY_PREVIEW_MODE__ || (window.self !== window.top && window.location.pathname.indexOf("preview-proxy") !== -1)) {
+      return;
+    }
+    if (window.__USRLY_INITIALIZED__) {
+      return;
+    }
+    window.__USRLY_INITIALIZED__ = true;
+  }
+
   var currentScript = document.currentScript;
   var domain = (currentScript && currentScript.getAttribute("data-domain")) || window.location.hostname;
   var apiHost = (currentScript && currentScript.getAttribute("data-api")) || (currentScript ? currentScript.src.replace(/\\/userly\\.js.*/, "") : "");
@@ -13,10 +23,12 @@ const TRACKER_SCRIPT = `(function () {
   var analyticsEndpoint = apiHost + "/api/v1/event";
   var consentConfigEndpoint = apiHost + "/api/v1/consent/config?domain=" + encodeURIComponent(domain);
   var consentLogEndpoint = apiHost + "/api/v1/consent/log";
+  var policyEndpoint = apiHost + "/api/v1/consent/policy?domain=" + encodeURIComponent(domain);
 
   var STORAGE_KEY = "usrly_consent_" + domain;
   var consentListeners = [];
   var activeConfig = null;
+  var cachedPolicyCookies = null;
   var isGPCSignal = typeof navigator !== "undefined" && Boolean(navigator.globalPrivacyControl);
 
   // 1. CONSENT MANAGEMENT PLATFORM (CMP) CORE STATE
@@ -238,6 +250,7 @@ const TRACKER_SCRIPT = `(function () {
       advertisement: !!(consent.advertisement || consent.marketing),
       user_agent_category: /mobile/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
       consent_version: version || (activeConfig && activeConfig.consent_version) || "1.0",
+      country: (activeConfig && activeConfig.visitor_country) || undefined,
     };
 
     var body = JSON.stringify(payload);
@@ -261,66 +274,129 @@ const TRACKER_SCRIPT = `(function () {
       return storedConsent[cat] ? "Active / Consented" : "Disabled / Blocked";
     };
 
-    declarationEl.innerHTML = \`
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.6; border: 1px solid #e0ebf8; border-radius: 6px; padding: 24px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e0ebf8; padding-bottom: 16px; margin-bottom: 16px;">
-          <div>
-            <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Cookie Declaration for \${domain}</h3>
-            <p style="font-size: 12px; color: #64748b; margin: 0;">Verified and updated dynamically by Userly CMP</p>
+    function renderDeclaration(cookiesList) {
+      var itemizedRows = "";
+      if (cookiesList && cookiesList.length > 0) {
+        for (var k = 0; k < cookiesList.length; k++) {
+          var c = cookiesList[k];
+          var catKey = (c.category || "functional").toLowerCase();
+          var statusText = isGranted(catKey);
+          var statusColor = catKey === "necessary" ? "#16a34a" : (storedConsent && storedConsent[catKey] ? "#1868db" : "#dc2626");
+          if (!storedConsent) statusColor = "#64748b";
+
+          itemizedRows += '<tr style="border-bottom: 1px solid #f1f5f9;">' +
+            '<td style="padding: 9px 12px; font-weight: 700; color: #0f172a; font-family: monospace;">' + (c.name || "") + '</td>' +
+            '<td style="padding: 9px 12px; text-transform: capitalize; color: #475569;">' + catKey + '</td>' +
+            '<td style="padding: 9px 12px; color: #475569;">' + (c.service_name || "First Party") + '</td>' +
+            '<td style="padding: 9px 12px; color: #64748b;">' + (c.duration || "Session") + '</td>' +
+            '<td style="padding: 9px 12px; color: #475569;">' + (c.description || "Maintains site operation and services.") + '</td>' +
+            '<td style="padding: 9px 12px; font-weight: 700; color: ' + statusColor + ';">' + statusText + '</td>' +
+          '</tr>';
+        }
+      }
+
+      var itemizedSection = "";
+      if (itemizedRows) {
+        itemizedSection = '<div style="margin-top: 24px;">' +
+          '<h4 style="font-size: 15px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;">Itemized Cookie Audit Inventory</h4>' +
+          '<div style="overflow-x: auto;">' +
+            '<table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">' +
+              '<thead>' +
+                '<tr style="background: #f8fbff; border-bottom: 2px solid #e0ebf8; color: #64748b; font-weight: 700;">' +
+                  '<th style="padding: 9px 12px;">Cookie</th>' +
+                  '<th style="padding: 9px 12px;">Category</th>' +
+                  '<th style="padding: 9px 12px;">Provider</th>' +
+                  '<th style="padding: 9px 12px;">Duration</th>' +
+                  '<th style="padding: 9px 12px;">Purpose</th>' +
+                  '<th style="padding: 9px 12px;">Current Status</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody>' + itemizedRows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>';
+      }
+
+      declarationEl.innerHTML = \`
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.6; border: 1px solid #e0ebf8; border-radius: 6px; padding: 24px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e0ebf8; padding-bottom: 16px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0;">Cookie Declaration for \${domain}</h3>
+              <p style="font-size: 12px; color: #64748b; margin: 0;">Verified and updated dynamically by Userly CMP</p>
+            </div>
+            <button id="usrly-open-prefs-btn" style="background: #1868db; color: #ffffff; border: none; padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+              Change Consent Preferences
+            </button>
           </div>
-          <button id="usrly-open-prefs-btn" style="background: #1868db; color: #ffffff; border: none; padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
-            Change Consent Preferences
-          </button>
+
+          <table style="width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left;">
+            <thead>
+              <tr style="background: #f8fbff; border-bottom: 2px solid #e0ebf8; color: #64748b; font-weight: 700;">
+                <th style="padding: 10px 12px;">Category</th>
+                <th style="padding: 10px 12px;">Purpose</th>
+                <th style="padding: 10px 12px;">Current Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Necessary</td>
+                <td style="padding: 10px 12px; color: #475569;">Essential for website security, user authentication, and preference storage.</td>
+                <td style="padding: 10px 12px; color: #16a34a; font-weight: 700;">Always Active</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Functional</td>
+                <td style="padding: 10px 12px; color: #475569;">Social media sharing widgets, user feedback, and interactive tools.</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">\${isGranted("functional")}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Analytics</td>
+                <td style="padding: 10px 12px; color: #475569;">Aggregated cookieless traffic metrics, bounce rate, and referrer data.</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">\${isGranted("analytics")}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Performance</td>
+                <td style="padding: 10px 12px; color: #475569;">Page speed monitoring, latency analysis, and crash reporting.</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">\${isGranted("performance")}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Advertisement</td>
+                <td style="padding: 10px 12px; color: #475569;">Targeted advertising scripts (Meta Pixel, Google Ads, TikTok).</td>
+                <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">\${isGranted("advertisement")}</td>
+              </tr>
+            </tbody>
+          </table>
+          \${itemizedSection}
         </div>
+      \`;
 
-        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left;">
-          <thead>
-            <tr style="background: #f8fbff; border-bottom: 2px solid #e0ebf8; color: #64748b; font-weight: 700;">
-              <th style="padding: 10px 12px;">Category</th>
-              <th style="padding: 10px 12px;">Purpose</th>
-              <th style="padding: 10px 12px;">Current Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Necessary</td>
-              <td style="padding: 10px 12px; color: #475569;">Essential for website security, user authentication, and preference storage.</td>
-              <td style="padding: 10px 12px; color: #16a34a; font-weight: 700;">Always Active</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Functional</td>
-              <td style="padding: 10px 12px; color: #475569;">Social media sharing widgets, user feedback, and interactive tools.</td>
-              <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">\${isGranted("functional")}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Analytics</td>
-              <td style="padding: 10px 12px; color: #475569;">Aggregated cookieless traffic metrics, bounce rate, and referrer data.</td>
-              <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">\${isGranted("analytics")}</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Performance</td>
-              <td style="padding: 10px 12px; color: #475569;">Page speed monitoring, latency analysis, and crash reporting.</td>
-              <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">\${isGranted("performance")}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 12px; font-weight: 700; color: #0f172a;">Advertisement</td>
-              <td style="padding: 10px 12px; color: #475569;">Targeted advertising scripts (Meta Pixel, Google Ads, TikTok).</td>
-              <td style="padding: 10px 12px; font-weight: 600; color: #1868db;">\${isGranted("advertisement")}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    \`;
+      var btn = declarationEl.querySelector("#usrly-open-prefs-btn");
+      if (btn) {
+        btn.onclick = function() {
+          if (activeConfig) {
+            renderCMP(activeConfig, true);
+          } else {
+            fetchConfigAndRender(true);
+          }
+        };
+      }
+    }
 
-    var btn = declarationEl.querySelector("#usrly-open-prefs-btn");
-    if (btn) {
-      btn.onclick = function() {
-        if (activeConfig) {
-          renderCMP(activeConfig, true);
-        } else {
-          fetchConfigAndRender(true);
+    if (cachedPolicyCookies !== null) {
+      renderDeclaration(cachedPolicyCookies);
+    } else {
+      renderDeclaration([]);
+      var pxhr = new XMLHttpRequest();
+      pxhr.open("GET", policyEndpoint, true);
+      pxhr.onload = function() {
+        if (pxhr.status === 200) {
+          try {
+            var pData = JSON.parse(pxhr.responseText);
+            cachedPolicyCookies = pData.cookies || [];
+            renderDeclaration(cachedPolicyCookies);
+          } catch(e) {}
         }
       };
+      pxhr.send();
     }
   }
 
@@ -419,8 +495,10 @@ const TRACKER_SCRIPT = `(function () {
   }
 
   function renderRevisitButtonOnly(storedConsent) {
-    var existingRevisit = document.getElementById("usrly-revisit-root");
-    if (existingRevisit) existingRevisit.remove();
+    var existingRoots = document.querySelectorAll("#usrly-cmp-root, #usrly-revisit-root");
+    for (var r = 0; r < existingRoots.length; r++) {
+      existingRoots[r].remove();
+    }
 
     var host = document.createElement("div");
     host.id = "usrly-revisit-root";
@@ -493,8 +571,10 @@ const TRACKER_SCRIPT = `(function () {
   }
 
   function renderCMP(config, openPreferencesDirectly) {
-    var existingRoot = document.getElementById("usrly-cmp-root");
-    if (existingRoot) existingRoot.remove();
+    var existingRoots = document.querySelectorAll("#usrly-cmp-root, #usrly-revisit-root");
+    for (var r = 0; r < existingRoots.length; r++) {
+      existingRoots[r].remove();
+    }
 
     var host = document.createElement("div");
     host.id = "usrly-cmp-root";
@@ -935,6 +1015,30 @@ const TRACKER_SCRIPT = `(function () {
     \`;
     shadow.appendChild(style);
 
+    if (config.custom_css && typeof config.custom_css === "string" && config.custom_css.trim().length > 0) {
+      var dangerousPatterns = [
+        /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+        /javascript\s*:/gi,
+        /expression\s*\(/gi,
+        /behavior\s*:/gi,
+        /-moz-binding\s*:/gi,
+        /@import\s+(?:url\(['"]?)?https?:\/\//gi,
+      ];
+      var isSafe = true;
+      for (var p = 0; p < dangerousPatterns.length; p++) {
+        if (dangerousPatterns[p].test(config.custom_css)) {
+          isSafe = false;
+          break;
+        }
+      }
+      if (isSafe) {
+        var customStyle = document.createElement("style");
+        customStyle.setAttribute("data-usrly-custom-css", "true");
+        customStyle.textContent = config.custom_css;
+        shadow.appendChild(customStyle);
+      }
+    }
+
     var eff = getEffectiveConsent();
     var stored = getStoredConsent();
     var isNoticeOnly = config.law_template === "notice_only";
@@ -991,10 +1095,10 @@ const TRACKER_SCRIPT = `(function () {
       if (existingBanner) existingBanner.style.display = "none";
 
       var overlay = document.createElement("div");
-      overlay.className = "usrly-modal-overlay";
+      overlay.className = "usrly-modal-overlay upfront-modal-overlay";
 
       overlay.innerHTML = \`
-        <div class="usrly-modal-card">
+        <div class="usrly-modal-card upfront-modal">
           <div class="usrly-modal-header">
             <h3 class="usrly-modal-title">\${config.preferences_title || "Customise Consent Preferences"}</h3>
             <button class="usrly-modal-close" id="usrly-close-modal" aria-label="Close">✕</button>
@@ -1210,7 +1314,7 @@ const TRACKER_SCRIPT = `(function () {
     }
 
     var banner = document.createElement("div");
-    banner.className = "usrly-banner-wrapper";
+    banner.className = "usrly-banner-wrapper upfront-banner";
     banner.innerHTML = \`
       <div class="usrly-banner-inner">
         <div class="usrly-banner-text">

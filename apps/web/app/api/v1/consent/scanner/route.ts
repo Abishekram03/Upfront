@@ -75,6 +75,7 @@ export async function POST(req: Request) {
       : `https://${domain}`
 
     const detectedCookieNames = new Set<string>()
+    const detectedCookieMeta = new Map<string, { duration?: string; isSession?: boolean }>()
     const detectedScripts: string[] = []
     const findings: Array<{ type: "leak" | "info" | "warning"; message: string; severity: "critical" | "medium" | "low" }> = []
 
@@ -95,8 +96,62 @@ export async function POST(req: Request) {
         const setCookieHeaders = response.headers.getSetCookie ? response.headers.getSetCookie() : [response.headers.get("set-cookie") || ""]
         for (const cookieHeader of setCookieHeaders) {
           if (!cookieHeader) continue
-          const cookieName = cookieHeader.split("=")[0]?.trim()
-          if (cookieName) detectedCookieNames.add(cookieName)
+          const parts = cookieHeader.split(";").map((p) => p.trim())
+          const firstPart = parts[0] || ""
+          const cookieName = firstPart.split("=")[0]?.trim()
+          if (!cookieName) continue
+
+          detectedCookieNames.add(cookieName)
+
+          // Parse explicit duration from Set-Cookie header
+          let explicitDuration: string | undefined
+          let hasMaxAgeOrExpires = false
+
+          for (const part of parts.slice(1)) {
+            if (/^max-age=/i.test(part)) {
+              hasMaxAgeOrExpires = true
+              const seconds = parseInt(part.split("=")[1] || "0", 10)
+              if (!isNaN(seconds) && seconds > 0) {
+                if (seconds < 60) explicitDuration = `${seconds} seconds`
+                else if (seconds < 3600) explicitDuration = `${Math.round(seconds / 60)} minutes`
+                else if (seconds < 86400) explicitDuration = `${Math.round(seconds / 3600)} hours`
+                else if (seconds < 2592000) explicitDuration = `${Math.round(seconds / 86400)} days`
+                else if (seconds < 31536000) explicitDuration = `${Math.round(seconds / 2592000)} months`
+                else explicitDuration = `${Math.round(seconds / 31536000)} year${Math.round(seconds / 31536000) > 1 ? "s" : ""}`
+              } else {
+                explicitDuration = "Session"
+              }
+              break
+            }
+            if (/^expires=/i.test(part)) {
+              hasMaxAgeOrExpires = true
+              const dateStr = part.substring(8).trim()
+              const expiryDate = new Date(dateStr)
+              if (!isNaN(expiryDate.getTime())) {
+                const diffMs = expiryDate.getTime() - Date.now()
+                if (diffMs > 0) {
+                  const seconds = Math.round(diffMs / 1000)
+                  if (seconds < 3600) explicitDuration = `${Math.round(seconds / 60)} minutes`
+                  else if (seconds < 86400) explicitDuration = `${Math.round(seconds / 3600)} hours`
+                  else if (seconds < 2592000) explicitDuration = `${Math.round(seconds / 86400)} days`
+                  else if (seconds < 31536000) explicitDuration = `${Math.round(seconds / 2592000)} months`
+                  else explicitDuration = `${Math.round(seconds / 31536000)} year${Math.round(seconds / 31536000) > 1 ? "s" : ""}`
+                } else {
+                  explicitDuration = "Session"
+                }
+              }
+              break
+            }
+          }
+
+          if (!hasMaxAgeOrExpires) {
+            explicitDuration = "Session"
+          }
+
+          detectedCookieMeta.set(cookieName, {
+            duration: explicitDuration,
+            isSession: !hasMaxAgeOrExpires || explicitDuration === "Session",
+          })
         }
 
         const html = await response.text().catch(() => "")
@@ -146,6 +201,10 @@ export async function POST(req: Request) {
     const discoveredList = []
     for (const cookieName of detectedCookieNames) {
       const classified = classifyCookieName(cookieName)
+      const headerMeta = detectedCookieMeta?.get(cookieName)
+
+      // Duration precedence: Set-Cookie Header (Expires/Max-Age/Session) -> Open Cookie DB taxonomy -> Default "Session"
+      const finalDuration = headerMeta?.duration || classified.duration || "Session"
 
       const existingRes = await pool.query(
         `SELECT id FROM discovered_cookies WHERE domain = $1 AND name = $2`,
@@ -156,9 +215,10 @@ export async function POST(req: Request) {
         await pool.query(
           `UPDATE discovered_cookies 
            SET last_detected_at = NOW(),
-               script_pattern_regex = COALESCE($1, script_pattern_regex)
-           WHERE id = $2`,
-          [classified.script_pattern_regex, existingRes.rows[0].id]
+               duration = COALESCE(NULLIF($1, 'Unknown'), duration),
+               script_pattern_regex = COALESCE($2, script_pattern_regex)
+           WHERE id = $3`,
+          [finalDuration, classified.script_pattern_regex, existingRes.rows[0].id]
         )
       } else {
         const id = randomUUID()
@@ -174,7 +234,7 @@ export async function POST(req: Request) {
             classified.name,
             classified.category,
             classified.service_name,
-            classified.duration,
+            finalDuration,
             classified.description,
             classified.confidence,
             classified.status,
@@ -182,7 +242,10 @@ export async function POST(req: Request) {
           ]
         )
       }
-      discoveredList.push(classified)
+      discoveredList.push({
+        ...classified,
+        duration: finalDuration,
+      })
     }
 
     // Create a new scan record

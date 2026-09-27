@@ -70,6 +70,8 @@ export const pool =
     idleTimeoutMillis: 30000,
   })
 
+export const db = pool
+
 if (process.env.NODE_ENV !== "production") {
   global._pgPool = pool
 }
@@ -268,6 +270,8 @@ export async function ensureTables() {
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS cookie_column_label VARCHAR(100) DEFAULT 'Cookie';
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS duration_column_label VARCHAR(100) DEFAULT 'Duration';
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS description_column_label VARCHAR(100) DEFAULT 'Description';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS custom_css TEXT;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS law_template VARCHAR(50) DEFAULT 'gdpr';
         ALTER TABLE consent_receipts ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
         ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS script_pattern_regex TEXT;
 
@@ -329,6 +333,40 @@ export async function ensureTables() {
           UNIQUE(domain, version)
         );
         CREATE INDEX IF NOT EXISTS ix_consent_versions_domain_pub ON consent_versions(domain, published_at DESC);
+
+        -- Cookie Policy Published Configuration
+        CREATE TABLE IF NOT EXISTS cookie_policies (
+          id VARCHAR(36) PRIMARY KEY,
+          site_id VARCHAR(36),
+          domain VARCHAR(255) UNIQUE NOT NULL,
+          company_name VARCHAR(255) NOT NULL DEFAULT 'Acme Corporation',
+          website_url VARCHAR(500) NOT NULL DEFAULT '',
+          contact_email VARCHAR(255) NOT NULL DEFAULT 'privacy@example.com',
+          effective_date VARCHAR(50) NOT NULL DEFAULT '',
+          law_template VARCHAR(50) DEFAULT 'gdpr',
+          enable_gpc_clause BOOLEAN DEFAULT TRUE,
+          enable_gcm_clause BOOLEAN DEFAULT TRUE,
+          custom_clauses JSONB DEFAULT '[]'::jsonb,
+          is_published BOOLEAN DEFAULT TRUE,
+          policy_version VARCHAR(20) DEFAULT '1.0',
+          created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          published_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          published_by VARCHAR(64)
+        );
+        CREATE INDEX IF NOT EXISTS ix_cookie_policies_domain ON cookie_policies(domain);
+
+        -- Cookie Policy Working Drafts
+        CREATE TABLE IF NOT EXISTS cookie_policy_drafts (
+          id VARCHAR(36) PRIMARY KEY,
+          domain VARCHAR(255) UNIQUE NOT NULL,
+          site_id VARCHAR(36),
+          base_version VARCHAR(20) DEFAULT '1.0',
+          draft_config JSONB NOT NULL,
+          updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          updated_by VARCHAR(64)
+        );
+        CREATE INDEX IF NOT EXISTS ix_cookie_policy_drafts_domain ON cookie_policy_drafts(domain);
       `)
       tablesInitialized = true
     } finally {

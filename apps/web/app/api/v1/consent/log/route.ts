@@ -19,7 +19,7 @@ interface ReceiptRecord {
   id: string
   domain: string
   visitor_hash: string
-  country: string
+  country: string | null
   consent_given: boolean
   necessary: boolean
   functional: boolean
@@ -111,12 +111,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ detail: "Domain is required" }, { status: 400, headers: CORS_HEADERS })
     }
 
+    const rawHeaderCountry = (
+      req.headers.get("cf-ipcountry") ||
+      req.headers.get("x-vercel-ip-country") ||
+      req.headers.get("cloudfront-viewer-country") ||
+      req.headers.get("x-country-code") ||
+      ""
+    ).trim().toUpperCase().slice(0, 2)
+
+    const isValidHeaderCountry = /^[A-Z]{2}$/.test(rawHeaderCountry) && rawHeaderCountry !== "XX" && rawHeaderCountry !== "T1"
+    const detectedHeaderCountry = isValidHeaderCountry ? rawHeaderCountry : null
+
+    const rawPayloadCountry = typeof payload.country === "string" ? payload.country.trim().toUpperCase().slice(0, 2) : ""
+    const isValidPayloadCountry = /^[A-Z]{2}$/.test(rawPayloadCountry) && rawPayloadCountry !== "XX" && rawPayloadCountry !== "T1"
+    const detectedPayloadCountry = isValidPayloadCountry ? rawPayloadCountry : null
+
+    const finalReceiptCountry = detectedPayloadCountry || detectedHeaderCountry || null
+
     const receiptId = randomUUID()
     const record: ReceiptRecord = {
       id: receiptId,
       domain: cleanDomain,
       visitor_hash: payload.visitor_hash || "anonymous",
-      country: payload.country || "US",
+      country: finalReceiptCountry,
       consent_given: payload.consent_given !== undefined ? Boolean(payload.consent_given) : true,
       necessary: true,
       functional: Boolean(payload.functional),

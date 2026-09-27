@@ -61,7 +61,7 @@ const COLOR_PRESETS = [
 ]
 
 export function BannerStudio() {
-  const { activeDomain } = useDomain()
+  const { activeDomain, isLoadingSites } = useDomain()
 
   // Studio vertical tab rail: general | layout | content | colours | custom_css
   const [activeRailTab, setActiveRailTab] = useState<"general" | "layout" | "content" | "colours" | "custom_css">("layout")
@@ -1319,7 +1319,7 @@ export function BannerStudio() {
                       <button
                         key={p.hex}
                         type="button"
-                        onClick={() => setConfig({ ...config, primary_color: p.hex })}
+                        onClick={() => updateConfig((prev) => ({ ...prev, primary_color: p.hex }))}
                         title={p.name}
                         className={cn(
                           "size-7 rounded-[4px] border flex items-center justify-center transition-transform cursor-pointer",
@@ -1333,7 +1333,7 @@ export function BannerStudio() {
                     <input
                       type="color"
                       value={config.primary_color}
-                      onChange={(e) => setConfig({ ...config, primary_color: e.target.value })}
+                      onChange={(e) => updateConfig((prev) => ({ ...prev, primary_color: e.target.value }))}
                       className="size-6 rounded cursor-pointer border-none bg-transparent ml-auto"
                     />
                   </div>
@@ -1346,7 +1346,7 @@ export function BannerStudio() {
                       <button
                         key={t}
                         type="button"
-                        onClick={() => setConfig({ ...config, theme: t })}
+                        onClick={() => updateConfig((prev) => ({ ...prev, theme: t }))}
                         className={cn(
                           "p-2 rounded-[4px] border capitalize font-bold cursor-pointer transition-colors",
                           config.theme === t ? "border-[#1868db] bg-blue-50 text-[#1868db]" : "border-slate-200 text-slate-700 hover:bg-slate-50"
@@ -1365,13 +1365,26 @@ export function BannerStudio() {
             {/* ======================================================== */}
             {activeRailTab === "custom_css" && (
               <div className="space-y-3">
-                <div className="text-xs font-bold text-slate-800">Custom CSS Overrides</div>
-                <p className="text-[11px] text-slate-500">Add custom CSS rules targeting <code>.upfront-banner</code> or <code>.upfront-modal</code>.</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-slate-800">Custom CSS Overrides</div>
+                  {Boolean(config.custom_css?.trim()) && (
+                    <button
+                      type="button"
+                      onClick={() => updateConfig((prev) => ({ ...prev, custom_css: "" }))}
+                      className="text-[11px] font-bold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                    >
+                      Reset to Default
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Add custom CSS rules targeting <code>.upfront-banner</code> or <code>.upfront-modal</code>. Clear this field or click &apos;Reset to Default&apos; to restore the original styling.
+                </p>
                 <textarea
                   rows={8}
                   placeholder="/* Custom CSS */&#10;.upfront-banner { font-family: Inter, sans-serif; }"
                   value={config.custom_css || ""}
-                  onChange={(e) => setConfig({ ...config, custom_css: e.target.value })}
+                  onChange={(e) => updateConfig((prev) => ({ ...prev, custom_css: e.target.value }))}
                   className="w-full p-2 text-xs font-mono rounded-[4px] border border-slate-200 bg-slate-900 text-slate-100 focus:outline-hidden leading-relaxed"
                 />
               </div>
@@ -1486,7 +1499,7 @@ export function BannerStudio() {
           <div className="flex-1 flex items-center justify-center overflow-hidden py-1">
             <div
               className={cn(
-                "relative bg-white border border-slate-200 rounded-[6px] overflow-hidden shadow-xl transition-all duration-300 flex flex-col justify-between h-[560px] max-h-full",
+                "relative bg-white border border-slate-200 rounded-[6px] overflow-hidden shadow-xl transition-all duration-300 flex flex-col justify-between h-[560px] max-h-full upfront-banner-canvas",
                 previewDevice === "desktop"
                   ? "w-full max-w-[980px]"
                   : previewDevice === "tablet"
@@ -1494,23 +1507,86 @@ export function BannerStudio() {
                   : "w-[350px]"
               )}
             >
+              {/* CMP & Custom CSS Scoped Styles */}
+              <style
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    .upfront-banner-canvas {
+                      --usrly-primary: ${config.primary_color || "#1868db"};
+                      --usrly-bg: ${config.theme === "dark" ? "#0f172a" : "#ffffff"};
+                      --usrly-text: ${config.theme === "dark" ? "#f8fafc" : "#0f172a"};
+                      --usrly-text-muted: ${config.theme === "dark" ? "#94a3b8" : "#64748b"};
+                      --usrly-border: ${config.theme === "dark" ? "#334155" : "#e2e8f0"};
+                      --usrly-radius: ${config.border_radius === "rounded-full" ? "9999px" : config.border_radius === "rounded-lg" ? "12px" : config.border_radius === "rounded-none" ? "0px" : "6px"};
+                    }
+                    .upfront-banner-canvas .usrly-btn-primary {
+                      background-color: var(--usrly-primary);
+                      color: #ffffff;
+                    }
+                    .upfront-banner-canvas .usrly-btn-outline {
+                      border-color: var(--usrly-primary);
+                      color: var(--usrly-primary);
+                    }
+                    .upfront-banner-canvas .usrly-btn-secondary {
+                      background-color: ${config.theme === "dark" ? "#1e293b" : "#ffffff"};
+                      color: ${config.theme === "dark" ? "#f8fafc" : "#0f172a"};
+                      border-color: ${config.theme === "dark" ? "#334155" : "#e2e8f0"};
+                    }
+                    ${config.custom_css ? validateAndSanitizeCSS(config.custom_css).sanitizedCss || "" : ""}
+                  `,
+                }}
+              />
 
               {/* Webpage Content: Real Live Site via Preview Proxy */}
               <div className="relative w-full h-full flex-1 overflow-hidden bg-white">
-                {iframeLoading && (
+                {isLoadingSites ? (
                   <div className="absolute inset-0 bg-slate-50/90 flex flex-col items-center justify-center text-xs text-slate-500 gap-2 z-5">
                     <div className="size-5 border-2 border-[#1868db] border-t-transparent rounded-full animate-spin" />
-                    <span>Loading live preview of <strong>{activeDomain || "your website"}</strong>...</span>
+                    <span>Loading website preview...</span>
+                  </div>
+                ) : activeDomain ? (
+                  <>
+                    {iframeLoading && (
+                      <div className="absolute inset-0 bg-slate-50/90 flex flex-col items-center justify-center text-xs text-slate-500 gap-2 z-5">
+                        <div className="size-5 border-2 border-[#1868db] border-t-transparent rounded-full animate-spin" />
+                        <span>Loading live preview of <strong>{activeDomain}</strong>...</span>
+                      </div>
+                    )}
+                    <iframe
+                      key={activeDomain}
+                      src={`/api/v1/consent/preview-proxy?domain=${encodeURIComponent(activeDomain)}`}
+                      onLoad={() => setIframeLoading(false)}
+                      className="w-full h-full border-0 pointer-events-none opacity-90 select-none bg-white"
+                      title="Live Website Canvas"
+                      sandbox="allow-same-origin allow-scripts"
+                    />
+                  </>
+                ) : (
+                  <div className="w-full h-full p-6 sm:p-10 bg-slate-50 flex flex-col justify-start overflow-hidden select-none pointer-events-none">
+                    <div className="max-w-3xl w-full mx-auto space-y-6 pt-4">
+                      <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-md bg-blue-600/80" />
+                          <div className="h-4 w-24 bg-slate-300 rounded" />
+                        </div>
+                        <div className="flex gap-4">
+                          <div className="h-3 w-12 bg-slate-200 rounded" />
+                          <div className="h-3 w-12 bg-slate-200 rounded" />
+                          <div className="h-3 w-12 bg-slate-200 rounded" />
+                        </div>
+                      </div>
+                      <div className="space-y-3 pt-6">
+                        <div className="h-7 w-3/4 bg-slate-300 rounded" />
+                        <div className="h-4 w-full bg-slate-200 rounded" />
+                        <div className="h-4 w-5/6 bg-slate-200 rounded" />
+                      </div>
+                      <div className="flex gap-3 pt-2">
+                        <div className="h-8 w-24 bg-blue-600/70 rounded" />
+                        <div className="h-8 w-24 bg-slate-200 rounded" />
+                      </div>
+                    </div>
                   </div>
                 )}
-                <iframe
-                  key={activeDomain || "preview"}
-                  src={`/api/v1/consent/preview-proxy?domain=${encodeURIComponent(activeDomain || "")}`}
-                  onLoad={() => setIframeLoading(false)}
-                  className="w-full h-full border-0 pointer-events-none opacity-90 select-none bg-white"
-                  title="Live Website Canvas"
-                  sandbox="allow-same-origin allow-scripts"
-                />
               </div>
 
               {/* LIVE NOTICE BANNER OVERLAY */}
@@ -1519,31 +1595,33 @@ export function BannerStudio() {
                   {config.layout === "center_modal" ? (
                     <div className="absolute inset-0 z-20 bg-slate-950/45 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in-0">
                       <div className={cn(
-                        "bg-white rounded-[6px] shadow-2xl p-4.5 sm:p-5 border border-slate-200 space-y-3.5 animate-in zoom-in-95",
+                        "usrly-banner-wrapper upfront-banner rounded-[6px] shadow-2xl p-4.5 sm:p-5 border space-y-3.5 animate-in zoom-in-95",
+                        config.theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900",
                         previewDevice === "mobile" ? "w-full mx-1" : "w-full max-w-[480px]"
                       )}>
                         <div className="flex items-start justify-between">
-                          <h4 className="text-sm font-bold text-slate-900 leading-snug">{config.title}</h4>
+                          <h4 className={cn("usrly-banner-title text-sm font-bold leading-snug", config.theme === "dark" ? "text-white" : "text-slate-900")}>{config.title}</h4>
                           {config.show_close_button && (
-                            <button type="button" className="text-slate-400 hover:text-slate-700 text-xs ml-2">✕</button>
+                            <button type="button" className={cn("text-xs ml-2", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400 hover:text-slate-700")}>✕</button>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-600 leading-relaxed">{config.description}</p>
+                        <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{config.description}</p>
 
                         <div className={cn(
+                          "usrly-btn-group pt-3 border-t w-full",
                           previewDevice === "mobile"
-                            ? "flex flex-col gap-2 pt-3 border-t border-slate-100 w-full"
-                            : "flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100 w-full"
+                            ? "flex flex-col gap-2"
+                            : "flex flex-wrap items-center justify-end gap-2",
+                          config.theme === "dark" ? "border-slate-800" : "border-slate-100"
                         )}>
                           {(config as any).law_template !== "notice_only" && (
                             <button
                               type="button"
                               onClick={() => setPreviewView("preferences")}
                               className={cn(
-                                "px-3 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
+                                "usrly-btn usrly-btn-outline px-3 py-2 text-xs font-bold rounded-[4px] border-2 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
                                 previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
                               )}
-                              style={{ borderColor: config.primary_color, color: config.primary_color }}
                             >
                               {config.preferences_label}
                             </button>
@@ -1552,10 +1630,9 @@ export function BannerStudio() {
                             <button
                               type="button"
                               className={cn(
-                                "px-3 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                                "usrly-btn usrly-btn-secondary px-3 py-2 text-xs font-bold rounded-[4px] border transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
                                 previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[110px]"
                               )}
-                              style={{ backgroundColor: config.primary_color }}
                             >
                               {config.reject_all_label}
                             </button>
@@ -1563,10 +1640,9 @@ export function BannerStudio() {
                           <button
                             type="button"
                             className={cn(
-                              "px-3 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                              "usrly-btn usrly-btn-primary px-3 py-2 text-xs font-bold rounded-[4px] shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
                               previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "flex-1 min-w-[110px]"
                             )}
-                            style={{ backgroundColor: config.primary_color }}
                           >
                             {config.accept_all_label}
                           </button>
@@ -1574,34 +1650,38 @@ export function BannerStudio() {
                       </div>
                     </div>
                   ) : config.layout === "bottom_bar" ? (
-                    <div className="p-3.5 sm:p-4 bg-white border-t border-slate-200 shadow-xl transition-all z-10 shrink-0">
+                    <div className={cn(
+                      "usrly-banner-wrapper upfront-banner p-3.5 sm:p-4 border-t shadow-xl transition-all z-10 shrink-0",
+                      config.theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
+                    )}>
                       <div className={cn(
+                        "usrly-banner-inner",
                         previewDevice === "mobile"
                           ? "flex flex-col gap-3 w-full"
                           : "flex flex-col md:flex-row md:items-center justify-between gap-3"
                       )}>
-                        <div className="space-y-1 w-full flex-1">
+                        <div className="usrly-banner-text space-y-1 w-full flex-1">
                           <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-bold text-slate-900">{config.title}</h4>
-                            {config.show_close_button && <button type="button" className="text-slate-400 text-xs ml-2">✕</button>}
+                            <h4 className={cn("usrly-banner-title text-xs font-bold", config.theme === "dark" ? "text-white" : "text-slate-900")}>{config.title}</h4>
+                            {config.show_close_button && <button type="button" className={cn("text-xs ml-2", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400")}>✕</button>}
                           </div>
-                          <p className="text-[11px] text-slate-600 leading-relaxed">{config.description}</p>
+                          <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{config.description}</p>
                         </div>
 
                         <div className={cn(
+                          "usrly-btn-group shrink-0",
                           previewDevice === "mobile"
-                            ? "flex flex-col gap-2 w-full pt-1 shrink-0"
-                            : "flex flex-wrap items-center justify-end gap-2 shrink-0"
+                            ? "flex flex-col gap-2 w-full pt-1"
+                            : "flex flex-wrap items-center justify-end gap-2"
                         )}>
                           {(config as any).law_template !== "notice_only" && (
                             <button
                               type="button"
                               onClick={() => setPreviewView("preferences")}
                               className={cn(
-                                "px-3.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
+                                "usrly-btn usrly-btn-outline px-3.5 py-2 text-xs font-bold rounded-[4px] border-2 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
                                 previewDevice === "mobile" ? "w-full" : "min-w-fit"
                               )}
-                              style={{ borderColor: config.primary_color, color: config.primary_color }}
                             >
                               {config.preferences_label}
                             </button>
@@ -1610,10 +1690,9 @@ export function BannerStudio() {
                             <button
                               type="button"
                               className={cn(
-                                "px-3.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                                "usrly-btn usrly-btn-secondary px-3.5 py-2 text-xs font-bold rounded-[4px] border transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
                                 previewDevice === "mobile" ? "w-full" : "min-w-fit"
                               )}
-                              style={{ backgroundColor: config.primary_color }}
                             >
                               {config.reject_all_label}
                             </button>
@@ -1621,10 +1700,9 @@ export function BannerStudio() {
                           <button
                             type="button"
                             className={cn(
-                              "px-4 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                              "usrly-btn usrly-btn-primary px-4 py-2 text-xs font-bold rounded-[4px] shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
                               previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "min-w-fit"
                             )}
-                            style={{ backgroundColor: config.primary_color }}
                           >
                             {config.accept_all_label}
                           </button>
@@ -1635,7 +1713,8 @@ export function BannerStudio() {
                     /* BOX POSITIONING: 4 CORNERS */
                     <div
                       className={cn(
-                        "p-3.5 sm:p-4 bg-white rounded-[6px] border border-slate-200 shadow-2xl transition-all z-10 space-y-3 absolute",
+                        "usrly-banner-wrapper upfront-banner p-3.5 sm:p-4 rounded-[6px] border shadow-2xl transition-all z-10 space-y-3 absolute",
+                        config.theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900",
                         previewDevice === "mobile"
                           ? "left-2.5 right-2.5 bottom-2.5 max-w-none m-0"
                           : cn(
@@ -1648,25 +1727,25 @@ export function BannerStudio() {
                       )}
                     >
                       <div className="flex items-start justify-between">
-                        <h4 className="text-xs font-bold text-slate-900 leading-snug">{config.title}</h4>
-                        {config.show_close_button && <button type="button" className="text-slate-400 text-xs ml-2">✕</button>}
+                        <h4 className={cn("usrly-banner-title text-xs font-bold leading-snug", config.theme === "dark" ? "text-white" : "text-slate-900")}>{config.title}</h4>
+                        {config.show_close_button && <button type="button" className={cn("text-xs ml-2", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400")}>✕</button>}
                       </div>
-                      <p className="text-[11px] text-slate-600 leading-relaxed">{config.description}</p>
+                      <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{config.description}</p>
 
                       <div className={cn(
+                        "usrly-btn-group pt-2 w-full",
                         previewDevice === "mobile"
-                          ? "flex flex-col gap-2 pt-2 w-full"
-                          : "flex flex-wrap gap-2 pt-2 w-full"
+                          ? "flex flex-col gap-2"
+                          : "flex flex-wrap gap-2"
                       )}>
                         {(config as any).law_template !== "notice_only" && (
                           <button
                             type="button"
                             onClick={() => setPreviewView("preferences")}
                             className={cn(
-                              "px-2.5 py-2 text-xs font-bold rounded-[4px] border-2 bg-white hover:bg-slate-50 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
+                              "usrly-btn usrly-btn-outline px-2.5 py-2 text-xs font-bold rounded-[4px] border-2 transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
                               previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
                             )}
-                            style={{ borderColor: config.primary_color, color: config.primary_color }}
                           >
                             {config.preferences_label}
                           </button>
@@ -1675,10 +1754,9 @@ export function BannerStudio() {
                           <button
                             type="button"
                             className={cn(
-                              "px-2.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                              "usrly-btn usrly-btn-secondary px-2.5 py-2 text-xs font-bold rounded-[4px] border transition-all shadow-2xs text-center whitespace-normal break-words leading-tight cursor-pointer",
                               previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[90px]"
                             )}
-                            style={{ backgroundColor: config.primary_color }}
                           >
                             {config.reject_all_label}
                           </button>
@@ -1686,10 +1764,9 @@ export function BannerStudio() {
                         <button
                           type="button"
                           className={cn(
-                            "px-2.5 py-2 text-xs font-bold rounded-[4px] text-white shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
+                            "usrly-btn usrly-btn-primary px-2.5 py-2 text-xs font-bold rounded-[4px] shadow-xs transition-all text-center whitespace-normal break-words leading-tight cursor-pointer",
                             previewDevice === "mobile" || (config as any).law_template === "notice_only" ? "w-full" : "flex-1 min-w-[90px]"
                           )}
-                          style={{ backgroundColor: config.primary_color }}
                         >
                           {config.accept_all_label}
                         </button>
@@ -1701,25 +1778,34 @@ export function BannerStudio() {
 
               {/* LIVE PREFERENCE CENTRE OVERLAY */}
               {previewView === "preferences" && (
-                <div className="absolute inset-0 z-20 bg-slate-950/60 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in-0">
-                  <div className="bg-white rounded-[6px] shadow-2xl w-full max-w-[480px] max-h-[480px] flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95">
+                <div className="absolute inset-0 z-20 bg-slate-950/60 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in-0 usrly-modal-overlay">
+                  <div className={cn(
+                    "rounded-[6px] shadow-2xl w-full max-w-[480px] max-h-[480px] flex flex-col overflow-hidden border animate-in zoom-in-95 usrly-modal upfront-modal",
+                    config.theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
+                  )}>
                     {/* Header */}
-                    <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
-                      <h3 className="text-xs font-bold text-slate-900">
+                    <div className={cn(
+                      "usrly-modal-header px-4 py-3 border-b flex items-center justify-between shrink-0",
+                      config.theme === "dark" ? "bg-slate-900 border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"
+                    )}>
+                      <h3 className="usrly-modal-title text-xs font-bold">
                         {config.preference_title || "Customise Consent Preferences"}
                       </h3>
                       <button
                         type="button"
                         onClick={() => setPreviewView("notice")}
-                        className="text-slate-400 hover:text-slate-700 text-xs font-bold cursor-pointer"
+                        className={cn("text-xs font-bold cursor-pointer", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400 hover:text-slate-700")}
                       >
                         ✕
                       </button>
                     </div>
 
                     {/* Body & Categories */}
-                    <div className="p-4 overflow-y-auto space-y-3 text-[11px] text-slate-600 flex-1">
-                      <div className="text-slate-500 leading-relaxed">
+                    <div className={cn(
+                      "usrly-modal-body p-4 overflow-y-auto space-y-3 text-[11px] flex-1",
+                      config.theme === "dark" ? "text-slate-300" : "text-slate-600"
+                    )}>
+                      <div className={cn("leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-500")}>
                         <span className={cn(!isPrefDescExpanded && "line-clamp-2")}>
                           {config.preference_description ||
                             "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below."}
@@ -1736,7 +1822,10 @@ export function BannerStudio() {
                       </div>
 
                       {config.show_google_privacy_policy && (
-                        <div className="p-2 bg-slate-50 border border-slate-200 rounded text-[10.5px] text-slate-600">
+                        <div className={cn(
+                          "p-2 rounded text-[10.5px] border",
+                          config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                        )}>
                           {config.google_policy_message || "For more information on how Google's third-party cookies operate, see"}{" "}
                           <a href={config.google_policy_url} target="_blank" rel="noreferrer" className="text-[#1868db] underline font-bold">
                             {config.google_policy_link_text || "Google Privacy Policy"}
@@ -1745,12 +1834,12 @@ export function BannerStudio() {
                       )}
 
                       {/* 1. Necessary */}
-                      <div className="border-t border-slate-200 pt-2 space-y-1.5">
+                      <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
                         <div
                           className="flex items-center justify-between cursor-pointer py-1"
                           onClick={() => toggleMockAccordion("necessary")}
                         >
-                          <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                          <div className={cn("flex items-center gap-1.5 font-bold", config.theme === "dark" ? "text-white" : "text-slate-900")}>
                             <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.necessary && "rotate-90")} />
                             {config.necessary_title || "Necessary"}
                           </div>
@@ -1760,26 +1849,32 @@ export function BannerStudio() {
                         </div>
                         {mockExpanded.necessary && (
                           <div className="pl-4 space-y-2">
-                            <p className="text-[10px] text-slate-500 leading-relaxed">
+                            <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
                               {config.necessary_description ||
                                 "Necessary cookies are required to enable basic features of this site, such as providing secure log-in or adjusting consent preferences."}
                             </p>
                             {config.show_cookie_list_on_banner !== false && (
-                              <div className="bg-slate-50 rounded border border-slate-200 p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto">
-                                <div className="font-sans font-bold text-slate-700 grid grid-cols-12 text-[10px] pb-1 border-b border-slate-200 min-w-[280px]">
+                              <div className={cn(
+                                "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
+                                config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                              )}>
+                                <div className={cn(
+                                  "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
+                                  config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-700 border-slate-200"
+                                )}>
                                   <span className="col-span-4">{config.cookie_column_label || "Cookie"}</span>
                                   <span className="col-span-3">{config.duration_column_label || "Duration"}</span>
                                   <span className="col-span-5">{config.description_column_label || "Description"}</span>
                                 </div>
-                                <div className="grid grid-cols-12 text-slate-600 pt-1 items-center min-w-[280px]">
-                                  <span className="col-span-4 font-bold text-slate-800">usrly_consent</span>
-                                  <span className="col-span-3 text-slate-500">1 year</span>
-                                  <span className="col-span-5 text-slate-500 font-sans text-[9px] truncate">Consent preferences state</span>
+                                <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
+                                  <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>usrly_consent</span>
+                                  <span className={cn("col-span-3", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>1 year</span>
+                                  <span className={cn("col-span-5 font-sans text-[9px] truncate", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>Consent preferences state</span>
                                 </div>
-                                <div className="grid grid-cols-12 text-slate-600 pt-0.5 items-center min-w-[280px]">
-                                  <span className="col-span-4 font-bold text-slate-800">cf_clearance</span>
-                                  <span className="col-span-3 text-slate-500">30 days</span>
-                                  <span className="col-span-5 text-slate-500 font-sans text-[9px] truncate">Cloudflare bot clearance</span>
+                                <div className="grid grid-cols-12 pt-0.5 items-center min-w-[280px]">
+                                  <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>cf_clearance</span>
+                                  <span className={cn("col-span-3", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>30 days</span>
+                                  <span className={cn("col-span-5 font-sans text-[9px] truncate", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>Cloudflare bot clearance</span>
                                 </div>
                               </div>
                             )}
@@ -1789,10 +1884,10 @@ export function BannerStudio() {
 
                       {/* 2. Functional */}
                       {config.enable_functional_category && (
-                        <div className="border-t border-slate-200 pt-2 space-y-1.5">
+                        <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
                           <div className="flex items-center justify-between py-1">
                             <div
-                              className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer"
+                              className={cn("flex items-center gap-1.5 font-bold cursor-pointer", config.theme === "dark" ? "text-white" : "text-slate-900")}
                               onClick={() => toggleMockAccordion("functional")}
                             >
                               <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.functional && "rotate-90")} />
@@ -1807,21 +1902,27 @@ export function BannerStudio() {
                           </div>
                           {mockExpanded.functional && (
                             <div className="pl-4 space-y-2">
-                              <p className="text-[10px] text-slate-500 leading-relaxed">
+                              <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
                                 {config.functional_description ||
                                   "Functional cookies help perform functionalities like sharing content on social media, collecting feedback, and video embeds."}
                               </p>
                               {config.show_cookie_list_on_banner !== false && (
-                                <div className="bg-slate-50 rounded border border-slate-200 p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto">
-                                  <div className="font-sans font-bold text-slate-700 grid grid-cols-12 text-[10px] pb-1 border-b border-slate-200 min-w-[280px]">
+                                <div className={cn(
+                                  "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
+                                  config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                                )}>
+                                  <div className={cn(
+                                    "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
+                                    config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-700 border-slate-200"
+                                  )}>
                                     <span className="col-span-4">{config.cookie_column_label || "Cookie"}</span>
                                     <span className="col-span-3">{config.duration_column_label || "Duration"}</span>
                                     <span className="col-span-5">{config.description_column_label || "Description"}</span>
                                   </div>
-                                  <div className="grid grid-cols-12 text-slate-600 pt-1 items-center min-w-[280px]">
-                                    <span className="col-span-4 font-bold text-slate-800">i18n_lang</span>
-                                    <span className="col-span-3 text-slate-500">Session</span>
-                                    <span className="col-span-5 text-slate-500 font-sans text-[9px] truncate">User language choice</span>
+                                  <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
+                                    <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>i18n_lang</span>
+                                    <span className={cn("col-span-3", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>Session</span>
+                                    <span className={cn("col-span-5 font-sans text-[9px] truncate", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>User language choice</span>
                                   </div>
                                 </div>
                               )}
@@ -1832,10 +1933,10 @@ export function BannerStudio() {
 
                       {/* 3. Analytics */}
                       {config.enable_analytics_category && (
-                        <div className="border-t border-slate-200 pt-2 space-y-1.5">
+                        <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
                           <div className="flex items-center justify-between py-1">
                             <div
-                              className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer"
+                              className={cn("flex items-center gap-1.5 font-bold cursor-pointer", config.theme === "dark" ? "text-white" : "text-slate-900")}
                               onClick={() => toggleMockAccordion("analytics")}
                             >
                               <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.analytics && "rotate-90")} />
@@ -1850,26 +1951,32 @@ export function BannerStudio() {
                           </div>
                           {mockExpanded.analytics && (
                             <div className="pl-4 space-y-2">
-                              <p className="text-[10px] text-slate-500 leading-relaxed">
+                              <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
                                 {config.analytics_description ||
                                   "Analytical cookies are used to understand visitor interaction, bounce rate, traffic source, etc."}
                               </p>
                               {config.show_cookie_list_on_banner !== false && (
-                                <div className="bg-slate-50 rounded border border-slate-200 p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto">
-                                  <div className="font-sans font-bold text-slate-700 grid grid-cols-12 text-[10px] pb-1 border-b border-slate-200 min-w-[280px]">
+                                <div className={cn(
+                                  "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
+                                  config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                                )}>
+                                  <div className={cn(
+                                    "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
+                                    config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-700 border-slate-200"
+                                  )}>
                                     <span className="col-span-4">{config.cookie_column_label || "Cookie"}</span>
                                     <span className="col-span-3">{config.duration_column_label || "Duration"}</span>
                                     <span className="col-span-5">{config.description_column_label || "Description"}</span>
                                   </div>
-                                  <div className="grid grid-cols-12 text-slate-600 pt-1 items-center min-w-[280px]">
-                                    <span className="col-span-4 font-bold text-slate-800">_ga</span>
-                                    <span className="col-span-3 text-slate-500">2 years</span>
-                                    <span className="col-span-5 text-slate-500 font-sans text-[9px] truncate">Google Analytics visitor ID</span>
+                                  <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
+                                    <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>_ga</span>
+                                    <span className={cn("col-span-3", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>2 years</span>
+                                    <span className={cn("col-span-5 font-sans text-[9px] truncate", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>Google Analytics visitor ID</span>
                                   </div>
-                                  <div className="grid grid-cols-12 text-slate-600 pt-0.5 items-center min-w-[280px]">
-                                    <span className="col-span-4 font-bold text-slate-800">_gid</span>
-                                    <span className="col-span-3 text-slate-500">24 hours</span>
-                                    <span className="col-span-5 text-slate-500 font-sans text-[9px] truncate">Google Analytics session ID</span>
+                                  <div className="grid grid-cols-12 pt-0.5 items-center min-w-[280px]">
+                                    <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>_gid</span>
+                                    <span className={cn("col-span-3", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>24 hours</span>
+                                    <span className={cn("col-span-5 font-sans text-[9px] truncate", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>Google Analytics session ID</span>
                                   </div>
                                 </div>
                               )}
@@ -1878,12 +1985,12 @@ export function BannerStudio() {
                         </div>
                       )}
 
-                      {/* 4. Performance (Demonstrating "No cookies to display" Fallback when empty) */}
+                      {/* 4. Performance */}
                       {config.enable_performance_category && (
-                        <div className="border-t border-slate-200 pt-2 space-y-1.5">
+                        <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
                           <div className="flex items-center justify-between py-1">
                             <div
-                              className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer"
+                              className={cn("flex items-center gap-1.5 font-bold cursor-pointer", config.theme === "dark" ? "text-white" : "text-slate-900")}
                               onClick={() => toggleMockAccordion("performance")}
                             >
                               <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.performance && "rotate-90")} />
@@ -1898,13 +2005,16 @@ export function BannerStudio() {
                           </div>
                           {mockExpanded.performance && (
                             <div className="pl-4 space-y-2">
-                              <p className="text-[10px] text-slate-500 leading-relaxed">
+                              <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
                                 {config.performance_description ||
                                   "Performance cookies are used to understand and analyze key performance indexes of the website."}
                               </p>
                               {config.show_cookie_list_on_banner !== false && (
-                                <div className="bg-slate-50/70 rounded border border-dashed border-slate-200 p-2.5 text-center">
-                                  <span className="text-[10px] italic text-slate-400 font-medium">
+                                <div className={cn(
+                                  "rounded border border-dashed p-2.5 text-center",
+                                  config.theme === "dark" ? "bg-slate-800/40 border-slate-700" : "bg-slate-50/70 border-slate-200"
+                                )}>
+                                  <span className={cn("text-[10px] italic font-medium", config.theme === "dark" ? "text-slate-400" : "text-slate-400")}>
                                     {config.no_cookies_to_display_label || "No cookies to display"}
                                   </span>
                                 </div>
@@ -1916,10 +2026,10 @@ export function BannerStudio() {
 
                       {/* 5. Advertisement */}
                       {config.enable_advertisement_category && (
-                        <div className="border-t border-slate-200 pt-2 space-y-1.5">
+                        <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
                           <div className="flex items-center justify-between py-1">
                             <div
-                              className="flex items-center gap-1.5 font-bold text-slate-900 cursor-pointer"
+                              className={cn("flex items-center gap-1.5 font-bold cursor-pointer", config.theme === "dark" ? "text-white" : "text-slate-900")}
                               onClick={() => toggleMockAccordion("advertisement")}
                             >
                               <ChevronRight className={cn("size-3 transition-transform text-slate-500", mockExpanded.advertisement && "rotate-90")} />
@@ -1934,21 +2044,27 @@ export function BannerStudio() {
                           </div>
                           {mockExpanded.advertisement && (
                             <div className="pl-4 space-y-2">
-                              <p className="text-[10px] text-slate-500 leading-relaxed">
+                              <p className={cn("text-[10px] leading-relaxed", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>
                                 {config.advertisement_description ||
                                   "Advertisement cookies are used to provide customized ads and measure campaign effectiveness."}
                               </p>
                               {config.show_cookie_list_on_banner !== false && (
-                                <div className="bg-slate-50 rounded border border-slate-200 p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto">
-                                  <div className="font-sans font-bold text-slate-700 grid grid-cols-12 text-[10px] pb-1 border-b border-slate-200 min-w-[280px]">
+                                <div className={cn(
+                                  "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
+                                  config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                                )}>
+                                  <div className={cn(
+                                    "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
+                                    config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-700 border-slate-200"
+                                  )}>
                                     <span className="col-span-4">{config.cookie_column_label || "Cookie"}</span>
                                     <span className="col-span-3">{config.duration_column_label || "Duration"}</span>
                                     <span className="col-span-5">{config.description_column_label || "Description"}</span>
                                   </div>
-                                  <div className="grid grid-cols-12 text-slate-600 pt-1 items-center min-w-[280px]">
-                                    <span className="col-span-4 font-bold text-slate-800">_fbp</span>
-                                    <span className="col-span-3 text-slate-500">3 months</span>
-                                    <span className="col-span-5 text-slate-500 font-sans text-[9px] truncate">Meta advertising pixel tracking</span>
+                                  <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
+                                    <span className={cn("col-span-4 font-bold", config.theme === "dark" ? "text-white" : "text-slate-800")}>_fbp</span>
+                                    <span className={cn("col-span-3", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>3 months</span>
+                                    <span className={cn("col-span-5 font-sans text-[9px] truncate", config.theme === "dark" ? "text-slate-400" : "text-slate-500")}>Meta advertising pixel tracking</span>
                                   </div>
                                 </div>
                               )}
@@ -1960,17 +2076,17 @@ export function BannerStudio() {
 
                     {/* 3-Button Action Row */}
                     <div className={cn(
-                      "p-3 border-t border-slate-200 bg-slate-50 shrink-0",
+                      "usrly-modal-footer p-3 border-t shrink-0",
+                      config.theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200",
                       previewDevice === "mobile" ? "flex flex-col gap-2" : "flex flex-wrap sm:flex-nowrap gap-2"
                     )}>
                       <button
                         type="button"
                         onClick={() => setPreviewView("notice")}
                         className={cn(
-                          "py-2 px-3 text-xs font-bold rounded-[4px] border-2 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer text-center whitespace-normal break-words leading-tight transition-all",
+                          "usrly-btn usrly-btn-secondary py-2 px-3 text-xs font-bold rounded-[4px] border cursor-pointer text-center whitespace-normal break-words leading-tight transition-all",
                           previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[100px]"
                         )}
-                        style={{ borderColor: config.primary_color, color: config.primary_color }}
                       >
                         {config.pref_reject_all_label || "Reject All"}
                       </button>
@@ -1978,10 +2094,9 @@ export function BannerStudio() {
                         type="button"
                         onClick={() => setPreviewView("notice")}
                         className={cn(
-                          "py-2 px-3 text-xs font-bold rounded-[4px] border-2 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer text-center whitespace-normal break-words leading-tight transition-all",
+                          "usrly-btn usrly-btn-outline py-2 px-3 text-xs font-bold rounded-[4px] border-2 cursor-pointer text-center whitespace-normal break-words leading-tight transition-all",
                           previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[120px]"
                         )}
-                        style={{ borderColor: config.primary_color, color: config.primary_color }}
                       >
                         {config.save_preferences_label || "Save My Preferences"}
                       </button>
@@ -1989,18 +2104,20 @@ export function BannerStudio() {
                         type="button"
                         onClick={() => setPreviewView("notice")}
                         className={cn(
-                          "py-2 px-3 text-xs font-bold rounded-[4px] text-white shadow-xs cursor-pointer text-center whitespace-normal break-words leading-tight transition-all",
+                          "usrly-btn usrly-btn-primary py-2 px-3 text-xs font-bold rounded-[4px] shadow-xs cursor-pointer text-center whitespace-normal break-words leading-tight transition-all",
                           previewDevice === "mobile" ? "w-full" : "flex-1 min-w-[100px]"
                         )}
-                        style={{ backgroundColor: config.primary_color }}
                       >
                         {config.pref_accept_all_label || "Accept All"}
                       </button>
                     </div>
 
                     {/* Watermark */}
-                    <div className="px-4 py-1.5 bg-slate-100 border-t border-slate-200 text-right text-[10px] text-slate-500 shrink-0">
-                      Powered by <strong className="text-slate-900">Upfront</strong>
+                    <div className={cn(
+                      "px-4 py-1.5 border-t text-right text-[10px] shrink-0",
+                      config.theme === "dark" ? "bg-slate-950 border-slate-800 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500"
+                    )}>
+                      Powered by <strong className={config.theme === "dark" ? "text-white" : "text-slate-900"}>Upfront</strong>
                     </div>
                   </div>
                 </div>
