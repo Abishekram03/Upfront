@@ -1016,22 +1016,17 @@ const TRACKER_SCRIPT = `(function () {
     shadow.appendChild(style);
 
     if (config.custom_css && typeof config.custom_css === "string" && config.custom_css.trim().length > 0) {
-      var dangerousPatterns = [
-        /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-        /javascript\s*:/gi,
-        /expression\s*\(/gi,
-        /behavior\s*:/gi,
-        /-moz-binding\s*:/gi,
-        /@import\s+(?:url\(['"]?)?https?:\/\//gi,
-      ];
-      var isSafe = true;
-      for (var p = 0; p < dangerousPatterns.length; p++) {
-        if (dangerousPatterns[p].test(config.custom_css)) {
-          isSafe = false;
-          break;
-        }
-      }
-      if (isSafe) {
+      var cssLower = config.custom_css.toLowerCase();
+      var isUnsafe =
+        cssLower.indexOf("<script") !== -1 ||
+        cssLower.indexOf("</script") !== -1 ||
+        cssLower.indexOf("javascript:") !== -1 ||
+        cssLower.indexOf("expression(") !== -1 ||
+        cssLower.indexOf("behavior:") !== -1 ||
+        cssLower.indexOf("-moz-binding") !== -1 ||
+        cssLower.indexOf("@import") !== -1;
+
+      if (!isUnsafe) {
         var customStyle = document.createElement("style");
         customStyle.setAttribute("data-usrly-custom-css", "true");
         customStyle.textContent = config.custom_css;
@@ -1468,7 +1463,7 @@ export async function GET() {
     status: 200,
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "no-cache, must-revalidate",
       "Access-Control-Allow-Origin": "*",
     },
   })
