@@ -4,12 +4,12 @@ import { getCurrentUser } from "@/lib/auth-server"
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   try {
     await ensureTables()
     const user = await getCurrentUser()
-    const { id: workspaceId } = await params
+    const { workspaceId } = await params
 
     if (!user?.id) {
       return NextResponse.json({ detail: "Unauthorized" }, { status: 401 })
@@ -73,19 +73,19 @@ export async function GET(
       site: firstSite,
     })
   } catch (err: any) {
-    console.error("GET /api/v1/workspaces/[id]/onboarding error:", err)
+    console.error("GET /api/v1/workspaces/[workspaceId]/onboarding error:", err)
     return NextResponse.json({ detail: err.message || "Failed to load onboarding state" }, { status: 500 })
   }
 }
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   try {
     await ensureTables()
     const user = await getCurrentUser()
-    const { id: workspaceId } = await params
+    const { workspaceId } = await params
 
     if (!user?.id) {
       return NextResponse.json({ detail: "Unauthorized" }, { status: 401 })
@@ -155,7 +155,7 @@ export async function POST(
       workspace: updatedWs,
     })
   } catch (err: any) {
-    console.error("POST /api/v1/workspaces/[id]/onboarding error:", err)
+    console.error("POST /api/v1/workspaces/[workspaceId]/onboarding error:", err)
     return NextResponse.json({ detail: err.message || "Failed to update onboarding state" }, { status: 500 })
   }
 }

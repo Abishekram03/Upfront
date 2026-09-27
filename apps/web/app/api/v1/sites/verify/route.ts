@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth-server"
-import { validateUrlForScan, SSRFValidationError } from "@/lib/scanner/ssrf-protection"
+import { validateTargetUrl, SSRFValidationError } from "@/lib/scanner/ssrf-protection"
 
 function sanitizeDomain(input?: string | null): string {
   if (!input) return ""
@@ -83,18 +83,16 @@ export async function POST(req: Request) {
 
     // SSRF Validation
     let targetUrl = `https://${domain}`
-    let ssrfCheck = await validateUrlForScan(targetUrl)
-    if (!ssrfCheck.valid) {
-      // Try HTTP if HTTPS failed SSRF or scheme check
-      targetUrl = `http://${domain}`
-      ssrfCheck = await validateUrlForScan(targetUrl)
-      if (!ssrfCheck.valid) {
+    try {
+      await validateTargetUrl(targetUrl)
+    } catch (ssrfErr: any) {
+      if (ssrfErr instanceof SSRFValidationError) {
         return NextResponse.json(
           {
             success: false,
             status: "verification_failed",
             error: "Security validation failed: Invalid or restricted domain address.",
-            message: ssrfCheck.reason || "Invalid website address.",
+            message: ssrfErr.message || "Invalid website address.",
           },
           { status: 400 }
         )

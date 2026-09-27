@@ -49,14 +49,14 @@ Assert-Test ($wizard -match "Scan Website") "Step 5: Scan Website action card pr
 # 3. Backend Verification Engine & SSRF Defense
 Write-Host "`n[3/6] Auditing Backend Installation Verification & SSRF Defense..." -ForegroundColor Yellow
 $verifyRoute = Get-Content "apps/web/app/api/v1/sites/verify/route.ts" -Raw
-Assert-Test ($verifyRoute -match "validateUrlForScan") "Verification route strictly enforces SSRF protection"
+Assert-Test ($verifyRoute -match "validateTargetUrl") "Verification route strictly enforces SSRF protection"
 Assert-Test ($verifyRoute -match "detectUpfrontScriptInHtml") "Verification route checks real HTML script presence"
 Assert-Test ($verifyRoute -match "installation_status") "Verification route updates authoritative database status"
 Assert-Test ($verifyRoute -match "detected") "Verification route returns detected status on success"
 
 # 4. Onboarding Workspace API Routes
 Write-Host "`n[4/6] Auditing Onboarding State API Routes..." -ForegroundColor Yellow
-$onboardingRoute = Get-Content -LiteralPath "apps/web/app/api/v1/workspaces/[id]/onboarding/route.ts" -Raw
+$onboardingRoute = Get-Content -LiteralPath "apps/web/app/api/v1/workspaces/[workspaceId]/onboarding/route.ts" -Raw
 Assert-Test ($onboardingRoute -match "workspace_members") "Onboarding API enforces workspace isolation and membership"
 Assert-Test ($onboardingRoute -match "onboarding_step") "Onboarding API reads and writes onboarding_step"
 Assert-Test ($onboardingRoute -match "skip") "Onboarding API supports non-blocking skip transition"
