@@ -4,6 +4,8 @@
  * Loads Paddle.js SDK and opens overlay / hosted checkout carrying workspace ID metadata.
  */
 
+import { type PlanId } from "./plans"
+
 declare global {
   interface Window {
     Paddle?: any
@@ -56,6 +58,7 @@ export function loadPaddleScript(environment: "sandbox" | "production" = "sandbo
 
 export interface CheckoutOptions {
   priceId: string
+  plan?: PlanId | string
   workspaceId: string
   userId?: string
   userEmail?: string
