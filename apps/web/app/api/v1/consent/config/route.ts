@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
+import { getWorkspaceEntitlements } from "@/lib/billing/entitlements"
 import { randomUUID } from "node:crypto"
 
 function sanitizeDomain(input?: string | null): string {
@@ -63,19 +64,28 @@ export async function GET(req: Request) {
         `INSERT INTO consent_configs (
           id, domain, is_enabled, layout, theme, primary_color, border_radius,
           title, description, privacy_policy_url, accept_all_label, reject_all_label,
+          preferences_label, preferences_title, preferences_description, save_preferences_label,
+          always_active_label, no_cookies_to_display_label, cookie_column_label,
+          duration_column_label, description_column_label,
+          enable_necessary_category, enable_functional_category,
+          enable_analytics_category, enable_performance_category, enable_advertisement_category,
           show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf,
           enable_auto_language, default_language, supported_languages, geo_targeting,
-          enable_gpc, consent_version,
+          enable_gpc, consent_version, custom_css, law_template,
           created_at, updated_at
         ) VALUES (
           $1, $2, TRUE, 'bottom_bar', 'light', '#1868db', 'rounded-md',
           'We value your privacy',
           'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking ''Accept All'', you consent to our use of cookies.',
-          '/privacy', 'Accept All', 'Reject All', 'Customise',
-          TRUE, TRUE, TRUE, TRUE, TRUE,
+          '/privacy', 'Accept All', 'Reject All',
+          'Customise', 'Customise Consent Preferences', 'We respect your privacy preferences and allow you to select which cookies and tracking technologies are enabled.', 'Save My Preferences',
+          'Always Active', 'No cookies to display', 'Cookie',
+          'Duration', 'Description',
+          TRUE, TRUE,
+          TRUE, TRUE, TRUE,
           TRUE, 'bottom_left', TRUE, TRUE,
           TRUE, 'en', ARRAY['en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'hi'], 'all',
-          TRUE, '1.0',
+          TRUE, '1.0', '', 'gdpr',
           NOW(), NOW()
         )
         ON CONFLICT (domain) DO UPDATE SET updated_at = NOW()
@@ -126,7 +136,6 @@ export async function POST(req: Request) {
     const siteLookup = await pool.query(`SELECT workspace_id FROM sites WHERE domain = $1 LIMIT 1`, [domain])
     const workspaceId = siteLookup.rows[0]?.workspace_id
     if (workspaceId) {
-      const { getWorkspaceEntitlements } = await import("@/lib/billing/entitlements")
       const entitlements = await getWorkspaceEntitlements(workspaceId)
       if (!entitlements.capabilities["cmp.tcf_v23"]) {
         body.enable_iab_tcf = false
@@ -160,6 +169,7 @@ export async function POST(req: Request) {
         always_active_label, no_cookies_to_display_label, cookie_column_label,
         duration_column_label, description_column_label,
         enable_necessary_category, enable_functional_category,
+        enable_analytics_category, enable_performance_category, enable_advertisement_category,
         show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf,
         enable_auto_language, default_language, supported_languages, geo_targeting,
         enable_gpc, consent_version, custom_css, law_template,

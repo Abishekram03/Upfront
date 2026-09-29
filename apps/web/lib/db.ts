@@ -278,6 +278,15 @@ export async function ensureTables() {
         UPDATE workspaces SET first_site_id = (SELECT id FROM sites WHERE sites.workspace_id = workspaces.id ORDER BY created_at ASC LIMIT 1) WHERE first_site_id IS NULL AND id IN (SELECT DISTINCT workspace_id FROM sites WHERE workspace_id IS NOT NULL);
         UPDATE sites SET installation_status = 'detected' WHERE installation_status = 'not_started' AND (id IN (SELECT DISTINCT site_id FROM pageviews UNION SELECT DISTINCT site_id FROM sessions) OR domain IN (SELECT DISTINCT domain FROM consent_configs WHERE is_enabled = TRUE));
 
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_necessary_category BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_functional_category BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_analytics_category BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_performance_category BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_advertisement_category BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS show_revisit_button BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS revisit_button_position VARCHAR(50) DEFAULT 'bottom_left';
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_consent_mode_v2 BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS geo_targeting VARCHAR(50) DEFAULT 'all';
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_gpc BOOLEAN DEFAULT TRUE;
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS preferences_title VARCHAR(255) DEFAULT 'Customise Consent Preferences';

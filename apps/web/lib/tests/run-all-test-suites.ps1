@@ -24,7 +24,8 @@ $suites = @(
     "verify-runtime-gate.ps1",
     "run-scheduled-scans-verification.ps1",
     "run-billing-verification.ps1",
-    "run-onboarding-verification.ps1"
+    "run-onboarding-verification.ps1",
+    "run-consent-config-fix-verification.ps1"
 )
 
 $totalSuites = $suites.Count
