@@ -208,7 +208,7 @@ export function LoginForm({
                 "The cleanest privacy analytics and consent management platform built for speed and compliance."
               </p>
               <p className="text-xs text-slate-500">
-                Cookieless by default, lightweight, and GDPR-compliant. A product by Syft Technologies.
+                Cookieless by default, lightweight, and designed to support GDPR compliance. A product by Syft Technologies.
               </p>
             </div>
           </div>
@@ -216,13 +216,13 @@ export function LoginForm({
       </Card>
       <FieldDescription className="px-6 text-center text-xs text-neutral-500">
         By clicking continue, you agree to our{" "}
-        <a href="#" className="underline underline-offset-2 hover:text-neutral-700">
+        <Link href="/terms" className="underline underline-offset-2 hover:text-neutral-700">
           Terms of Service
-        </a>{" "}
+        </Link>{" "}
         and{" "}
-        <a href="#" className="underline underline-offset-2 hover:text-neutral-700">
+        <Link href="/privacy" className="underline underline-offset-2 hover:text-neutral-700">
           Privacy Policy
-        </a>.
+        </Link>.
       </FieldDescription>
     </div>
   )

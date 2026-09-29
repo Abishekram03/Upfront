@@ -21,10 +21,10 @@ export function LandingNavbar() {
 
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-neutral-600">
-          <a href="#features" className="hover:text-neutral-900 transition-colors">Features</a>
-          <a href="#consent" className="hover:text-neutral-900 transition-colors">Consent Tool</a>
-          <a href="#pricing" className="hover:text-neutral-900 transition-colors">Pricing</a>
-          <a href="#docs" className="hover:text-neutral-900 transition-colors">Docs</a>
+          <Link href="/pricing" className="hover:text-neutral-900 transition-colors">Pricing</Link>
+          <Link href="/docs" className="hover:text-neutral-900 transition-colors">Documentation</Link>
+          <Link href="/privacy" className="hover:text-neutral-900 transition-colors">Privacy</Link>
+          <Link href="/terms" className="hover:text-neutral-900 transition-colors">Terms</Link>
         </nav>
 
         {/* Auth CTA Buttons */}

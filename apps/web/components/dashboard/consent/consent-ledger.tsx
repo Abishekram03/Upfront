@@ -267,7 +267,7 @@ export function ConsentLedger() {
             <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="size-4 text-[#1868db]" />
-                <h3 className="text-sm font-bold text-slate-900">GDPR Proof-of-Consent Certificate</h3>
+                <h3 className="text-sm font-bold text-slate-900">Proof-of-Consent Audit Record</h3>
               </div>
               <button
                 onClick={() => setSelectedReceipt(null)}
@@ -279,7 +279,7 @@ export function ConsentLedger() {
 
             <div className="p-6 space-y-4 text-xs font-sans">
               <div className="bg-blue-50 border border-blue-200 rounded p-3 text-blue-900 text-[11px]">
-                This certificate serves as cryptographically verifiable legal proof that affirmative consent was captured in accordance with GDPR Article 7 and ePrivacy Directive.
+                This record captures a timestamped audit trail of affirmative consent signals designed to support GDPR Article 7 record-keeping requirements.
               </div>
 
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded border border-slate-200">
@@ -292,7 +292,7 @@ export function ConsentLedger() {
                   <span className="font-bold text-slate-900">{selectedReceipt.domain}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Anonymized Visitor Hash</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Pseudonymous Visitor Hash</span>
                   <span className="font-mono text-[10.5px] text-slate-700 break-all">{selectedReceipt.visitor_hash}</span>
                 </div>
                 <div>

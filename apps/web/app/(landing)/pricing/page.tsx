@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Check, Crown, Zap, Shield, ArrowRight, Sparkles } from "lucide-react"
 import { LandingNavbar } from "@/components/landing/navbar"
+import { LandingFooter } from "@/components/landing/footer"
 
 export const metadata = {
   title: "Pricing Plans — UpFront Consent Management & Privacy Analytics",
@@ -266,6 +267,7 @@ export default function PricingPage() {
           </p>
         </div>
       </main>
+      <LandingFooter />
     </div>
   )
 }
