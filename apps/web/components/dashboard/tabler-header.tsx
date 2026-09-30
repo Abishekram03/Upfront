@@ -11,12 +11,16 @@ import {
   Menu,
   X,
   Check,
+  Crown,
+  Sparkles,
+  Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 import { Site } from "@/lib/api"
 import { ToolType, tools } from "./tool-switcher"
 import { UserProfileMenu } from "./user-profile-menu"
+import { useEntitlements } from "@/lib/entitlements-context"
 
 interface TablerHeaderProps {
   activeTool: ToolType
@@ -43,6 +47,7 @@ export function TablerHeader({
   isMobileOpen = false,
   onToggleMobile,
 }: TablerHeaderProps) {
+  const { plan, openUpgradeModal } = useEntitlements()
   const [domainDropdown, setDomainDropdown] = useState(false)
   const [appLauncherDropdown, setAppLauncherDropdown] = useState(false)
 
@@ -153,6 +158,29 @@ export function TablerHeader({
 
           {/* RIGHT: Realtime + Install CTA + App Launcher (app.svg) + Profile Menu */}
           <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Workspace Plan Tier Badge */}
+            {plan === "business" ? (
+              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs">
+                <Crown className="size-3.5 fill-amber-500 text-amber-600" />
+                <span>Business</span>
+              </span>
+            ) : plan === "growth" ? (
+              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
+                <Zap className="size-3.5 fill-blue-500 text-blue-600" />
+                <span>Growth</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openUpgradeModal("growth")}
+                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200 transition-all cursor-pointer shadow-2xs"
+                title="Upgrade Workspace Plan"
+              >
+                <Sparkles className="size-3 text-blue-600" />
+                <span>Free Plan &bull; <strong className="text-[#1868db]">Upgrade</strong></span>
+              </button>
+            )}
+
             {/* Realtime Active Indicator */}
             {activeDomain && (
               <div className="hidden lg:flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 font-medium">

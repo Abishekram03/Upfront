@@ -155,6 +155,7 @@ export async function ensureTables() {
         ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS onboarding_step VARCHAR(50) NOT NULL DEFAULT 'welcome';
         ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS first_site_id VARCHAR(36);
+        ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(50) NOT NULL DEFAULT 'free';
 
         CREATE TABLE IF NOT EXISTS workspace_members (
           id VARCHAR(36) PRIMARY KEY,

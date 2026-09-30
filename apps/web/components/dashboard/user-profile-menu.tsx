@@ -4,12 +4,16 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
+import { useEntitlements } from "@/lib/entitlements-context"
 import {
   LogOut,
   Shield,
   ShieldCheck,
   User,
   ChevronsUpDown,
+  Crown,
+  Zap,
+  Sparkles,
 } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -20,6 +24,7 @@ interface UserProfileMenuProps {
 export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
   const router = useRouter()
   const { data: session } = authClient.useSession()
+  const { plan, openUpgradeModal } = useEntitlements()
   const [open, setOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -73,7 +78,29 @@ export function UserProfileMenu({ isCollapsed = false }: UserProfileMenuProps) {
           <div className="absolute top-full right-0 z-50 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl animate-in fade-in-0 zoom-in-95">
             {/* Header info */}
             <div className="px-2.5 py-2 border-b border-slate-100">
-              <p className="text-xs font-bold text-slate-900 truncate">{userName}</p>
+              <div className="flex items-center justify-between gap-1">
+                <p className="text-xs font-bold text-slate-900 truncate">{userName}</p>
+                {plan === "business" ? (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                    <Crown className="size-2.5 fill-amber-500 text-amber-600" /> Business
+                  </span>
+                ) : plan === "growth" ? (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                    <Zap className="size-2.5 fill-blue-500 text-blue-600" /> Growth
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false)
+                      openUpgradeModal("growth")
+                    }}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 hover:bg-blue-50 text-blue-600 cursor-pointer"
+                  >
+                    <Sparkles className="size-2.5" /> Free (Upgrade)
+                  </button>
+                )}
+              </div>
               <p className="text-[11px] text-slate-500 truncate">{userEmail}</p>
               <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/60">
                 <ShieldCheck className="size-3" />

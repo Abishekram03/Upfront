@@ -57,6 +57,8 @@ export function SettingsView() {
     plan: currentPlan,
     isPaid,
     isPastDue,
+    isCheckingOut,
+    startCheckout,
     openUpgradeModal,
     refreshEntitlements,
   } = useEntitlements()
@@ -94,7 +96,30 @@ export function SettingsView() {
     const checkoutParam = searchParams.get("checkout")
     if (checkoutParam === "success") {
       setActiveTab("billing")
-      refreshEntitlements()
+      const planFromUrl = (searchParams.get("plan") as PlanId) || "growth"
+      const targetWsId = searchParams.get("workspaceId") || activeWorkspace?.id
+
+      const runSyncAndRefresh = async () => {
+        if (targetWsId) {
+          try {
+            await fetch("/api/v1/billing/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                workspaceId: targetWsId,
+                plan: planFromUrl === "business" ? "business" : "growth",
+              }),
+            })
+          } catch (e) {
+            console.error("Failed to sync billing on checkout return:", e)
+          }
+        }
+        await refreshEntitlements()
+        await refreshWorkspaces()
+      }
+
+      runSyncAndRefresh()
+
       setBillingToast({
         type: "success",
         message: "🎉 Payment received! Your workspace plan and capabilities have been updated successfully.",
@@ -102,6 +127,8 @@ export function SettingsView() {
       if (typeof window !== "undefined" && window.history?.replaceState) {
         const url = new URL(window.location.href)
         url.searchParams.delete("checkout")
+        url.searchParams.delete("plan")
+        url.searchParams.delete("workspaceId")
         window.history.replaceState({}, "", url.toString())
       }
     } else if (checkoutParam === "cancel" || checkoutParam === "error") {
@@ -113,10 +140,12 @@ export function SettingsView() {
       if (typeof window !== "undefined" && window.history?.replaceState) {
         const url = new URL(window.location.href)
         url.searchParams.delete("checkout")
+        url.searchParams.delete("plan")
+        url.searchParams.delete("workspaceId")
         window.history.replaceState({}, "", url.toString())
       }
     }
-  }, [searchParams, refreshEntitlements])
+  }, [searchParams, activeWorkspace?.id, refreshEntitlements, refreshWorkspaces])
 
   // ==========================================
   // 1. PROFILE & SECURITY STATE
@@ -1156,11 +1185,21 @@ export function SettingsView() {
               ) : currentPlan === "free" ? (
                 <Button
                   type="button"
-                  onClick={() => openUpgradeModal("growth")}
+                  disabled={isCheckingOut !== null}
+                  onClick={() => startCheckout("growth")}
                   className="h-10 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer flex items-center gap-2"
                 >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Upgrade Plan</span>
+                  {isCheckingOut === "growth" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Opening Checkout...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Upgrade Plan</span>
+                    </>
+                  )}
                 </Button>
               ) : null}
             </div>
@@ -1321,11 +1360,12 @@ export function SettingsView() {
 
               {/* Plan 2: Growth */}
               <div
+                onClick={() => currentPlan !== "growth" && !isCheckingOut && startCheckout("growth")}
                 className={cn(
                   "p-6 rounded-2xl border flex flex-col justify-between transition-all relative",
                   currentPlan === "growth"
                     ? "border-blue-600 ring-2 ring-blue-600/20 bg-blue-50/20 shadow-sm"
-                    : "border-slate-200 bg-white hover:border-blue-300"
+                    : "border-slate-200 bg-white hover:border-blue-400 hover:shadow-md cursor-pointer group"
                 )}
               >
                 <div className="space-y-4">
@@ -1393,27 +1433,40 @@ export function SettingsView() {
                 </div>
                 <div className="pt-6">
                   <Button
-                    disabled={currentPlan === "growth"}
-                    onClick={() => openUpgradeModal("growth")}
+                    disabled={currentPlan === "growth" || isCheckingOut !== null}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      startCheckout("growth")
+                    }}
                     className={cn(
-                      "w-full text-xs font-semibold shadow-sm transition-all",
+                      "w-full text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2",
                       currentPlan === "growth"
                         ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                     )}
                   >
-                    {currentPlan === "growth" ? "Active Plan" : "Upgrade to Growth"}
+                    {isCheckingOut === "growth" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Opening Checkout...</span>
+                      </>
+                    ) : currentPlan === "growth" ? (
+                      "Active Plan"
+                    ) : (
+                      "Upgrade to Growth"
+                    )}
                   </Button>
                 </div>
               </div>
 
               {/* Plan 3: Business */}
               <div
+                onClick={() => currentPlan !== "business" && !isCheckingOut && startCheckout("business")}
                 className={cn(
                   "p-6 rounded-2xl border flex flex-col justify-between transition-all relative",
                   currentPlan === "business"
                     ? "border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/20 shadow-sm"
-                    : "border-slate-200 bg-white hover:border-amber-300"
+                    : "border-slate-200 bg-white hover:border-amber-400 hover:shadow-md cursor-pointer group"
                 )}
               >
                 <div className="space-y-4">
@@ -1477,16 +1530,28 @@ export function SettingsView() {
                 </div>
                 <div className="pt-6">
                   <Button
-                    disabled={currentPlan === "business"}
-                    onClick={() => openUpgradeModal("business")}
+                    disabled={currentPlan === "business" || isCheckingOut !== null}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      startCheckout("business")
+                    }}
                     className={cn(
-                      "w-full text-xs font-semibold shadow-sm transition-all",
+                      "w-full text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2",
                       currentPlan === "business"
                         ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                         : "bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white cursor-pointer"
                     )}
                   >
-                    {currentPlan === "business" ? "Active Plan" : "Upgrade to Business"}
+                    {isCheckingOut === "business" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Opening Checkout...</span>
+                      </>
+                    ) : currentPlan === "business" ? (
+                      "Active Plan"
+                    ) : (
+                      "Upgrade to Business"
+                    )}
                   </Button>
                 </div>
               </div>

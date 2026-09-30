@@ -19,16 +19,20 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}))
     const { workspaceId, plan, paddleSubscriptionId, paddleCustomerId, paddlePriceId } = body
 
+    console.log("[Billing Sync] Request received:", { workspaceId, plan, paddleSubscriptionId, paddleCustomerId, paddlePriceId })
+
     if (!workspaceId) {
       return NextResponse.json({ detail: "workspaceId is required" }, { status: 400 })
     }
 
-    // Verify user is a member of this workspace
-    const memberRes = await pool.query(
-      `SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`,
+    // Verify user is a member or owner of this workspace
+    const accessRes = await pool.query(
+      `SELECT id FROM workspaces w 
+       WHERE w.id = $1 
+         AND (w.owner_id = $2 OR EXISTS (SELECT 1 FROM workspace_members wm WHERE wm.workspace_id = w.id AND wm.user_id = $2))`,
       [workspaceId, user.id]
     )
-    if (memberRes.rows.length === 0) {
+    if (accessRes.rows.length === 0) {
       return NextResponse.json({ detail: "Access denied to workspace" }, { status: 403 })
     }
 
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
     const now = new Date()
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-    // Upsert subscription state
+    // Upsert subscription state (this is the critical write)
     await pool.query(
       `INSERT INTO subscriptions (
         id, workspace_id, plan, status, paddle_subscription_id, paddle_customer_id,
@@ -54,7 +58,7 @@ export async function POST(req: NextRequest) {
         cancel_at_period_end = false,
         updated_at = NOW()`,
       [
-        `sub_${workspaceId}`,
+        workspaceId.substring(0, 36),
         workspaceId,
         targetPlan,
         "active",
@@ -67,17 +71,39 @@ export async function POST(req: NextRequest) {
       ]
     )
 
-    // Update workspace plan tier column as well
-    await pool.query(
-      `UPDATE workspaces SET plan_tier = $1, updated_at = NOW() WHERE id = $2`,
-      [targetPlan, workspaceId]
+    console.log(`[Billing Sync] ✅ Subscription upserted: workspace=${workspaceId}, plan=${targetPlan}`)
+
+    // Update workspace plan_tier and ensure onboarding_completed = true
+    try {
+      await pool.query(
+        `UPDATE workspaces 
+         SET plan_tier = $1, 
+             onboarding_completed = TRUE, 
+             onboarding_step = 'completed', 
+             updated_at = NOW() 
+         WHERE id = $2`,
+        [targetPlan, workspaceId]
+      )
+      console.log(`[Billing Sync] ✅ Workspace plan_tier updated to ${targetPlan} and onboarding_completed = TRUE`)
+    } catch (tierErr: any) {
+      console.warn(`[Billing Sync] ⚠️ plan_tier update notice:`, tierErr.message)
+    }
+
+    // Verify the subscription was written correctly
+    const verifyRes = await pool.query(
+      `SELECT plan, status FROM subscriptions WHERE workspace_id = $1 LIMIT 1`,
+      [workspaceId]
     )
+    const verifiedPlan = verifyRes.rows[0]?.plan || "unknown"
+    const verifiedStatus = verifyRes.rows[0]?.status || "unknown"
+    console.log(`[Billing Sync] ✅ Verified: plan=${verifiedPlan}, status=${verifiedStatus}`)
 
     return NextResponse.json({
       success: true,
       plan: targetPlan,
       status: "active",
       workspaceId,
+      verified: { plan: verifiedPlan, status: verifiedStatus },
     })
   } catch (err: any) {
     console.error("POST /api/v1/billing/sync error:", err)

@@ -101,6 +101,25 @@ export async function getWorkspaceEntitlements(workspaceId: string): Promise<Wor
     currentPeriodStart = sub.current_period_start ? new Date(sub.current_period_start).toISOString() : null
     currentPeriodEnd = sub.current_period_end ? new Date(sub.current_period_end).toISOString() : null
     cancelAtPeriodEnd = !!sub.cancel_at_period_end
+    console.log(`[Entitlements] Found subscription for workspace ${workspaceId}: plan=${rawPlan}, status=${status}`)
+  } else {
+    // Fallback: Check workspaces.plan_tier
+    console.log(`[Entitlements] No subscription row for workspace ${workspaceId}, checking plan_tier fallback...`)
+    try {
+      const wsRes = await pool.query(
+        `SELECT plan_tier FROM workspaces WHERE id = $1 LIMIT 1`,
+        [workspaceId]
+      )
+      if (wsRes.rows.length > 0 && wsRes.rows[0].plan_tier && wsRes.rows[0].plan_tier !== "free") {
+        rawPlan = wsRes.rows[0].plan_tier as PlanId
+        status = "active"
+        console.log(`[Entitlements] Fallback plan_tier found: ${rawPlan}`)
+      } else {
+        console.log(`[Entitlements] No plan_tier found, defaulting to free`)
+      }
+    } catch (fallbackErr: any) {
+      console.warn(`[Entitlements] plan_tier fallback query failed:`, fallbackErr.message)
+    }
   }
 
   // Determine effective plan based on subscription status
@@ -161,27 +180,33 @@ export async function getWorkspaceUsage(workspaceId: string): Promise<WorkspaceU
   await ensureTables()
   const entitlements = await getWorkspaceEntitlements(workspaceId)
 
-  // 1. Get sites in this workspace
-  const sitesRes = await pool.query(
-    `SELECT id, domain FROM sites WHERE workspace_id = $1`,
-    [workspaceId]
-  )
-  const sitesCount = sitesRes.rows.length
-  const siteIds = sitesRes.rows.map((r) => r.id)
-
+  let sitesCount = 0
   let pageviewsThisMonth = 0
-  if (siteIds.length > 0) {
-    // 2. Count pageviews across all sites in the last 30 days
-    const pvRes = await pool.query(
-      `SELECT COUNT(*)::integer as count FROM pageviews 
-       WHERE site_id = ANY($1) 
-         AND timestamp >= NOW() - INTERVAL '30 days'`,
-      [siteIds]
-    )
-    pageviewsThisMonth = pvRes.rows[0]?.count || 0
+
+  try {
+    if (workspaceId) {
+      const sitesRes = await pool.query(
+        `SELECT COUNT(*)::integer as count FROM sites WHERE workspace_id = $1`,
+        [workspaceId]
+      )
+      sitesCount = sitesRes.rows[0]?.count || 0
+
+      if (sitesCount > 0) {
+        const pvRes = await pool.query(
+          `SELECT COUNT(*)::integer as count FROM pageviews p
+           INNER JOIN sites s ON p.site_id = s.id
+           WHERE s.workspace_id = $1 
+             AND p.timestamp >= NOW() - INTERVAL '30 days'`,
+          [workspaceId]
+        )
+        pageviewsThisMonth = pvRes.rows[0]?.count || 0
+      }
+    }
+  } catch (err) {
+    console.warn("[Workspace Usage] Error calculating usage:", err)
   }
 
-  const pageviewLimit = entitlements.limits.monthlyPageviews
+  const pageviewLimit = entitlements.limits.monthlyPageviews || 50000
   const pageviewPercent = Math.min(100, Math.round((pageviewsThisMonth / pageviewLimit) * 100))
 
   return {

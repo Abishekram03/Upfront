@@ -13,6 +13,7 @@ import { EntitlementsProvider } from "@/lib/entitlements-context"
 import { WorkspaceWizardModal } from "@/components/dashboard/workspace-wizard-modal"
 import { UpgradeModal } from "@/components/dashboard/billing/upgrade-modal"
 import { useWorkspace } from "@/lib/workspace-context"
+import { useEntitlements } from "@/lib/entitlements-context"
 import { OnboardingWizard } from "@/components/dashboard/onboarding/onboarding-wizard"
 import { AlertCircle, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -21,7 +22,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { sites, activeDomain, setActiveDomain, isLoadingSites, realtimeVisitors } = useDomain()
-  const { activeWorkspace } = useWorkspace()
+  const { activeWorkspace, workspaces, isLoadingWorkspaces } = useWorkspace()
+  const { isPaid, plan } = useEntitlements()
 
   // Infer active tool from current path or state
   const isConsentPath = pathname.startsWith("/consent")
@@ -56,13 +58,31 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   // Check if we are on full-bleed Studio page
   const isFullBleedStudio = pathname.startsWith("/consent/studio")
 
+  // Onboarding wizard is STRICTLY for brand-new users with zero sites, zero plans, who have never added a domain
+  const hasExistingSites = (sites && sites.length > 0) || Boolean(activeWorkspace?.first_site_id) || Boolean(activeWorkspace?.sites_count && activeWorkspace.sites_count > 0) || workspaces.some((w) => (w.sites_count && w.sites_count > 0) || Boolean(w.first_site_id))
+  const isExistingAccount = Boolean(
+    hasExistingSites ||
+    activeWorkspace?.onboarding_completed === true ||
+    isPaid ||
+    plan !== "free" ||
+    workspaces.some((w) => w.onboarding_completed === true || (w as any).plan_tier === "growth" || (w as any).plan_tier === "business")
+  )
+
+  const shouldShowOnboarding =
+    !isLoadingSites &&
+    !isLoadingWorkspaces &&
+    activeWorkspace &&
+    activeWorkspace.onboarding_completed === false &&
+    !isExistingAccount &&
+    (!sites || sites.length === 0)
+
   return (
     <div className={cn("w-full bg-[#f8fafc] text-slate-900 flex flex-col", isFullBleedStudio ? "h-screen overflow-hidden" : "min-h-screen overflow-x-hidden")}>
       {/* Workspace Creation Wizard (if user has no workspace) */}
       <WorkspaceWizardModal />
 
-      {/* Workspace Onboarding Wizard (if workspace has not completed onboarding) */}
-      {activeWorkspace && activeWorkspace.onboarding_completed === false && (
+      {/* Workspace Onboarding Wizard (strictly for brand new users without existing sites/account) */}
+      {shouldShowOnboarding && (
         <OnboardingWizard workspace={activeWorkspace} />
       )}
 

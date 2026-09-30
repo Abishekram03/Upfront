@@ -5,8 +5,8 @@ import {
   calculateNextRun,
   localToUtc,
   utcToLocalParts,
-} from "../scanner/schedule-calculator.ts"
-import { classifyCookieName } from "../consentos/open-cookie-db.ts"
+} from "../scanner/schedule-calculator"
+import { classifyCookieName } from "../consentos/open-cookie-db"
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -53,7 +53,7 @@ export async function runScheduledScansTestSuite() {
       timezone: "UTC",
     })
     assert(!res.valid, "Hourly frequency must be rejected")
-    assert(res.error?.includes("frequency"), "Error must mention frequency")
+    assert(Boolean(res.error?.includes("frequency")), "Error must mention frequency")
   })
 
   test("Scenario 6: Weekly requires valid day of week (1..7)", () => {

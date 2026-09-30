@@ -45,7 +45,7 @@ export function loadPaddleScript(environment: "sandbox" | "production" = "sandbo
                     const rawPriceId = data?.data?.items?.[0]?.price?.id || activeCheckoutOptions?.priceId
                     const isBusiness =
                       rawPriceId === PADDLE_PRICE_IDS.business ||
-                      rawPriceId === (process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || "pri_01m3rgvtt17yk5y36mvjwqq65k") ||
+                      rawPriceId === (process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || "pri_01m3rgx14zzhfr3g10241pxw93") ||
                       rawPriceId?.includes("business")
 
                     const plan =
@@ -132,6 +132,7 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
   if (typeof window === "undefined") return
 
   activeCheckoutOptions = options
+  const resolvedPlan = options.plan || (resolvedPriceId === PADDLE_PRICE_IDS.business ? "business" : "growth")
 
   try {
     const paddle = await loadPaddleScript(
@@ -146,23 +147,24 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
           workspace_id: workspaceId,
           workspaceId: workspaceId,
           user_id: userId || "",
+          plan: resolvedPlan,
         },
         settings: {
           displayMode: "overlay",
           theme: "light",
           locale: "en",
-          successUrl: `${window.location.origin}/settings?tab=billing&checkout=success`,
+          successUrl: `${window.location.origin}/settings?tab=billing&checkout=success&plan=${resolvedPlan}&workspaceId=${workspaceId}`,
         },
       })
     } else {
       // Fallback if Paddle token is not yet configured: provide clear simulation in development
       console.warn("[Paddle] SDK checkout opened in test mode.")
       const simulate = confirm(
-        `[Paddle Test Mode]\n\nUpgrading workspace to Price ID: ${priceId}\nWorkspace: ${workspaceId}\n\nClick OK to simulate successful checkout or Cancel to abort.`
+        `[Paddle Test Mode]\n\nUpgrading workspace to ${resolvedPlan.toUpperCase()} (Price ID: ${resolvedPriceId})\nWorkspace: ${workspaceId}\n\nClick OK to simulate successful checkout or Cancel to abort.`
       )
       if (simulate) {
         // Send test webhook / simulation call
-        const plan = priceId.includes("business") ? "business" : "growth"
+        const plan = resolvedPlan === "business" ? "business" : "growth"
         const res = await fetch("/api/v1/billing/webhook", {
           method: "POST",
           headers: {
@@ -177,7 +179,7 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
               id: `sub_sim_${Date.now()}`,
               customer_id: `ctm_sim_${Date.now()}`,
               status: "active",
-              items: [{ price: { id: priceId } }],
+              items: [{ price: { id: resolvedPriceId } }],
               current_billing_period: {
                 starts_at: new Date().toISOString(),
                 ends_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
@@ -185,14 +187,19 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
               custom_data: {
                 workspace_id: workspaceId,
                 user_id: userId,
+                plan,
               },
             },
           }),
         })
 
         if (res.ok) {
-          onSuccess?.()
-          window.location.reload()
+          if (typeof window !== "undefined" && workspaceId) {
+            localStorage.setItem("upfront_active_workspace_id", workspaceId)
+          }
+          if (typeof onSuccess === "function") {
+            onSuccess()
+          }
         }
       }
     }

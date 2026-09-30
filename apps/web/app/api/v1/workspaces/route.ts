@@ -24,14 +24,31 @@ export async function GET() {
       return NextResponse.json({ detail: "Unauthorized" }, { status: 401 })
     }
 
+    // Self-heal: Mark workspaces that already have sites, paid tiers, or subscriptions as onboarding_completed = TRUE
+    await pool.query(
+      `UPDATE workspaces 
+       SET onboarding_completed = TRUE, onboarding_step = 'completed'
+       WHERE (onboarding_completed IS NULL OR onboarding_completed = FALSE)
+         AND (
+           EXISTS (SELECT 1 FROM sites WHERE sites.workspace_id = workspaces.id OR (sites.user_id = workspaces.owner_id))
+           OR plan_tier != 'free'
+           OR EXISTS (SELECT 1 FROM subscriptions WHERE subscriptions.workspace_id = workspaces.id)
+         )`
+    )
+
     const res = await pool.query(
       `SELECT 
         w.id, 
         w.name, 
         w.slug, 
         w.owner_id, 
-        COALESCE(w.onboarding_completed, FALSE) as onboarding_completed,
-        COALESCE(w.onboarding_step, 'welcome') as onboarding_step,
+        (
+          w.onboarding_completed = TRUE
+          OR w.plan_tier != 'free'
+          OR EXISTS(SELECT 1 FROM sites WHERE workspace_id = w.id OR (w.owner_id = $1 AND user_id = $1))
+          OR EXISTS(SELECT 1 FROM subscriptions WHERE workspace_id = w.id)
+        ) as onboarding_completed,
+        COALESCE(w.onboarding_step, 'completed') as onboarding_step,
         w.first_site_id,
         w.created_at, 
         w.updated_at,

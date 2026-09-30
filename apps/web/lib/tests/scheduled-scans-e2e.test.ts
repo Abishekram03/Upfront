@@ -72,7 +72,7 @@ async function main() {
     domain,
     enabled: true,
     frequency: "daily",
-    time_of_day: "09:00",
+    timeOfDay: "09:00",
     timezone: "Asia/Kolkata",
   })
 
@@ -84,10 +84,10 @@ async function main() {
 
   // 4. Trigger the REAL scheduler execution path
   console.log("[4/7] Triggering ScheduleService.processDueSchedules() via real worker path...")
-  const processResult = await ScheduleService.processDueSchedules({ limit: 5 })
+  const processResult = await ScheduleService.processDueSchedules({ maxJobs: 5 })
   console.log(`  Scheduler execution result:`, JSON.stringify(processResult, null, 2))
 
-  if (processResult.processed === 0 && processResult.succeeded === 0) {
+  if (processResult.processed === 0) {
     throw new Error("Scheduler did not claim or process the due schedule!")
   }
 
@@ -130,7 +130,7 @@ async function main() {
 
   // 7. Verify Idempotency: Immediate re-trigger must not create duplicate scan
   console.log("[7/7] Verifying duplicate scheduler protection (idempotency)...")
-  const secondPass = await ScheduleService.processDueSchedules({ limit: 5 })
+  const secondPass = await ScheduleService.processDueSchedules({ maxJobs: 5 })
   console.log(`  Second scheduler run processed: ${secondPass.processed} (Expected 0)`)
 
   if (secondPass.processed > 0) {
@@ -138,7 +138,7 @@ async function main() {
   }
 
   // Verify schedule next_run_at advanced into the future
-  const schedAfter = await ScheduleService.getScheduleByDomain(domain, workspaceId)
+  const schedAfter = await ScheduleService.getScheduleByDomain(domain)
   console.log(`  Schedule updated next_run_at: ${schedAfter?.next_run_at}, last_run_status: ${schedAfter?.last_run_status}`)
 
   if (!schedAfter?.next_run_at || new Date(schedAfter.next_run_at).getTime() <= Date.now()) {

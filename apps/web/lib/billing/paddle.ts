@@ -238,7 +238,18 @@ export async function processPaddleWebhook(event: PaddleWebhookEvent): Promise<{
     ]
   )
 
-  // 6. Record processed event in billing_events table
+  // 6. Update workspaces plan_tier and ensure onboarding_completed = true
+  await pool.query(
+    `UPDATE workspaces 
+     SET plan_tier = $1, 
+         onboarding_completed = TRUE, 
+         onboarding_step = 'completed', 
+         updated_at = NOW() 
+     WHERE id = $2`,
+    [plan, workspaceId]
+  )
+
+  // 7. Record processed event in billing_events table
   await pool.query(
     `INSERT INTO billing_events (id, event_id, event_type, occurred_at, payload)
      VALUES ($1, $2, $3, $4, $5)

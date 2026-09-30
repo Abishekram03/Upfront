@@ -21,10 +21,10 @@ function Assert-Test($condition, $message) {
 }
 
 function Get-FilePath($rel) {
-    if (Test-Path $rel) { return $rel }
-    if (Test-Path "apps/web/$rel") { return "apps/web/$rel" }
+    if (Test-Path -LiteralPath $rel) { return $rel }
+    if (Test-Path -LiteralPath "apps/web/$rel") { return "apps/web/$rel" }
     $stripped = $rel -replace "^apps/web/", ""
-    if (Test-Path $stripped) { return $stripped }
+    if (Test-Path -LiteralPath $stripped) { return $stripped }
     return $rel
 }
 

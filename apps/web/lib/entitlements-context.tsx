@@ -8,9 +8,11 @@ import {
   type SubscriptionStatus,
   type PlanConfig,
   PLANS,
+  PADDLE_PRICE_IDS,
   getPlan,
   getRequiredPlanForCapability,
 } from "@/lib/billing/plans"
+import { openPaddleCheckout } from "@/lib/billing/paddle-client"
 
 export interface WorkspaceEntitlementsData {
   workspaceId: string
@@ -44,9 +46,11 @@ interface EntitlementsContextType {
   isPaid: boolean
   isPastDue: boolean
   isLoading: boolean
+  isCheckingOut: PlanId | null
   hasCapability: (key: EntitlementKey) => boolean
   getRequiredPlan: (key: EntitlementKey) => PlanId
   refreshEntitlements: () => Promise<void>
+  startCheckout: (planId?: PlanId) => Promise<void>
   openUpgradeModal: (requiredPlan?: PlanId, featureName?: string) => void
   closeUpgradeModal: () => void
   isUpgradeModalOpen: boolean
@@ -61,8 +65,9 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
   const [entitlements, setEntitlements] = useState<WorkspaceEntitlementsData | null>(null)
   const [usage, setUsage] = useState<WorkspaceUsageData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isCheckingOut, setIsCheckingOut] = useState<PlanId | null>(null)
 
-  // Upgrade Modal State
+  // Upgrade Modal State (retained for backwards compatibility, modal disabled by default)
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
   const [targetUpgradePlan, setTargetUpgradePlan] = useState<PlanId>("growth")
   const [targetFeatureName, setTargetFeatureName] = useState<string>("")
@@ -136,11 +141,61 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
     return getRequiredPlanForCapability(key)
   }, [])
 
-  const openUpgradeModal = useCallback((requiredPlan: PlanId = "growth", featureName: string = "") => {
-    setTargetUpgradePlan(requiredPlan)
-    setTargetFeatureName(featureName)
-    setIsUpgradeModalOpen(true)
-  }, [])
+  const startCheckout = useCallback(
+    async (planToCheckout: PlanId = "growth") => {
+      if (!activeWorkspace?.id) {
+        alert("Please select a workspace before upgrading.")
+        return
+      }
+
+      try {
+        setIsCheckingOut(planToCheckout)
+        const targetPriceId =
+          planToCheckout === "business"
+            ? PADDLE_PRICE_IDS.business
+            : PADDLE_PRICE_IDS.growth
+
+        const res = await fetch(
+          `/api/v1/billing/subscription?workspaceId=${encodeURIComponent(activeWorkspace.id)}`
+        )
+        const data = await res.json().catch(() => ({}))
+
+        await openPaddleCheckout({
+          priceId: targetPriceId,
+          plan: planToCheckout,
+          workspaceId: activeWorkspace.id,
+          userEmail: data?.userEmail,
+          onSuccess: async () => {
+            setIsCheckingOut(null)
+            await refreshEntitlements()
+          },
+          onError: (errText?: string) => {
+            setIsCheckingOut(null)
+            console.error("[Checkout error]", errText)
+            alert(errText || "Payment checkout could not be processed. Please try again.")
+          },
+          onClose: () => {
+            setIsCheckingOut(null)
+          },
+        })
+      } catch (err: any) {
+        setIsCheckingOut(null)
+        console.error("Failed to start direct checkout:", err)
+        alert(err.message || "Failed to initialize payment checkout.")
+      }
+    },
+    [activeWorkspace?.id, refreshEntitlements]
+  )
+
+  // Direct checkout: immediately launches checkout without intermediate wizard modal
+  const openUpgradeModal = useCallback(
+    (requiredPlan: PlanId = "growth", featureName: string = "") => {
+      setTargetUpgradePlan(requiredPlan)
+      setTargetFeatureName(featureName)
+      startCheckout(requiredPlan)
+    },
+    [startCheckout]
+  )
 
   const closeUpgradeModal = useCallback(() => {
     setIsUpgradeModalOpen(false)
@@ -159,9 +214,11 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
         isPaid,
         isPastDue,
         isLoading,
+        isCheckingOut,
         hasCapability,
         getRequiredPlan,
         refreshEntitlements,
+        startCheckout,
         openUpgradeModal,
         closeUpgradeModal,
         isUpgradeModalOpen,
@@ -181,3 +238,4 @@ export function useEntitlements() {
   }
   return context
 }
+

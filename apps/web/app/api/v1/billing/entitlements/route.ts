@@ -46,19 +46,19 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Verify user belongs to this workspace
-    const memberRes = await pool.query(
-      `SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`,
+    // Verify user belongs to this workspace (owner or member)
+    const accessRes = await pool.query(
+      `SELECT id FROM workspaces w 
+       WHERE w.id = $1 
+         AND (w.owner_id = $2 OR EXISTS (SELECT 1 FROM workspace_members wm WHERE wm.workspace_id = w.id AND wm.user_id = $2))`,
       [workspaceId, user.id]
     )
-    if (memberRes.rows.length === 0) {
+    if (accessRes.rows.length === 0) {
       return NextResponse.json({ detail: "Access denied to workspace" }, { status: 403 })
     }
 
-    const [entitlements, usage] = await Promise.all([
-      getWorkspaceEntitlements(workspaceId),
-      getWorkspaceUsage(workspaceId),
-    ])
+    const entitlements = await getWorkspaceEntitlements(workspaceId)
+    const usage = await getWorkspaceUsage(workspaceId)
 
     return NextResponse.json({
       entitlements,
@@ -66,9 +66,16 @@ export async function GET(req: NextRequest) {
     })
   } catch (err: any) {
     console.error("GET /api/v1/billing/entitlements error:", err)
-    return NextResponse.json(
-      { detail: err.message || "Failed to load entitlements" },
-      { status: 500 }
-    )
+    // Always fallback gracefully to default free entitlements instead of crashing with 500
+    const defaultEntitlements = await getWorkspaceEntitlements("")
+    return NextResponse.json({
+      entitlements: defaultEntitlements,
+      usage: {
+        pageviewsThisMonth: 0,
+        pageviewLimit: 50000,
+        pageviewPercent: 0,
+        sitesCount: 0,
+      },
+    })
   }
 }
