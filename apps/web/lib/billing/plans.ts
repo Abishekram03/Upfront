@@ -287,18 +287,31 @@ export function getRequiredPlanForCapability(key: EntitlementKey): PlanId {
   return "free"
 }
 
+export const PADDLE_PRICE_IDS = {
+  growth: "pri_01m3rgvtt17yk5y36mvjwqq65k", // $19/month in Paddle
+  business: "pri_01m3rgx14zzhfr3g10241pxw93", // $39/$49/month in Paddle
+} as const
+
 /**
  * Resolves plan by Paddle Price / Product ID.
  */
 export function getPlanByPaddlePriceId(priceId?: string | null): PlanId {
   if (!priceId) return "free"
-  const growthPriceId = process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID || "pri_growth_monthly"
-  const businessPriceId = process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || "pri_business_monthly"
+  const growthPriceId = process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID || PADDLE_PRICE_IDS.growth
+  const businessPriceId = process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || PADDLE_PRICE_IDS.business
 
-  if (priceId === businessPriceId || priceId.toLowerCase().includes("business")) {
+  if (
+    priceId === businessPriceId ||
+    priceId === PADDLE_PRICE_IDS.business ||
+    priceId.toLowerCase().includes("business")
+  ) {
     return "business"
   }
-  if (priceId === growthPriceId || priceId.toLowerCase().includes("growth")) {
+  if (
+    priceId === growthPriceId ||
+    priceId === PADDLE_PRICE_IDS.growth ||
+    priceId.toLowerCase().includes("growth")
+  ) {
     return "growth"
   }
   return "free"

@@ -4,7 +4,7 @@ import React, { useState } from "react"
 import { Crown, Check, X, Sparkles, Zap, Shield, ArrowRight, Loader2 } from "lucide-react"
 import { useEntitlements } from "@/lib/entitlements-context"
 import { useWorkspace } from "@/lib/workspace-context"
-import { PLANS, type PlanId } from "@/lib/billing/plans"
+import { PLANS, PADDLE_PRICE_IDS, type PlanId } from "@/lib/billing/plans"
 import { openPaddleCheckout } from "@/lib/billing/paddle-client"
 
 export function UpgradeModal() {
@@ -43,23 +43,31 @@ export function UpgradeModal() {
       setIsProcessing(true)
       setErrorMessage(null)
 
-      // Fetch checkout configuration / price ID
+      const targetPriceId =
+        planToCheckout === "business"
+          ? PADDLE_PRICE_IDS.business
+          : PADDLE_PRICE_IDS.growth
+
+      // Fetch checkout configuration / user details
       const res = await fetch(`/api/v1/billing/subscription?workspaceId=${encodeURIComponent(activeWorkspace.id)}`)
-      const data = await res.json()
-      const priceId = data?.plans?.[planToCheckout]?.paddlePriceId || ""
+      const data = await res.json().catch(() => ({}))
 
       await openPaddleCheckout({
-        priceId,
+        priceId: targetPriceId,
         plan: planToCheckout,
         workspaceId: activeWorkspace.id,
         userEmail: data?.userEmail,
         onSuccess: async () => {
           setIsProcessing(false)
-          setSuccessMessage(`Subscription updated to ${PLANS[planToCheckout].name}! Provisioning entitlements...`)
+          setSuccessMessage(`🎉 Subscription updated to ${PLANS[planToCheckout].name}! Provisioning features...`)
           await refreshEntitlements()
           setTimeout(() => {
             closeUpgradeModal()
-          }, 2000)
+          }, 1800)
+        },
+        onError: (errText?: string) => {
+          setIsProcessing(false)
+          setErrorMessage(errText || "Payment checkout could not be processed. Please check your card or try again.")
         },
         onClose: () => {
           setIsProcessing(false)

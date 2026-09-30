@@ -7,11 +7,11 @@ const getBaseURL = () => {
   if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return undefined
+  return "http://localhost:3000"
 }
 
 export const auth: any = betterAuth({
-  appName: "usrly",
+  appName: "UpFront",
   database: pool,
   baseURL: getBaseURL(),
   trustedOrigins: [
@@ -21,8 +21,11 @@ export const auth: any = betterAuth({
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
+    "https://userly-five.vercel.app",
     "https://usrly-five.vercel.app",
+    "https://upfront.syfttechnologies.com",
     process.env.NEXT_PUBLIC_APP_URL || "",
+    process.env.BETTER_AUTH_URL || "",
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
     process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "",
   ].filter(Boolean),

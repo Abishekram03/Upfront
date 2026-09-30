@@ -73,6 +73,7 @@ export function SettingsView() {
   // Active Tab State
   const initialTab = (searchParams.get("tab") as TabType) || "profile"
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
+  const [billingToast, setBillingToast] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
   // Listen to hash or param changes
   useEffect(() => {
@@ -87,6 +88,35 @@ export function SettingsView() {
       setActiveTab("sites")
     }
   }, [])
+
+  // Listen to checkout query param on return from Paddle
+  useEffect(() => {
+    const checkoutParam = searchParams.get("checkout")
+    if (checkoutParam === "success") {
+      setActiveTab("billing")
+      refreshEntitlements()
+      setBillingToast({
+        type: "success",
+        message: "🎉 Payment received! Your workspace plan and capabilities have been updated successfully.",
+      })
+      if (typeof window !== "undefined" && window.history?.replaceState) {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("checkout")
+        window.history.replaceState({}, "", url.toString())
+      }
+    } else if (checkoutParam === "cancel" || checkoutParam === "error") {
+      setActiveTab("billing")
+      setBillingToast({
+        type: "error",
+        message: "Checkout was cancelled or could not be completed. No charges were made.",
+      })
+      if (typeof window !== "undefined" && window.history?.replaceState) {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("checkout")
+        window.history.replaceState({}, "", url.toString())
+      }
+    }
+  }, [searchParams, refreshEntitlements])
 
   // ==========================================
   // 1. PROFILE & SECURITY STATE
@@ -1028,6 +1058,34 @@ export function SettingsView() {
       {/* ========================================================================= */}
       {activeTab === "billing" && (
         <div className="space-y-6 animate-in fade-in duration-150">
+          {/* Toast / Notification Alert */}
+          {billingToast && (
+            <div
+              className={cn(
+                "p-4 rounded-xl border flex items-center justify-between shadow-sm animate-in slide-in-from-top-2 duration-200",
+                billingToast.type === "success"
+                  ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                  : "bg-rose-50 border-rose-300 text-rose-900"
+              )}
+            >
+              <div className="flex items-center gap-3 text-xs font-semibold">
+                {billingToast.type === "success" ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                )}
+                <span>{billingToast.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBillingToast(null)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Past Due Warning Alert */}
           {isPastDue && (
             <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 flex items-start gap-3 shadow-xs">

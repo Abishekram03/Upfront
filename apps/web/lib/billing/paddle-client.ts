@@ -4,7 +4,7 @@
  * Loads Paddle.js SDK and opens overlay / hosted checkout carrying workspace ID metadata.
  */
 
-import { type PlanId } from "./plans"
+import { type PlanId, PADDLE_PRICE_IDS } from "./plans"
 
 declare global {
   interface Window {
@@ -13,6 +13,7 @@ declare global {
 }
 
 let paddlePromise: Promise<any> | null = null
+let activeCheckoutOptions: CheckoutOptions | null = null
 
 export function loadPaddleScript(environment: "sandbox" | "production" = "sandbox"): Promise<any> {
   if (typeof window === "undefined") return Promise.resolve(null)
@@ -33,9 +34,54 @@ export function loadPaddleScript(environment: "sandbox" | "production" = "sandbo
               window.Paddle.Environment.set(env)
               window.Paddle.Initialize({
                 token: clientToken,
-                eventCallback: (data: any) => {
+                eventCallback: async (data: any) => {
                   if (data.name === "checkout.completed") {
-                    console.log("[Paddle] Checkout completed:", data)
+                    console.log("[Paddle] Checkout completed event:", data)
+                    const workspaceId =
+                      data?.data?.custom_data?.workspace_id ||
+                      data?.data?.custom_data?.workspaceId ||
+                      activeCheckoutOptions?.workspaceId
+
+                    const rawPriceId = data?.data?.items?.[0]?.price?.id || activeCheckoutOptions?.priceId
+                    const isBusiness =
+                      rawPriceId === PADDLE_PRICE_IDS.business ||
+                      rawPriceId === (process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || "pri_01m3rgvtt17yk5y36mvjwqq65k") ||
+                      rawPriceId?.includes("business")
+
+                    const plan =
+                      activeCheckoutOptions?.plan ||
+                      (isBusiness ? "business" : "growth")
+
+                    if (workspaceId && plan) {
+                      try {
+                        await fetch("/api/v1/billing/sync", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            workspaceId,
+                            plan,
+                            paddleSubscriptionId: data?.data?.id || `sub_${Date.now()}`,
+                            paddleCustomerId: data?.data?.customer_id,
+                            paddlePriceId: rawPriceId,
+                          }),
+                        })
+                      } catch (err) {
+                        console.warn("[Paddle] Client billing sync notice:", err)
+                      }
+                    }
+
+                    if (typeof activeCheckoutOptions?.onSuccess === "function") {
+                      activeCheckoutOptions.onSuccess()
+                    }
+                  } else if (data.name === "checkout.error" || data.name === "checkout.failed") {
+                    console.error("[Paddle] Checkout error event:", data)
+                    if (typeof activeCheckoutOptions?.onError === "function") {
+                      activeCheckoutOptions.onError(data?.data?.message || "Checkout payment failed or was declined.")
+                    }
+                  } else if (data.name === "checkout.closed") {
+                    if (typeof activeCheckoutOptions?.onClose === "function") {
+                      activeCheckoutOptions.onClose()
+                    }
                   }
                 },
               })
@@ -63,6 +109,7 @@ export interface CheckoutOptions {
   userId?: string
   userEmail?: string
   onSuccess?: () => void
+  onError?: (errorMessage?: string) => void
   onClose?: () => void
 }
 
@@ -70,9 +117,21 @@ export interface CheckoutOptions {
  * Opens Paddle Checkout with associated workspace custom data.
  */
 export async function openPaddleCheckout(options: CheckoutOptions) {
-  const { priceId, workspaceId, userId, userEmail, onSuccess, onClose } = options
+  const { priceId, workspaceId, userId, userEmail, onSuccess, onError, onClose } = options
+
+  const resolvedPriceId =
+    priceId ||
+    (options.plan === "business"
+      ? PADDLE_PRICE_IDS.business
+      : PADDLE_PRICE_IDS.growth)
+
+  if (!resolvedPriceId) {
+    throw new Error("Missing Paddle Price ID for checkout.")
+  }
 
   if (typeof window === "undefined") return
+
+  activeCheckoutOptions = options
 
   try {
     const paddle = await loadPaddleScript(
@@ -81,7 +140,7 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
 
     if (paddle && typeof paddle.Checkout?.open === "function") {
       paddle.Checkout.open({
-        items: [{ priceId, quantity: 1 }],
+        items: [{ priceId: resolvedPriceId, quantity: 1 }],
         customer: userEmail ? { email: userEmail } : undefined,
         customData: {
           workspace_id: workspaceId,
