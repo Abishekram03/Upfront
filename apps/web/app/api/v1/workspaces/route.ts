@@ -50,6 +50,7 @@ export async function GET() {
         ) as onboarding_completed,
         COALESCE(w.onboarding_step, 'completed') as onboarding_step,
         w.first_site_id,
+        COALESCE(w.plan_tier, 'free') as plan_tier,
         w.created_at, 
         w.updated_at,
         wm.role,
@@ -58,7 +59,10 @@ export async function GET() {
       FROM workspaces w
       INNER JOIN workspace_members wm ON w.id = wm.workspace_id
       WHERE wm.user_id = $1
-      ORDER BY w.created_at ASC`,
+      ORDER BY 
+        (CASE WHEN w.plan_tier != 'free' THEN 0 ELSE 1 END) ASC,
+        (SELECT COUNT(id) FROM sites WHERE workspace_id = w.id) DESC,
+        w.created_at ASC`,
       [user.id]
     )
 

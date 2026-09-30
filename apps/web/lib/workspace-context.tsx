@@ -9,6 +9,7 @@ export interface Workspace {
   slug: string
   owner_id: string
   role: "owner" | "admin" | "member" | "viewer"
+  plan_tier?: "free" | "growth" | "business" | string
   onboarding_completed?: boolean
   onboarding_step?: "welcome" | "website" | "install" | "verify" | "completed" | string
   first_site_id?: string | null
@@ -61,7 +62,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       if (data.length > 0) {
         const savedId = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_WORKSPACE_KEY) : null
         const matching = data.find((w) => w.id === savedId)
-        const selected = matching || data[0] || null
+        // Smart workspace selection: saved workspace -> paid workspace -> workspace with sites -> first workspace
+        const paidWorkspace = data.find((w) => w.plan_tier && w.plan_tier !== "free")
+        const workspaceWithSites = data.find((w) => (w.sites_count || 0) > 0)
+        const selected = matching || paidWorkspace || workspaceWithSites || data[0] || null
+
         setActiveWorkspaceState(selected)
         if (selected && typeof window !== "undefined") {
           localStorage.setItem(ACTIVE_WORKSPACE_KEY, selected.id)
