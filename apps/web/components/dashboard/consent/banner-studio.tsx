@@ -64,6 +64,60 @@ import { useEntitlements } from "@/lib/entitlements-context"
 
 export { LAW_PRESETS }
 
+export const ALL_COUNTRIES = [
+  { code: "US", name: "United States", flag: "🇺🇸" },
+  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "DE", name: "Germany", flag: "🇩🇪" },
+  { code: "FR", name: "France", flag: "🇫🇷" },
+  { code: "IT", name: "Italy", flag: "🇮🇹" },
+  { code: "ES", name: "Spain", flag: "🇪🇸" },
+  { code: "CA", name: "Canada", flag: "🇨🇦" },
+  { code: "AU", name: "Australia", flag: "🇦🇺" },
+  { code: "IN", name: "India", flag: "🇮🇳" },
+  { code: "BR", name: "Brazil", flag: "🇧🇷" },
+  { code: "JP", name: "Japan", flag: "🇯🇵" },
+  { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+  { code: "CH", name: "Switzerland", flag: "🇨🇭" },
+  { code: "SE", name: "Sweden", flag: "🇸🇪" },
+  { code: "NO", name: "Norway", flag: "🇳🇴" },
+  { code: "DK", name: "Denmark", flag: "🇩🇰" },
+  { code: "FI", name: "Finland", flag: "🇫🇮" },
+  { code: "PL", name: "Poland", flag: "🇵🇱" },
+  { code: "IE", name: "Ireland", flag: "🇮🇪" },
+  { code: "AT", name: "Austria", flag: "🇦🇹" },
+  { code: "BE", name: "Belgium", flag: "🇧🇪" },
+  { code: "PT", name: "Portugal", flag: "🇵🇹" },
+  { code: "GR", name: "Greece", flag: "🇬🇷" },
+  { code: "CZ", name: "Czech Republic", flag: "🇨🇿" },
+  { code: "RO", name: "Romania", flag: "🇷🇴" },
+  { code: "HU", name: "Hungary", flag: "🇭🇺" },
+  { code: "NZ", name: "New Zealand", flag: "🇳🇿" },
+  { code: "SG", name: "Singapore", flag: "🇸🇬" },
+  { code: "AE", name: "United Arab Emirates", flag: "🇦🇪" },
+  { code: "SA", name: "Saudi Arabia", flag: "🇸🇦" },
+  { code: "ZA", name: "South Africa", flag: "🇿🇦" },
+  { code: "MX", name: "Mexico", flag: "🇲🇽" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷" },
+  { code: "CL", name: "Chile", flag: "🇨🇱" },
+  { code: "KR", name: "South Korea", flag: "🇰🇷" },
+  { code: "TR", name: "Turkey", flag: "🇹🇷" },
+  { code: "IL", name: "Israel", flag: "🇮🇱" },
+  { code: "EE", name: "Estonia", flag: "🇪🇪" },
+  { code: "LV", name: "Latvia", flag: "🇱🇻" },
+  { code: "LT", name: "Lithuania", flag: "🇱🇹" },
+  { code: "LU", name: "Luxembourg", flag: "🇱🇺" },
+  { code: "SK", name: "Slovakia", flag: "🇸🇰" },
+  { code: "SI", name: "Slovenia", flag: "🇸🇮" },
+  { code: "BG", name: "Bulgaria", flag: "🇧🇬" },
+  { code: "HR", name: "Croatia", flag: "🇭🇷" },
+  { code: "CY", name: "Cyprus", flag: "🇨🇾" },
+  { code: "MT", name: "Malta", flag: "🇲🇹" },
+]
+
+export const EU_COUNTRY_CODES = [
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "GB"
+]
+
 export const DEFAULT_BANNER_CONFIG: Omit<StudioConfig, "domain"> = {
   is_enabled: true,
   enable_auto_language: true,
@@ -393,6 +447,15 @@ export function BannerStudio() {
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop")
   const [previewView, setPreviewView] = useState<"notice" | "preferences">("notice")
   const [previewLanguage, setPreviewLanguage] = useState<string>("en")
+  const [countrySearchQuery, setCountrySearchQuery] = useState("")
+
+  const filteredCountries = useMemo(() => {
+    if (!countrySearchQuery.trim()) return ALL_COUNTRIES
+    const q = countrySearchQuery.toLowerCase().trim()
+    return ALL_COUNTRIES.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+    )
+  }, [countrySearchQuery])
 
   // Translation resolver for canvas preview
   const getText = (key: keyof CMPTranslationDictionary): string => {
@@ -805,6 +868,139 @@ export function BannerStudio() {
                       )
                     })}
                   </div>
+
+                  {/* Interactive Country Selector when 'Select Countries' is chosen */}
+                  {(config.geo_targeting === "custom") && (
+                    <div className="mt-2.5 p-3 rounded-lg border border-slate-200/90 bg-slate-50/70 space-y-2.5 animate-in fade-in-50">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800">
+                          Target Countries ({((config as any).target_countries || []).length})
+                        </span>
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfig((prev) => ({
+                                ...prev,
+                                target_countries: Array.from(new Set([...((prev as any).target_countries || []), ...EU_COUNTRY_CODES])),
+                              }))
+                            }}
+                            className="text-[#1868db] hover:underline font-bold cursor-pointer"
+                          >
+                            + EU (27)
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfig((prev) => ({
+                                ...prev,
+                                target_countries: Array.from(new Set([...((prev as any).target_countries || []), "US", "CA"])),
+                              }))
+                            }}
+                            className="text-[#1868db] hover:underline font-bold cursor-pointer"
+                          >
+                            + US & CA
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfig((prev) => ({
+                                ...prev,
+                                target_countries: [],
+                              }))
+                            }}
+                            className="text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Search Input */}
+                      <div className="relative">
+                        <Search className="size-3.5 text-slate-400 absolute left-2.5 top-2" />
+                        <input
+                          type="text"
+                          placeholder="Search countries..."
+                          value={countrySearchQuery}
+                          onChange={(e) => setCountrySearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-xs bg-white rounded border border-slate-200 focus:outline-hidden focus:border-[#1868db]"
+                        />
+                      </div>
+
+                      {/* Selected Chips */}
+                      {((config as any).target_countries || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto pt-0.5">
+                          {((config as any).target_countries || []).map((code: string) => {
+                            const item = ALL_COUNTRIES.find((c) => c.code === code)
+                            return (
+                              <span
+                                key={code}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium"
+                              >
+                                <span>{item?.flag || "🌐"}</span>
+                                <span>{item?.name ? (item.name.length > 12 ? code : item.name) : code}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setConfig((prev) => ({
+                                      ...prev,
+                                      target_countries: ((prev as any).target_countries || []).filter((c: string) => c !== code),
+                                    }))
+                                  }}
+                                  className="text-blue-500 hover:text-blue-800 font-bold ml-0.5 cursor-pointer"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* Scrollable Country List */}
+                      <div className="max-h-44 overflow-y-auto border border-slate-200 rounded bg-white divide-y divide-slate-100 p-1">
+                        {filteredCountries.length === 0 ? (
+                          <div className="p-3 text-center text-xs text-slate-400">No countries match your search</div>
+                        ) : (
+                          filteredCountries.map((country) => {
+                            const isCountrySelected = (((config as any).target_countries || []) as string[]).includes(country.code)
+                            return (
+                              <label
+                                key={country.code}
+                                className={cn(
+                                  "flex items-center justify-between px-2.5 py-1.5 rounded hover:bg-slate-50 cursor-pointer text-xs transition-colors",
+                                  isCountrySelected && "bg-blue-50/50 font-medium"
+                                )}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isCountrySelected}
+                                    onChange={() => {
+                                      setConfig((prev) => {
+                                        const current = ((prev as any).target_countries || []) as string[]
+                                        const next = isCountrySelected
+                                          ? current.filter((c) => c !== country.code)
+                                          : [...current, country.code]
+                                        return { ...prev, target_countries: next }
+                                      })
+                                    }}
+                                    className="rounded text-[#1868db] focus:ring-[#1868db] size-3.5"
+                                  />
+                                  <span className="text-sm">{country.flag}</span>
+                                  <span className="text-slate-800 text-xs">{country.name}</span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-mono font-semibold">{country.code}</span>
+                              </label>
+                            )
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Framework & Mode Toggles */}

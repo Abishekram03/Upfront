@@ -198,7 +198,8 @@ export interface ConsentConfig {
   enable_auto_language?: boolean
   default_language?: string
   supported_languages?: string[]
-  geo_targeting: "all" | "eu_uk_only" | "eu_uk_us_only"
+  geo_targeting: "all" | "eu_only" | "eu_uk_only" | "custom" | string
+  target_countries?: string[]
   enable_gpc?: boolean
   consent_version?: string
   created_at?: string

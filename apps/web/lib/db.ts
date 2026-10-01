@@ -273,6 +273,9 @@ export async function ensureTables() {
 
         CREATE INDEX IF NOT EXISTS ix_consent_receipts_domain_created ON consent_receipts(domain, created_at);
 
+        -- Add target_countries column for granular country selection
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS target_countries TEXT[] DEFAULT ARRAY[]::TEXT[];
+
         -- Safe Schema Migrations
         -- Onboarding & Site Verification Migrations
         UPDATE workspaces SET onboarding_completed = TRUE WHERE onboarding_completed IS FALSE AND id IN (SELECT DISTINCT workspace_id FROM sites WHERE workspace_id IS NOT NULL);

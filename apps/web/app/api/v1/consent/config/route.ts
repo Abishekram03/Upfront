@@ -105,6 +105,9 @@ export async function GET(req: Request) {
       isInGeoZone = country === "IN"
     } else if (geo === "br") {
       isInGeoZone = country === "BR"
+    } else if (geo === "custom") {
+      const list = Array.isArray(config.target_countries) ? config.target_countries : []
+      isInGeoZone = list.length === 0 || list.includes(country)
     } else if (geo === "all") {
       isInGeoZone = true
     }
@@ -172,7 +175,7 @@ export async function POST(req: Request) {
         enable_analytics_category, enable_performance_category, enable_advertisement_category,
         show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf,
         enable_auto_language, default_language, supported_languages, geo_targeting,
-        enable_gpc, consent_version, custom_css, law_template,
+        target_countries, enable_gpc, consent_version, custom_css, law_template,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
@@ -184,7 +187,7 @@ export async function POST(req: Request) {
         $24, $25, $26,
         $27, $28, $29, $30,
         $31, $32, $33, $34,
-        $35, $36, $37, $38,
+        $35, $36, $37, $38, $39,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -220,6 +223,7 @@ export async function POST(req: Request) {
         default_language = EXCLUDED.default_language,
         supported_languages = EXCLUDED.supported_languages,
         geo_targeting = EXCLUDED.geo_targeting,
+        target_countries = EXCLUDED.target_countries,
         enable_gpc = EXCLUDED.enable_gpc,
         consent_version = EXCLUDED.consent_version,
         custom_css = EXCLUDED.custom_css,
@@ -261,6 +265,7 @@ export async function POST(req: Request) {
         body.default_language || "en",
         body.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi"],
         body.geo_targeting || "all",
+        Array.isArray(body.target_countries) ? body.target_countries : [],
         body.enable_gpc !== undefined ? body.enable_gpc : true,
         body.consent_version || "1.0",
         body.custom_css || "",
