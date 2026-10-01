@@ -1,7 +1,7 @@
 import { ConsentConfig, ConsentVersion } from "@/lib/api"
 
 export interface StudioConfig extends ConsentConfig {
-  box_position?: "bottom_left" | "bottom_right" | "top_left" | "top_right"
+  box_position?: "bottom_left" | "bottom_right" | "top_left" | "top_right" | "floating_bottom_left" | "floating_bottom_right" | "floating_top_left" | "floating_top_right"
   preference_layout?: "center" | "sidebar" | "push_down"
   categories_on_first_layer?: boolean
   show_close_button?: boolean

@@ -16,16 +16,16 @@ export function detectUpfrontScriptInHtml(html: string, expectedDomain?: string)
   if (!html) return false
   const lower = html.toLowerCase()
 
-  // 1. Check for userly.js script source
-  const hasUserlyScript = /<script\b[^>]*\bsrc=["'][^"']*userly\.js(?:[?#][^"']*)?["'][^>]*>/i.test(html)
+  // 1. Check for script.js, upfront.js, or userly.js script source
+  const hasScriptTag = /<script\b[^>]*\bsrc=["'][^"']*(script|upfront|userly)\.js(?:[?#][^"']*)?["'][^>]*>/i.test(html)
   
   // 2. Check for generic data-domain script tag matching UpFront pattern
   const hasDataDomainScript = /<script\b[^>]*\bdata-domain=["'][^"']+["'][^>]*>/i.test(html)
 
-  // 3. Check for inline window.usrly or userly initialization
-  const hasInlineUsrly = /window\.usrly\s*=|window\.__usrly\b/i.test(html)
+  // 3. Check for inline window.usrly, upfront, or userly initialization
+  const hasInlineUsrly = /window\.(?:usrly|__usrly|upfront|__upfront)\b/i.test(html)
 
-  if (hasUserlyScript || (hasDataDomainScript && lower.includes("userly")) || hasInlineUsrly) {
+  if (hasScriptTag || (hasDataDomainScript && (lower.includes("script.js") || lower.includes("upfront") || lower.includes("userly"))) || hasInlineUsrly) {
     return true
   }
 

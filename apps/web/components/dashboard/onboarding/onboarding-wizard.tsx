@@ -123,7 +123,7 @@ export function OnboardingWizard({ workspace, onComplete }: OnboardingWizardProp
   }, [workspace.id])
 
   const scriptHost = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
-  const scriptSnippet = `<script defer data-domain="${siteDomain || "yourdomain.com"}" src="${scriptHost}/userly.js"></script>`
+  const scriptSnippet = `<script defer data-domain="${siteDomain || "yourdomain.com"}" src="${scriptHost}/script.js"></script>`
 
   const handleCopyScript = () => {
     navigator.clipboard.writeText(scriptSnippet)

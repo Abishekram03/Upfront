@@ -19,7 +19,7 @@ export function InstallationCard({ activeDomain, stats, isLoading }: Installatio
 
   const scriptHost = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
   const domainPlaceholder = activeDomain || "your-domain.com"
-  const snippet = `<script defer data-domain="${domainPlaceholder}" src="${scriptHost}/userly.js"></script>`
+  const snippet = `<script defer data-domain="${domainPlaceholder}" src="${scriptHost}/script.js"></script>`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(snippet)
@@ -112,7 +112,7 @@ export function InstallationCard({ activeDomain, stats, isLoading }: Installatio
             <span className="text-purple-700 font-medium">data-domain</span>=
             <span className="text-emerald-700">&quot;{domainPlaceholder}&quot;</span>{" "}
             <span className="text-purple-700 font-medium">src</span>=
-            <span className="text-emerald-700">&quot;{scriptHost}/userly.js&quot;</span>
+            <span className="text-emerald-700">&quot;{scriptHost}/script.js&quot;</span>
             <span className="text-blue-700 font-semibold">&gt;&lt;/script&gt;</span>
           </code>
         </pre>

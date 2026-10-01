@@ -64,7 +64,7 @@ export function DocumentationView() {
   }, [sections])
 
   const copyScriptCode = () => {
-    navigator.clipboard.writeText('<script defer data-domain="yourdomain.com" src="https://upfront.io/userly.js"></script>')
+    navigator.clipboard.writeText('<script defer data-domain="yourdomain.com" src="https://upfront.io/script.js"></script>')
     setCopiedScript(true)
     setTimeout(() => setCopiedScript(false), 2000)
   }
@@ -208,7 +208,7 @@ export function DocumentationView() {
                   )}
                 </button>
                 <pre className="font-mono text-xs overflow-x-auto pr-24 py-1 text-slate-200 select-all">
-                  <code>&lt;script defer data-domain=&quot;yourdomain.com&quot; src=&quot;https://upfront.io/userly.js&quot;&gt;&lt;/script&gt;</code>
+                  <code>&lt;script defer data-domain=&quot;yourdomain.com&quot; src=&quot;https://upfront.io/script.js&quot;&gt;&lt;/script&gt;</code>
                 </pre>
               </div>
 

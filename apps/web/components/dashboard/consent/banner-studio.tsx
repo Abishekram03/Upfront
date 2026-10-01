@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import {
   Settings,
@@ -30,6 +30,7 @@ import {
   Clock,
   Globe,
   Info,
+  Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -118,13 +119,38 @@ export const EU_COUNTRY_CODES = [
   "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "GB"
 ]
 
+export function isBoxLayout(layout?: string | null): boolean {
+  if (!layout) return false
+  const l = layout.toLowerCase()
+  return (
+    l === "box" ||
+    l.startsWith("floating_") ||
+    l === "bottom_left" ||
+    l === "bottom_right" ||
+    l === "top_left" ||
+    l === "top_right"
+  )
+}
+
+export function isPopupLayout(layout?: string | null): boolean {
+  if (!layout) return false
+  const l = layout.toLowerCase()
+  return l === "center_modal" || l === "popup" || l === "modal" || l === "center"
+}
+
+export function isBannerLayout(layout?: string | null): boolean {
+  if (!layout) return true
+  const l = layout.toLowerCase()
+  return l === "bottom_bar" || l === "top_bar" || l === "banner" || (!isBoxLayout(l) && !isPopupLayout(l))
+}
+
 export const DEFAULT_BANNER_CONFIG: Omit<StudioConfig, "domain"> = {
   is_enabled: true,
   enable_auto_language: true,
   default_language: "en",
   supported_languages: ["en", "de", "fr", "es", "pt", "it", "nl", "hi"],
   layout: "bottom_bar" as any,
-  box_position: "bottom_left",
+  box_position: "floating_bottom_left",
   preference_layout: "center",
   categories_on_first_layer: false,
   theme: "light",
@@ -377,58 +403,18 @@ export function BannerStudio() {
   >("necessary")
 
   // Configuration state
-  const [config, setConfig] = useState<ConsentConfig & {
-    box_position?: "bottom_left" | "bottom_right" | "top_left" | "top_right"
-    preference_layout?: "center" | "sidebar" | "push_down"
-    categories_on_first_layer?: boolean
-    show_close_button?: boolean
-    show_cookie_policy_link?: boolean
-    show_google_privacy_policy?: boolean
-    google_policy_message?: string
-    google_policy_link_text?: string
-    google_policy_url?: string
-    show_more_label?: string
-    show_less_label?: string
-    show_cookie_list_on_banner?: boolean
-    blocked_content_alt_text?: string
-    custom_css?: string
-
-    // Preference Centre Customizations
-    preference_title?: string
-    preference_description?: string
-    save_preferences_label?: string
-    pref_accept_all_label?: string
-    pref_reject_all_label?: string
-
-    // 5 Category Custom Titles & Descriptions
-    necessary_title?: string
-    necessary_description?: string
-    functional_title?: string
-    functional_description?: string
-    analytics_title?: string
-    analytics_description?: string
-    performance_title?: string
-    performance_description?: string
-    advertisement_title?: string
-    advertisement_description?: string
-
-    // Cookie List Table Labels
-    cookie_column_label?: string
-    duration_column_label?: string
-    description_column_label?: string
-    always_active_label?: string
-    no_cookies_to_display_label?: string
-
-    // Cookie List Category Toggles
-    show_necessary_cookies?: boolean
-    show_functional_cookies?: boolean
-    show_analytics_cookies?: boolean
-    show_performance_cookies?: boolean
-    show_advertisement_cookies?: boolean
-  }>({
+  const [configState, setConfigState] = useState<StudioConfig>({
     ...DEFAULT_BANNER_CONFIG,
     domain: activeDomain || "",
   })
+
+  // Proxy state setter that marks draft changes upon any user edit
+  const setConfig: React.Dispatch<React.SetStateAction<StudioConfig>> = (action) => {
+    setIsDraft(true)
+    setConfigState(action)
+  }
+
+  const config = configState
 
   const [isLoading, setIsLoading] = useState(true)
   const [isDraft, setIsDraft] = useState(false)
@@ -496,12 +482,6 @@ export function BannerStudio() {
     if (!hasCapability("cmp.geo_targeting")) {
       sanitized.geo_targeting = "all"
     }
-    if (!hasCapability("cmp.box_layout") && (sanitized.layout?.includes("floating") || sanitized.layout === "box")) {
-      sanitized.layout = "bottom_bar"
-    }
-    if (!hasCapability("cmp.popup_layout") && (sanitized.layout === "center_modal" || sanitized.layout === "popup")) {
-      sanitized.layout = "bottom_bar"
-    }
     return sanitized
   }
 
@@ -526,7 +506,7 @@ export function BannerStudio() {
 
       const activeConfig = draftData.config || pubData
       if (activeConfig) {
-        setConfig((prev) => {
+        setConfigState((prev) => {
           const merged = {
             ...prev,
             ...activeConfig,
@@ -550,17 +530,68 @@ export function BannerStudio() {
 
   // Automatically enforce plan capabilities whenever entitlements resolve
   useEffect(() => {
-    setConfig((prev) => sanitizeConfigForTier(prev))
+    setConfigState((prev) => sanitizeConfigForTier(prev))
   }, [hasCapability])
 
   // Track edits to flag draft changes
-  const updateConfig = (updater: (prev: typeof config) => typeof config) => {
+  const setConfigWithDraft: React.Dispatch<React.SetStateAction<StudioConfig>> = (action) => {
+    setIsDraft(true)
+    setConfig(action)
+  }
+
+  const updateConfig = (updater: (prev: StudioConfig) => StudioConfig) => {
     setConfig((prev) => {
       const next = updater(prev)
       setIsDraft(true)
       return next
     })
   }
+
+  // Compute whether there are changes relative to the live published config
+  const hasChanges = useMemo(() => {
+    if (isDraft) return true
+    if (!publishedConfig) return false
+    const keysToCompare: (keyof StudioConfig)[] = [
+      "layout",
+      "box_position",
+      "theme",
+      "primary_color",
+      "border_radius",
+      "title",
+      "description",
+      "privacy_policy_url",
+      "show_close_button",
+      "accept_all_label",
+      "reject_all_label",
+      "preferences_label",
+      "preference_title",
+      "preference_description",
+      "save_preferences_label",
+      "enable_necessary_category",
+      "enable_functional_category",
+      "enable_analytics_category",
+      "enable_performance_category",
+      "enable_advertisement_category",
+      "show_necessary_cookies",
+      "show_functional_cookies",
+      "show_analytics_cookies",
+      "show_performance_cookies",
+      "show_advertisement_cookies",
+      "show_revisit_button",
+      "revisit_button_position",
+      "geo_targeting",
+      "enable_gpc",
+      "enable_consent_mode_v2",
+      "enable_iab_tcf",
+      "custom_css",
+    ]
+    return keysToCompare.some((key) => {
+      const curr = (config as any)[key]
+      const pub = (publishedConfig as any)[key]
+      if (curr === undefined && pub === undefined) return false
+      return String(curr ?? "") !== String(pub ?? "")
+    })
+  }, [isDraft, config, publishedConfig])
 
   // Save Working Draft
   const handleSaveDraft = async () => {
@@ -569,7 +600,7 @@ export function BannerStudio() {
     try {
       const payload = sanitizeConfigForTier(config)
       await saveConsentDraft(activeDomain, payload, baseVersion)
-      setConfig(payload)
+      setConfigState(payload)
       setIsDraft(true)
       toast.success("Draft saved successfully", {
         description: "Changes are saved in working draft and will not affect live visitors until published.",
@@ -677,7 +708,7 @@ export function BannerStudio() {
     try {
       const payload = sanitizeConfigForTier(config)
       const res = await publishConsentConfig(activeDomain, payload, baseVersion)
-      setConfig(payload)
+      setConfigState(payload)
       setPublishedVersion(res.published_version)
       setBaseVersion(res.published_version)
       setPublishedConfig(res.config)
@@ -965,7 +996,7 @@ export function BannerStudio() {
                         {filteredCountries.length === 0 ? (
                           <div className="p-3 text-center text-xs text-slate-400">No countries match your search</div>
                         ) : (
-                          filteredCountries.map((country) => {
+                          filteredCountries.map((country: { code: string; name: string; flag: string }) => {
                             const isCountrySelected = (((config as any).target_countries || []) as string[]).includes(country.code)
                             return (
                               <label
@@ -1120,152 +1151,223 @@ export function BannerStudio() {
 
                 {/* 2. Cookie Notice Form Factors */}
                 <div className="space-y-3 pt-2 border-t border-slate-100">
-                  <label className="text-xs font-bold text-slate-800 block">Cookie notice</label>
-                  
-                  {/* 3 Visual Miniature Cards */}
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {/* BOX */}
-                    {(() => {
-                      const isSelected = config.layout?.includes("floating") || config.layout === "box"
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConfig({ ...config, layout: (config.box_position as any) || "floating_bottom_left" })
-                            setPreviewView("notice")
-                          }}
-                          className={cn(
-                            "p-2.5 rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
-                            isSelected
-                              ? "border-[#1868db] bg-blue-50/40 text-[#1868db] ring-1 ring-[#1868db]"
-                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                          )}
-                        >
-                          {/* Miniature Graphic */}
-                          <div className="w-10 h-7 rounded bg-slate-100 border border-slate-200 relative overflow-hidden flex items-end p-0.5">
-                            <div className="w-3.5 h-2.5 rounded-xs bg-[#1868db]" />
-                          </div>
-                          <span className="text-[11px] font-semibold">Box</span>
-                          {isSelected && (
-                            <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
-                              <Check className="size-2.5 stroke-[3]" />
-                            </div>
-                          )}
-                        </button>
-                      )
-                    })()}
+                  {(() => {
+                    const isBox = isBoxLayout(config.layout)
+                    const isPopup = isPopupLayout(config.layout)
+                    const isBanner = isBannerLayout(config.layout)
+                    const activeName = isBox ? "Box" : isPopup ? "Popup" : "Banner"
 
-                    {/* BANNER */}
-                    {(() => {
-                      const isSelected = config.layout === "bottom_bar" || config.layout === "top_bar"
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConfig({ ...config, layout: "bottom_bar" })
-                            setPreviewView("notice")
-                          }}
-                          className={cn(
-                            "p-2.5 rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
-                            isSelected
-                              ? "border-[#1868db] bg-blue-50/40 text-[#1868db] ring-1 ring-[#1868db]"
-                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                          )}
-                        >
-                          {/* Miniature Graphic */}
-                          <div className="w-10 h-7 rounded bg-slate-100 border border-slate-200 relative overflow-hidden flex items-end p-0.5">
-                            <div className="w-full h-2 rounded-xs bg-[#1868db]" />
+                    return (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-xs font-bold text-slate-800 block">Cookie notice</label>
+                            <InfoTooltip
+                              position="top"
+                              text="Choose how the first-layer consent banner appears on your website: Box (floating widget), Banner (top or bottom bar), or Popup (centered modal)."
+                            />
                           </div>
-                          <span className="text-[11px] font-semibold">Banner</span>
-                          {isSelected && (
-                            <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
-                              <Check className="size-2.5 stroke-[3]" />
-                            </div>
-                          )}
-                        </button>
-                      )
-                    })()}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-[#1868db] border border-blue-200 text-[10px] font-bold">
+                            <span className="size-1.5 rounded-full bg-[#1868db]" />
+                            <span>Active: {activeName}</span>
+                          </span>
+                        </div>
 
-                    {/* POPUP */}
-                    {(() => {
-                      const isSelected = config.layout === "center_modal" || config.layout === "popup"
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setConfig({ ...config, layout: "center_modal" as any })
-                            setPreviewView("notice")
-                          }}
-                          className={cn(
-                            "p-2.5 rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
-                            isSelected
-                              ? "border-[#1868db] bg-blue-50/40 text-[#1868db] ring-1 ring-[#1868db]"
-                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                          )}
-                        >
-                          {/* Miniature Graphic */}
-                          <div className="w-10 h-7 rounded bg-slate-100 border border-slate-200 relative overflow-hidden flex items-center justify-center p-0.5">
-                            <div className="size-3.5 rounded-xs bg-[#1868db]" />
-                          </div>
-                          <div className="flex items-center gap-1">
+                        {/* 3 Visual Miniature Cards */}
+                        <div className="grid grid-cols-3 gap-2.5">
+                          {/* BOX */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const targetBox: "floating_bottom_left" | "floating_bottom_right" | "floating_top_left" | "floating_top_right" =
+                                config.box_position === "bottom_right" || config.box_position === "floating_bottom_right"
+                                  ? "floating_bottom_right"
+                                  : config.box_position === "top_left" || config.box_position === "floating_top_left"
+                                  ? "floating_top_left"
+                                  : config.box_position === "top_right" || config.box_position === "floating_top_right"
+                                  ? "floating_top_right"
+                                  : "floating_bottom_left"
+
+                              setConfig((prev) => ({
+                                ...prev,
+                                layout: targetBox,
+                                box_position: targetBox,
+                              }))
+                              setIsDraft(true)
+                              setPreviewView("notice")
+                            }}
+                            className={cn(
+                              "p-2.5 rounded-lg border-2 text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
+                              isBox
+                                ? "border-[#1868db] bg-blue-50/80 text-[#1868db] shadow-xs ring-2 ring-blue-500/20 font-bold"
+                                : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700"
+                            )}
+                          >
+                            {/* Miniature Graphic */}
+                            <div
+                              className={cn(
+                                "w-10 h-7 rounded border relative overflow-hidden flex items-end p-0.5 transition-colors",
+                                isBox ? "bg-blue-100/70 border-blue-300" : "bg-slate-100 border-slate-200"
+                              )}
+                            >
+                              <div className="w-3.5 h-2.5 rounded-xs bg-[#1868db]" />
+                            </div>
+                            <span className="text-[11px] font-semibold">Box</span>
+                            {isBox && (
+                              <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-[#1868db] text-white flex items-center justify-center shadow-xs">
+                                <Check className="size-2.5 stroke-[3]" />
+                              </div>
+                            )}
+                          </button>
+
+                          {/* BANNER */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfig((prev) => ({
+                                ...prev,
+                                layout: "bottom_bar",
+                              }))
+                              setIsDraft(true)
+                              setPreviewView("notice")
+                            }}
+                            className={cn(
+                              "p-2.5 rounded-lg border-2 text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
+                              isBanner
+                                ? "border-[#1868db] bg-blue-50/80 text-[#1868db] shadow-xs ring-2 ring-blue-500/20 font-bold"
+                                : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700"
+                            )}
+                          >
+                            {/* Miniature Graphic */}
+                            <div
+                              className={cn(
+                                "w-10 h-7 rounded border relative overflow-hidden flex items-end p-0.5 transition-colors",
+                                isBanner ? "bg-blue-100/70 border-blue-300" : "bg-slate-100 border-slate-200"
+                              )}
+                            >
+                              <div className="w-full h-2 rounded-xs bg-[#1868db]" />
+                            </div>
+                            <span className="text-[11px] font-semibold">Banner</span>
+                            {isBanner && (
+                              <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-[#1868db] text-white flex items-center justify-center shadow-xs">
+                                <Check className="size-2.5 stroke-[3]" />
+                              </div>
+                            )}
+                          </button>
+
+                          {/* POPUP */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfig((prev) => ({
+                                ...prev,
+                                layout: "center_modal",
+                              }))
+                              setIsDraft(true)
+                              setPreviewView("notice")
+                            }}
+                            className={cn(
+                              "p-2.5 rounded-lg border-2 text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
+                              isPopup
+                                ? "border-[#1868db] bg-blue-50/80 text-[#1868db] shadow-xs ring-2 ring-blue-500/20 font-bold"
+                                : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700"
+                            )}
+                          >
+                            {/* Miniature Graphic */}
+                            <div
+                              className={cn(
+                                "w-10 h-7 rounded border relative overflow-hidden flex items-center justify-center p-0.5 transition-colors",
+                                isPopup ? "bg-blue-100/70 border-blue-300" : "bg-slate-100 border-slate-200"
+                              )}
+                            >
+                              <div className="size-3.5 rounded-xs bg-[#1868db]" />
+                            </div>
                             <span className="text-[11px] font-semibold">Popup</span>
-                          </div>
-                          {isSelected && (
-                            <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
-                              <Check className="size-2.5 stroke-[3]" />
+                            {isPopup && (
+                              <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-[#1868db] text-white flex items-center justify-center shadow-xs">
+                                <Check className="size-2.5 stroke-[3]" />
+                              </div>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Alignment Options for Box */}
+                        {isBox && (
+                          <div className="pt-2">
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+                              {[
+                                { id: "floating_bottom_left", altId: "bottom_left", label: "Bottom left" },
+                                { id: "floating_bottom_right", altId: "bottom_right", label: "Bottom right" },
+                                { id: "floating_top_left", altId: "top_left", label: "Top left" },
+                                { id: "floating_top_right", altId: "top_right", label: "Top right" },
+                              ].map((pos) => {
+                                const isPosActive =
+                                  config.layout === pos.id ||
+                                  config.layout === pos.altId ||
+                                  config.box_position === pos.id ||
+                                  config.box_position === pos.altId ||
+                                  (pos.id === "floating_bottom_left" && (config.layout === "box" || !config.layout))
+
+                                return (
+                                  <label key={pos.id} className="flex items-center gap-2 cursor-pointer text-slate-700 select-none">
+                                    <input
+                                      type="radio"
+                                      name="box_position"
+                                      checked={isPosActive}
+                                      onChange={() =>
+                                        setConfig((prev) => ({
+                                          ...prev,
+                                          layout: pos.id as any,
+                                          box_position: pos.id as any,
+                                        }))
+                                      }
+                                      className="size-3.5 text-[#1868db] focus:ring-[#1868db]"
+                                    />
+                                    <span className={cn("text-[11px]", isPosActive ? "font-bold text-[#1868db]" : "font-medium")}>
+                                      {pos.label}
+                                    </span>
+                                  </label>
+                                )
+                              })}
                             </div>
-                          )}
-                        </button>
-                      )
-                    })()}
-                  </div>
+                          </div>
+                        )}
 
-                  {/* Alignment Options (Radios directly below) */}
-                  {(config.layout?.includes("floating") || config.layout === "box") && (
-                    <div className="pt-2">
-                      <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
-                        {[
-                          { id: "floating_bottom_left", label: "Bottom left" },
-                          { id: "floating_bottom_right", label: "Bottom right" },
-                          { id: "floating_top_left", label: "Top left" },
-                          { id: "floating_top_right", label: "Top right" },
-                        ].map((pos) => (
-                          <label key={pos.id} className="flex items-center gap-2 cursor-pointer text-slate-700 select-none">
-                            <input
-                              type="radio"
-                              name="box_position"
-                              checked={config.layout === pos.id || (pos.id === "floating_bottom_left" && config.layout === "box")}
-                              onChange={() => setConfig({ ...config, layout: pos.id as any, box_position: pos.id as any })}
-                              className="size-3.5 text-[#1868db] focus:ring-[#1868db]"
-                            />
-                            <span className="text-[11px] font-medium">{pos.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {(config.layout === "bottom_bar" || config.layout === "top_bar") && (
-                    <div className="pt-2">
-                      <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
-                        {[
-                          { id: "bottom_bar", label: "Bottom" },
-                          { id: "top_bar", label: "Top" },
-                        ].map((pos) => (
-                          <label key={pos.id} className="flex items-center gap-2 cursor-pointer text-slate-700 select-none">
-                            <input
-                              type="radio"
-                              name="banner_position"
-                              checked={config.layout === pos.id}
-                              onChange={() => setConfig({ ...config, layout: pos.id as any })}
-                              className="size-3.5 text-[#1868db] focus:ring-[#1868db]"
-                            />
-                            <span className="text-[11px] font-medium">{pos.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        {/* Alignment Options for Banner */}
+                        {isBanner && (
+                          <div className="pt-2">
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+                              {[
+                                { id: "bottom_bar", label: "Bottom" },
+                                { id: "top_bar", label: "Top" },
+                              ].map((pos) => {
+                                const isBannerPosActive = config.layout === pos.id || (!config.layout && pos.id === "bottom_bar")
+                                return (
+                                  <label key={pos.id} className="flex items-center gap-2 cursor-pointer text-slate-700 select-none">
+                                    <input
+                                      type="radio"
+                                      name="banner_position"
+                                      checked={isBannerPosActive}
+                                      onChange={() =>
+                                        setConfig((prev) => ({
+                                          ...prev,
+                                          layout: pos.id as any,
+                                        }))
+                                      }
+                                      className="size-3.5 text-[#1868db] focus:ring-[#1868db]"
+                                    />
+                                    <span className={cn("text-[11px]", isBannerPosActive ? "font-bold text-[#1868db]" : "font-medium")}>
+                                      {pos.label}
+                                    </span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
 
                 {/* 3. Preference Centre Layout (Locked to Center Modal) */}
@@ -1903,17 +2005,27 @@ export function BannerStudio() {
           <div className="p-3.5 border-t border-slate-200 bg-white flex items-center gap-2 shrink-0">
             <button
               type="button"
-              disabled={isSavingDraft || isPublishing || !activeDomain}
+              disabled={isSavingDraft || isPublishing || !activeDomain || !hasChanges}
               onClick={handleSaveDraft}
-              className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3.5 py-2 transition-colors cursor-pointer disabled:opacity-50"
+              className={cn(
+                "rounded-lg border text-xs font-semibold px-3.5 py-2 transition-all",
+                hasChanges && !isSavingDraft
+                  ? "border-slate-200 bg-white hover:bg-slate-50 text-slate-700 cursor-pointer shadow-2xs"
+                  : "border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed shadow-none hover:bg-slate-50 opacity-60"
+              )}
             >
               {isSavingDraft ? "Saving..." : "Save Draft"}
             </button>
             <Button
               type="button"
               onClick={() => setIsPublishModalOpen(true)}
-              disabled={isPublishing || !activeDomain}
-              className="flex-1 rounded-lg bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold py-2 shadow-xs cursor-pointer disabled:opacity-50"
+              disabled={isPublishing || !activeDomain || !hasChanges}
+              className={cn(
+                "flex-1 rounded-lg text-xs font-bold py-2 transition-all",
+                hasChanges && !isPublishing
+                  ? "bg-[#1868db] hover:bg-[#1559be] text-white cursor-pointer shadow-xs"
+                  : "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed shadow-none hover:bg-slate-100 hover:text-slate-400 opacity-60"
+              )}
             >
               Publish Changes
             </Button>
@@ -1982,7 +2094,7 @@ export function BannerStudio() {
               {/* LIVE NOTICE BANNER OVERLAY */}
               {previewView === "notice" && (
                 <>
-                  {config.layout === "center_modal" ? (
+                  {isPopupLayout(config.layout) ? (
                     <div className="absolute inset-0 z-20 bg-slate-950/45 backdrop-blur-2xs flex items-center justify-center p-3 animate-in fade-in-0">
                       <div className={cn(
                         "usrly-banner-wrapper upfront-banner rounded-[6px] shadow-2xl p-4.5 sm:p-5 border space-y-3.5 animate-in zoom-in-95",
@@ -2039,7 +2151,7 @@ export function BannerStudio() {
                         </div>
                       </div>
                     </div>
-                  ) : config.layout === "bottom_bar" || config.layout === "top_bar" ? (
+                  ) : isBannerLayout(config.layout) ? (
                     <div className={cn(
                       "usrly-banner-wrapper upfront-banner p-3.5 sm:p-4 shadow-xl transition-all z-10 shrink-0 relative",
                       config.layout === "top_bar" ? "border-b order-first" : "border-t order-last",
@@ -2120,9 +2232,9 @@ export function BannerStudio() {
                           ? "left-2.5 right-2.5 bottom-2.5 max-w-none m-0"
                           : cn(
                               "w-full max-w-[390px] m-3",
-                              config.layout === "floating_bottom_right" ? "bottom-0 right-0" :
-                              config.layout === "floating_top_left" ? "top-8 left-0" :
-                              config.layout === "floating_top_right" ? "top-8 right-0" :
+                              (config.layout === "floating_bottom_right" || (config.layout as string) === "bottom_right") ? "bottom-0 right-0" :
+                              (config.layout === "floating_top_left" || (config.layout as string) === "top_left") ? "top-8 left-0" :
+                              (config.layout === "floating_top_right" || (config.layout as string) === "top_right") ? "top-8 right-0" :
                               "bottom-0 left-0"
                             )
                       )}

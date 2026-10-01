@@ -1,1 +1,1 @@
-export { GET } from "../userly.js/route"
+export { GET } from "../script.js/route"

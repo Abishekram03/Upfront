@@ -181,7 +181,7 @@ export function PolicyGenerator() {
 
   const generatedEmbedCode = `<!-- UpFront CMP Dynamic Cookie Declaration -->
 <div id="usrly-cookie-declaration" data-domain="${activeDomain || "yourdomain.com"}"></div>
-<script defer src="https://syftanalytics.com/userly.js" data-domain="${activeDomain || "yourdomain.com"}"></script>`
+<script defer src="https://syftanalytics.com/script.js" data-domain="${activeDomain || "yourdomain.com"}"></script>`
 
   const generatedHtml = isLGPD
     ? `<!-- Política de Cookies (LGPD Brasil) -->
@@ -607,7 +607,7 @@ Contact our Data Protection Officer: [${contactEmail}](mailto:${contactEmail})`
 
             <p className="text-[11px] text-slate-500">
               {activeEmbedTab === "embed"
-                ? "Paste this container tag into your /cookie-policy page. userly.js will automatically inject the live declaration table and synchronize status with visitor consent in real time."
+                ? "Paste this container tag into your /cookie-policy page. script.js will automatically inject the live declaration table and synchronize status with visitor consent in real time."
                 : "Full standalone document export ready to paste into WordPress, Webflow, Shopify, or static docs."}
             </p>
           </div>

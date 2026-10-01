@@ -32,7 +32,7 @@ export function ScriptModal({
   const isDetected = activeSite?.installation_status === "detected"
 
   const scriptHost = typeof window !== "undefined" ? window.location.origin : "https://usrly-five.vercel.app"
-  const snippet = `<script defer data-domain="${domain || "yourdomain.com"}" src="${scriptHost}/userly.js"></script>`
+  const snippet = `<script defer data-domain="${domain || "yourdomain.com"}" src="${scriptHost}/script.js"></script>`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(snippet)

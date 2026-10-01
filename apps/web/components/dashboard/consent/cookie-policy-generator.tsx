@@ -152,7 +152,7 @@ export function CookiePolicyGenerator() {
   const progressPct = (activeStep - 1) * 20
 
   // Generated Dynamic Snippet
-  const dynamicEmbedCode = `<div id="usrly-cookie-declaration" data-domain="${domain}"></div>\n<script defer src="https://usrly-five.vercel.app/userly.js"></script>`
+  const dynamicEmbedCode = `<div id="usrly-cookie-declaration" data-domain="${domain}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
 
   // Generated Full HTML Document
   const fullHtml = `<!DOCTYPE html>
@@ -186,7 +186,7 @@ export function CookiePolicyGenerator() {
   <p><a href="javascript:void(0)" onclick="if(window.UserlyCMP)window.UserlyCMP.openPreferences()" class="btn-revisit">Consent Preferences</a></p>
   ${prefDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
 
-  <script defer src="https://usrly-five.vercel.app/userly.js"></script>
+  <script defer src="https://usrly-five.vercel.app/script.js"></script>
 </body>
 </html>`
 
