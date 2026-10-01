@@ -838,6 +838,7 @@ const TRACKER_SCRIPT = `(function () {
       else if (category === "analytics" && consent.analytics) isAllowed = true;
       else if (category === "performance" && consent.performance) isAllowed = true;
       else if ((category === "advertisement" || category === "marketing") && (consent.advertisement || consent.marketing)) isAllowed = true;
+      else if (!category && (consent.consent_given || consent.advertisement || consent.analytics)) isAllowed = true;
 
       if (isAllowed) {
         var unblocked = document.createElement("script");

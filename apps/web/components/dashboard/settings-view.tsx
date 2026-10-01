@@ -32,6 +32,7 @@ import {
   Clock,
   ArrowRight,
   AlertCircle,
+  Ban,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -76,6 +77,43 @@ export function SettingsView() {
   const initialTab = (searchParams.get("tab") as TabType) || "profile"
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   const [billingToast, setBillingToast] = useState<{ type: "success" | "error"; message: string } | null>(null)
+
+  // Cancel Subscription Modal State
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [cancelImmediately, setCancelImmediately] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+
+  const handleConfirmCancel = async () => {
+    if (!activeWorkspace?.id) return
+    try {
+      setIsCancelling(true)
+      setCancelError(null)
+      const res = await fetch("/api/v1/billing/subscription/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: activeWorkspace.id,
+          cancelImmediately,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to cancel subscription")
+      }
+      await refreshEntitlements()
+      await refreshWorkspaces()
+      setIsCancelModalOpen(false)
+      setBillingToast({
+        type: "success",
+        message: data.message || "Subscription updated successfully.",
+      })
+    } catch (err: any) {
+      setCancelError(err.message || "Failed to cancel subscription. Please try again.")
+    } finally {
+      setIsCancelling(false)
+    }
+  }
 
   // Listen to hash or param changes
   useEffect(() => {
@@ -1172,8 +1210,8 @@ export function SettingsView() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
-              {entitlements?.paddleCustomerId ? (
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              {entitlements?.paddleCustomerId && (
                 <Button
                   type="button"
                   onClick={() => openPaddleCustomerPortal(entitlements.paddleCustomerId!)}
@@ -1182,7 +1220,9 @@ export function SettingsView() {
                   <span>Manage in Paddle</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </Button>
-              ) : currentPlan === "free" ? (
+              )}
+
+              {currentPlan === "free" ? (
                 <Button
                   type="button"
                   disabled={isCheckingOut !== null}
@@ -1201,7 +1241,25 @@ export function SettingsView() {
                     </>
                   )}
                 </Button>
-              ) : null}
+              ) : (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setCancelError(null)
+                    setCancelImmediately(false)
+                    setIsCancelModalOpen(true)
+                  }}
+                  className={cn(
+                    "h-10 text-xs font-bold px-3.5 rounded-lg border transition-all cursor-pointer flex items-center gap-2 shadow-xs",
+                    entitlements?.cancelAtPeriodEnd
+                      ? "bg-amber-950/40 border-amber-500/50 text-amber-300 hover:bg-amber-900/50"
+                      : "bg-rose-950/40 border-rose-500/50 text-rose-300 hover:bg-rose-900/60 hover:text-white"
+                  )}
+                >
+                  <Ban className="size-3.5" />
+                  <span>{entitlements?.cancelAtPeriodEnd ? "Cancellation Scheduled" : "Cancel Subscription"}</span>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -2280,6 +2338,129 @@ export function SettingsView() {
                 className="h-8.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white"
               >
                 Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* CANCEL SUBSCRIPTION MODAL                                                 */}
+      {/* ========================================================================= */}
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 shrink-0">
+                <Ban className="size-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Cancel {PLANS[currentPlan].name} Subscription?
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  We&apos;re sorry to see you go. Please choose when you would like the cancellation to take effect.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              {/* Option 1: End of Billing Period (Recommended) */}
+              <label
+                onClick={() => setCancelImmediately(false)}
+                className={cn(
+                  "flex items-start gap-3 p-3.5 rounded-lg border text-left cursor-pointer transition-all",
+                  !cancelImmediately
+                    ? "bg-blue-50/50 border-blue-400/80 ring-1 ring-blue-400/30"
+                    : "bg-slate-50/50 border-slate-200 hover:border-slate-300"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="cancelSchedule"
+                  checked={!cancelImmediately}
+                  onChange={() => setCancelImmediately(false)}
+                  className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                    <span>Cancel at end of current billing period</span>
+                    <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.2 rounded">Recommended</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Keep your {PLANS[currentPlan].name} features, full quota limits, and premium capabilities active until{" "}
+                    <span className="font-semibold text-slate-700">
+                      {entitlements?.currentPeriodEnd
+                        ? new Date(entitlements.currentPeriodEnd).toLocaleDateString(undefined, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : "the end of your current cycle"}
+                    </span>
+                    . You won&apos;t be billed again.
+                  </p>
+                </div>
+              </label>
+
+              {/* Option 2: Immediate */}
+              <label
+                onClick={() => setCancelImmediately(true)}
+                className={cn(
+                  "flex items-start gap-3 p-3.5 rounded-lg border text-left cursor-pointer transition-all",
+                  cancelImmediately
+                    ? "bg-rose-50/50 border-rose-400/80 ring-1 ring-rose-400/30"
+                    : "bg-slate-50/50 border-slate-200 hover:border-slate-300"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="cancelSchedule"
+                  checked={cancelImmediately}
+                  onChange={() => setCancelImmediately(true)}
+                  className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-slate-900">
+                    Cancel immediately
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Reverts workspace to the Free Tier immediately. Premium quotas and features will be downgraded right away.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {cancelError && (
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-600">
+                {cancelError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCancelModalOpen(false)}
+                disabled={isCancelling}
+                className="h-9 text-xs font-semibold"
+              >
+                Keep Subscription
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmCancel}
+                disabled={isCancelling}
+                className="h-9 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer flex items-center gap-2"
+              >
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    <span>Processing Cancellation...</span>
+                  </>
+                ) : (
+                  <span>Confirm Cancellation</span>
+                )}
               </Button>
             </div>
           </div>
