@@ -111,14 +111,11 @@ export function ConsentLedger() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-lg border border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="size-5 text-[#1868db]" />
-            <h2 className="text-base font-bold text-slate-900">GDPR Proof-of-Consent Audit Trail</h2>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Immutable log of visitor consent events, regulatory versions, and category preferences for{" "}
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Consent Logs</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Audit log of visitor consent choices, regulatory versions, and category preferences for{" "}
             <strong className="text-slate-700">{activeDomain || "your domain"}</strong>.
           </p>
         </div>
@@ -128,7 +125,7 @@ export function ConsentLedger() {
             onClick={exportCSV}
             disabled={receipts.length === 0}
             variant="outline"
-            className="rounded-[4px] text-xs font-bold px-3.5 py-1.5 h-8.5 flex items-center gap-1.5 cursor-pointer"
+            className="rounded-[4px] text-xs font-bold px-3.5 py-1.5 h-8.5 flex items-center gap-1.5 cursor-pointer bg-white"
           >
             <Download className="size-3.5" />
             Export CSV

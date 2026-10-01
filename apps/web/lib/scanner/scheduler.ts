@@ -426,3 +426,23 @@ export class ScheduleService {
     }
   }
 }
+
+// Global In-Process Background Scheduler Daemon (Self-Triggering)
+if (typeof window === "undefined" && !(globalThis as any).__cmp_scheduler_daemon_started) {
+  ;(globalThis as any).__cmp_scheduler_daemon_started = true
+  
+  // Initial check 3 seconds after server starts/loads
+  setTimeout(() => {
+    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err) => {
+      console.warn("[CMP Scheduler Daemon] Initial check error:", err)
+    })
+  }, 3000)
+
+  // Recurring check every 30 seconds
+  setInterval(() => {
+    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err) => {
+      console.warn("[CMP Scheduler Daemon] Periodic check error:", err)
+    })
+  }, 30000)
+}
+

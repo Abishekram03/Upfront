@@ -2,10 +2,16 @@ import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
 import { sanitizeDomain, SSRFValidationError } from "@/lib/scanner/ssrf-protection"
 import { ScanService } from "@/lib/scanner/scan-service"
+import { ScheduleService } from "@/lib/scanner/scheduler"
 
 export async function GET(req: Request) {
   try {
     await ensureTables()
+
+    // Non-blocking self-trigger check for any due scheduled scans
+    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err) => {
+      console.warn("[Auto-Trigger] Overdue scan check warning:", err)
+    })
     const { searchParams } = new URL(req.url)
     const domain = sanitizeDomain(searchParams.get("domain"))
     const scanId = searchParams.get("scan_id")

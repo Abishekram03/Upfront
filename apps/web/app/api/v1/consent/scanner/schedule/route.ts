@@ -18,6 +18,11 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const domain = sanitizeDomain(searchParams.get("domain"))
 
+    // Non-blocking self-trigger check for any due scheduled scans
+    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err) => {
+      console.warn("[Auto-Trigger] Overdue schedule check warning:", err)
+    })
+
     if (!domain) {
       return NextResponse.json({ detail: "Domain parameter is required" }, { status: 400, headers: CORS_HEADERS })
     }

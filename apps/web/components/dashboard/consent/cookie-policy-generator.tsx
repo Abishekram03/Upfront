@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   Globe,
   Cookie,
@@ -12,17 +12,11 @@ import {
   Copy,
   ChevronRight,
   ChevronLeft,
-  RotateCcw,
-  Sparkles,
-  ExternalLink,
-  ShieldCheck,
-  AlertCircle,
-  CheckCircle2,
   FileText,
   Code2,
-  Search,
-  HelpCircle,
-  Layers,
+  Edit3,
+  Clock,
+  ArrowLeft,
 } from "lucide-react"
 import { useDomain } from "@/lib/domain-context"
 import { Button } from "@/components/ui/button"
@@ -51,11 +45,13 @@ export function CookiePolicyGenerator() {
   const { activeDomain } = useDomain()
   const domain = activeDomain || "onconnect.one"
 
-  // Step Navigation: 1 (Language) -> 2 (About) -> 3 (Use) -> 4 (Types) -> 5 (Preferences)
+  // View state: "card" (Clean Status Card) | "editor" (5-Step Customization Wizard)
+  const [viewMode, setViewMode] = useState<"card" | "editor">("card")
+
+  // Wizard Step
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [isScanning, setIsScanning] = useState(false)
 
   // Scanner & Cookies State
   const [cookies, setCookies] = useState<DiscoveredCookie[]>([])
@@ -88,7 +84,7 @@ export function CookiePolicyGenerator() {
   )
 
   // Export Tab inside Preview Modal
-  const [previewTab, setPreviewTab] = useState<"rendered" | "embed" | "html" | "markdown">("rendered")
+  const [previewTab, setPreviewTab] = useState<"rendered" | "embed" | "html">("rendered")
   const [copiedType, setCopiedType] = useState<string | null>(null)
 
   // Fetch real cookies & scan metadata for domain
@@ -107,22 +103,22 @@ export function CookiePolicyGenerator() {
           const cookieData = await cookiesRes.json()
           if (Array.isArray(cookieData)) {
             setCookies(cookieData)
+          } else if (cookieData?.cookies && Array.isArray(cookieData.cookies)) {
+            setCookies(cookieData.cookies)
           }
         }
 
         if (scanRes.ok) {
           const scanData = await scanRes.json()
-          if (scanData.latest_scan?.created_at) {
-            const date = new Date(scanData.latest_scan.created_at)
+          const scanDate = scanData.latest_scan?.completed_at || scanData.latest_scan?.created_at
+          if (scanDate) {
+            const date = new Date(scanDate)
             setLastScanDate(
               date.toLocaleDateString("en-US", {
-                month: "long",
+                month: "short",
                 day: "numeric",
                 year: "numeric",
-              }) +
-                " " +
-                date.toLocaleTimeString("en-US", { hour12: false }) +
-                " (UTC)"
+              })
             )
           }
         }
@@ -140,44 +136,23 @@ export function CookiePolicyGenerator() {
     setIsSaving(true)
     setTimeout(() => {
       setIsSaving(false)
-      toast.success("Policy draft saved successfully!")
-    }, 400)
-  }
-
-  const handleTriggerScan = async () => {
-    if (!domain || isScanning) return
-    setIsScanning(true)
-    try {
-      const res = await fetch("/api/v1/consent/scanner", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain }),
-      })
-      if (res.ok) {
-        toast.success(`Audit scan initiated for ${domain}`)
-      } else {
-        toast.info(`Scan scheduled for ${domain}`)
-      }
-    } catch {
-      toast.info(`Scan scheduled for ${domain}`)
-    } finally {
-      setTimeout(() => setIsScanning(false), 2000)
-    }
+      toast.success("Cookie policy saved successfully!")
+      setViewMode("card")
+    }, 300)
   }
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
     setCopiedType(type)
-    toast.success("Code snippet copied to clipboard!")
+    toast.success("Copied to clipboard!")
     setTimeout(() => setCopiedType(null), 2000)
   }
 
-  // Calculate Progress Percentage
+  // Calculate Progress Percentage in Editor
   const progressPct = (activeStep - 1) * 20
 
   // Generated Dynamic Snippet
-  const dynamicEmbedCode = `<div id="usrly-cookie-declaration" data-domain="${domain}"></div>
-<script defer src="https://usrly-five.vercel.app/userly.js"></script>`
+  const dynamicEmbedCode = `<div id="usrly-cookie-declaration" data-domain="${domain}"></div>\n<script defer src="https://usrly-five.vercel.app/userly.js"></script>`
 
   // Generated Full HTML Document
   const fullHtml = `<!DOCTYPE html>
@@ -196,7 +171,7 @@ export function CookiePolicyGenerator() {
 </head>
 <body>
   <h1>Cookie Policy for ${domain}</h1>
-  <p><em>Last updated: ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</em></p>
+  <p><em>Last updated: ${lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</em></p>
 
   <h2>${aboutHeading}</h2>
   ${aboutDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
@@ -215,70 +190,334 @@ export function CookiePolicyGenerator() {
 </body>
 </html>`
 
-  return (
-    <div className="w-full bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col min-h-[640px]">
+  // =========================================================================
+  // VIEW MODE 1: CLEAN COOKIEYES-STYLE POLICY CARD
+  // =========================================================================
+  if (viewMode === "card") {
+    return (
+      <div className="w-full space-y-6 animate-in fade-in duration-150">
+        {/* Simple Page Header */}
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
+            Cookie Policy
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Manage and customize your auto-updating cookie policy.
+          </p>
+        </div>
 
-      <div className="flex-1 flex flex-col md:flex-row min-h-0">
-        {/* LEFT STEP NAVIGATION RAIL */}
-        <div className="w-full md:w-[260px] shrink-0 border-r border-slate-200/80 bg-slate-50/50 p-5 flex flex-col justify-between select-none">
-          <div className="space-y-6">
-            {/* Header / Domain context */}
-            <div className="space-y-1">
-              <h2 className="text-base font-bold text-slate-900">Cookie Policy</h2>
-              <p className="text-[11px] text-slate-500 truncate">
-                Generating cookie policy for <strong className="text-slate-800">{domain}</strong>
-              </p>
+        {/* The Clean Policy Card */}
+        <div className="rounded-lg border border-slate-200/90 bg-white p-5 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="size-10 rounded-lg bg-blue-50 border border-blue-100 text-[#1868db] flex items-center justify-center shrink-0">
+                <FileText className="size-5" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Cookie Policy
+                  </h2>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Active
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Auto-updated on {lastScanDate || "recent scan"} • {cookies.length} cookies linked
+                </p>
+              </div>
             </div>
 
-            {/* 5 Navigation Steps */}
-            <nav className="space-y-1">
-              {[
-                { step: 1, label: "Language settings", icon: Globe },
-                { step: 2, label: "About cookies", icon: Cookie },
-                { step: 3, label: "Use of cookies", icon: Scale },
-                { step: 4, label: "Types of cookies", icon: Database },
-                { step: 5, label: "Cookie preferences", icon: Sliders },
-              ].map((item) => {
-                const Icon = item.icon
-                const isActive = activeStep === item.step
-                const isCompleted = activeStep > item.step
-                return (
-                  <button
-                    key={item.step}
-                    type="button"
-                    onClick={() => setActiveStep(item.step as any)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer",
-                      isActive
-                        ? "bg-blue-50/80 text-[#1868db] font-bold shadow-2xs"
-                        : isCompleted
-                        ? "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-                        : "text-slate-500 hover:bg-slate-100/70 hover:text-slate-800"
-                    )}
-                  >
-                    <Icon className={cn("size-4 shrink-0", isActive ? "text-[#1868db]" : "text-slate-400")} />
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {isCompleted && <Check className="size-3.5 text-emerald-600 stroke-[2.5]" />}
-                  </button>
-                )
-              })}
-            </nav>
+            {/* Actions: Edit & Preview */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsPreviewModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              >
+                <Eye className="size-3.5 text-slate-500" />
+                <span>Preview</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("editor")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              >
+                <Edit3 className="size-3.5" />
+                <span>Edit</span>
+              </button>
+            </div>
           </div>
 
-          {/* Bottom Progress & Preview Button */}
-          <div className="pt-6 space-y-4 border-t border-slate-200/60 mt-6">
+          {/* Simple Embed Code Snippet Row */}
+          <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex-1 min-w-0 flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-md px-3 py-1.5 text-[11px] font-mono text-slate-600 truncate">
+              <Code2 className="size-3.5 text-slate-400 shrink-0" />
+              <span className="truncate">&lt;div id="usrly-cookie-declaration" data-domain="{domain}"&gt;&lt;/div&gt;</span>
+            </div>
             <button
               type="button"
-              onClick={() => setIsPreviewModalOpen(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100/70 text-[#1868db] text-xs font-bold py-2 shadow-2xs transition-colors cursor-pointer"
+              onClick={() => handleCopy(dynamicEmbedCode, "card_embed")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer shrink-0"
             >
-              <Eye className="size-4" />
-              <span>Preview cookie policy</span>
+              {copiedType === "card_embed" ? (
+                <>
+                  <Check className="size-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="size-3.5 text-slate-500" />
+                  <span>Copy Embed Code</span>
+                </>
+              )}
             </button>
+          </div>
+        </div>
 
-            {/* Progress Counter & Bar */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
+        {/* Full Policy Preview Modal */}
+        {isPreviewModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+              {/* Modal Header */}
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <FileText className="size-4 text-[#1868db]" />
+                  <h3 className="text-sm font-bold text-slate-900">Cookie Policy — {domain}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewModalOpen(false)}
+                  className="text-xs font-bold text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Tabs */}
+              <div className="px-4 pt-3 border-b border-slate-200 flex items-center gap-3 text-xs font-bold">
+                {[
+                  { id: "rendered", label: "Rendered Document" },
+                  { id: "embed", label: "Embed Code" },
+                  { id: "html", label: "Raw HTML" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setPreviewTab(tab.id as any)}
+                    className={cn(
+                      "pb-2.5 border-b-2 transition-colors cursor-pointer",
+                      previewTab === tab.id
+                        ? "border-[#1868db] text-[#1868db]"
+                        : "border-transparent text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto flex-1 text-xs space-y-4 leading-relaxed">
+                {previewTab === "rendered" && (
+                  <div className="space-y-4 max-w-2xl mx-auto text-slate-800">
+                    <h1 className="text-xl font-bold text-slate-900">Cookie Policy for {domain}</h1>
+                    <p className="text-slate-500 italic">
+                      Last updated: {lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </p>
+
+                    <div className="space-y-2 pt-2">
+                      <h2 className="text-sm font-bold text-slate-900">{aboutHeading}</h2>
+                      {aboutDescription.split("\n\n").map((p, i) => (
+                        <p key={i} className="text-slate-600">{p}</p>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <h2 className="text-sm font-bold text-slate-900">{useHeading}</h2>
+                      {useDescription.split("\n\n").map((p, i) => (
+                        <p key={i} className="text-slate-600">{p}</p>
+                      ))}
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <h2 className="text-sm font-bold text-slate-900">{typesHeading}</h2>
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-600 space-y-1">
+                        <div className="flex items-center justify-between font-bold text-slate-800">
+                          <span>Live Cookie Table</span>
+                          <span className="text-[#1868db]">{cookies.length} active cookies</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Automatically rendered and synchronized from your website scans.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <h2 className="text-sm font-bold text-slate-900">{prefHeading}</h2>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded bg-[#1868db] text-white font-bold text-xs shadow-2xs"
+                      >
+                        Consent Preferences
+                      </button>
+                      {prefDescription.split("\n\n").map((p, i) => (
+                        <p key={i} className="text-slate-600">{p}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {previewTab === "embed" && (
+                  <div className="space-y-3">
+                    <p className="text-slate-600">
+                      Paste this snippet into your website to embed the self-updating declaration widget:
+                    </p>
+                    <div className="bg-slate-900 text-slate-100 p-4 rounded-lg font-mono text-xs overflow-x-auto leading-relaxed">
+                      <code>{dynamicEmbedCode}</code>
+                    </div>
+                  </div>
+                )}
+
+                {previewTab === "html" && (
+                  <div className="space-y-3">
+                    <p className="text-slate-600">Complete standalone HTML policy:</p>
+                    <textarea
+                      readOnly
+                      rows={12}
+                      value={fullHtml}
+                      className="w-full p-3 font-mono text-[11px] bg-slate-900 text-slate-100 rounded-lg border border-slate-700 leading-relaxed"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewModalOpen(false)}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopy(
+                      previewTab === "embed" ? dynamicEmbedCode : fullHtml,
+                      previewTab
+                    )
+                  }
+                  className="px-4 py-1.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white rounded-lg shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  {copiedType === previewTab ? (
+                    <>
+                      <Check className="size-3.5 text-white" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5" />
+                      <span>Copy Code</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // =========================================================================
+  // VIEW MODE 2: CLEAN 5-STEP CUSTOMIZATION WIZARD
+  // =========================================================================
+  return (
+    <div className="w-full space-y-4 animate-in fade-in duration-150">
+      {/* Back to Policy Button */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setViewMode("card")}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+        >
+          <ArrowLeft className="size-3.5" />
+          <span>Back to Policy</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsPreviewModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+          >
+            <Eye className="size-3.5" />
+            <span>Preview</span>
+          </button>
+          <Button
+            type="button"
+            onClick={handleSaveDraft}
+            disabled={isSaving}
+            className="rounded-md bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-4 py-1.5 shadow-xs cursor-pointer"
+          >
+            {isSaving ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="w-full bg-white rounded-lg border border-slate-200/90 shadow-2xs overflow-hidden flex flex-col min-h-[580px]">
+        <div className="flex-1 flex flex-col md:flex-row min-h-0">
+          {/* LEFT STEP NAVIGATION RAIL */}
+          <div className="w-full md:w-[240px] shrink-0 border-r border-slate-200/80 bg-slate-50/50 p-4 flex flex-col justify-between select-none">
+            <div className="space-y-4">
+              <div className="space-y-0.5">
+                <h2 className="text-sm font-bold text-slate-900">Edit Cookie Policy</h2>
+                <p className="text-[11px] text-slate-500 truncate">
+                  {domain}
+                </p>
+              </div>
+
+              {/* 5 Navigation Steps */}
+              <nav className="space-y-1">
+                {[
+                  { step: 1, label: "Language settings", icon: Globe },
+                  { step: 2, label: "About cookies", icon: Cookie },
+                  { step: 3, label: "Use of cookies", icon: Scale },
+                  { step: 4, label: "Types of cookies", icon: Database },
+                  { step: 5, label: "Cookie preferences", icon: Sliders },
+                ].map((item) => {
+                  const Icon = item.icon
+                  const isActive = activeStep === item.step
+                  const isCompleted = activeStep > item.step
+                  return (
+                    <button
+                      key={item.step}
+                      type="button"
+                      onClick={() => setActiveStep(item.step as any)}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs font-medium transition-all text-left cursor-pointer",
+                        isActive
+                          ? "bg-blue-50/80 text-[#1868db] font-bold shadow-2xs"
+                          : isCompleted
+                          ? "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                          : "text-slate-500 hover:bg-slate-100/70 hover:text-slate-800"
+                      )}
+                    >
+                      <Icon className={cn("size-3.5 shrink-0", isActive ? "text-[#1868db]" : "text-slate-400")} />
+                      <span className="flex-1 truncate">{item.label}</span>
+                      {isCompleted && <Check className="size-3 text-emerald-600 stroke-[2.5]" />}
+                    </button>
+                  )
+                })}
+              </nav>
+            </div>
+
+            {/* Bottom Progress Counter */}
+            <div className="pt-4 border-t border-slate-200/60 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
                 <span>{progressPct}% complete</span>
               </div>
               <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
@@ -289,505 +528,220 @@ export function CookiePolicyGenerator() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* MAIN STEP FORM CONTENT AREA */}
-        <div className="flex-1 flex flex-col justify-between overflow-y-auto p-6 md:p-8 min-h-0 bg-white">
-          <div className="max-w-3xl space-y-6">
-            {/* ======================================================== */}
-            {/* STEP 1: LANGUAGE SETTINGS                                */}
-            {/* ======================================================== */}
-            {activeStep === 1 && (
-              <div className="space-y-6 animate-in fade-in duration-150">
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900">Language settings</h3>
-                  <p className="text-xs text-slate-500">
-                    Select the primary language for your cookie policy.
-                  </p>
-                </div>
-
-                {/* Language Picker Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 pt-1">
-                  {LANGUAGES.map((lang) => {
-                    const isSelected = primaryLanguage === lang.code
-                    return (
-                      <button
-                        key={lang.code}
-                        type="button"
-                        onClick={() => setPrimaryLanguage(lang.code)}
-                        className={cn(
-                          "p-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer select-none",
-                          isSelected
-                            ? "border-[#1868db] bg-blue-50/70 text-[#1868db] shadow-2xs ring-1 ring-[#1868db]"
-                            : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                        )}
-                      >
-                        {isSelected && <Check className="size-3.5 text-[#1868db] stroke-[3]" />}
-                        <span>{lang.name}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Multi-language Generation Toggle */}
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+          {/* MAIN STEP FORM CONTENT AREA */}
+          <div className="flex-1 flex flex-col justify-between overflow-y-auto p-6 min-h-0 bg-white">
+            <div className="max-w-2xl space-y-5">
+              {/* STEP 1: LANGUAGE SETTINGS */}
+              {activeStep === 1 && (
+                <div className="space-y-4 animate-in fade-in duration-150">
                   <div>
-                    <span className="text-xs font-semibold text-slate-800 block">
-                      Generate policy in multiple languages
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Automatically translate policy for international visitors based on browser preferences.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={multiLanguageEnabled}
-                    onClick={() => setMultiLanguageEnabled(!multiLanguageEnabled)}
-                    className={cn(
-                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden",
-                      multiLanguageEnabled ? "bg-[#1868db]" : "bg-slate-200"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                        multiLanguageEnabled ? "translate-x-4" : "translate-x-0"
-                      )}
-                    />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ======================================================== */}
-            {/* STEP 2: ABOUT COOKIES                                    */}
-            {/* ======================================================== */}
-            {activeStep === 2 && (
-              <div className="space-y-5 animate-in fade-in duration-150">
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900">About cookies</h3>
-                  <p className="text-xs text-slate-500">
-                    Define the fundamental introduction explaining what cookies are to your visitors.
-                  </p>
-                </div>
-
-                <div className="space-y-4 pt-1">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Heading</label>
-                    <input
-                      type="text"
-                      value={aboutHeading}
-                      onChange={(e) => setAboutHeading(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 focus:outline-hidden focus:border-[#1868db] focus:ring-1 focus:ring-[#1868db]"
-                    />
+                    <h3 className="text-sm font-bold text-slate-900">Language settings</h3>
+                    <p className="text-xs text-slate-500">
+                      Select the primary language for your cookie policy.
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Description</label>
-                    <textarea
-                      rows={8}
-                      value={aboutDescription}
-                      onChange={(e) => setAboutDescription(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-lg border border-slate-300 focus:outline-hidden focus:border-[#1868db] focus:ring-1 focus:ring-[#1868db] leading-relaxed"
-                    />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-1">
+                    {LANGUAGES.map((lang) => {
+                      const isSelected = primaryLanguage === lang.code
+                      return (
+                        <button
+                          key={lang.code}
+                          type="button"
+                          onClick={() => setPrimaryLanguage(lang.code)}
+                          className={cn(
+                            "p-2.5 rounded-md border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none",
+                            isSelected
+                              ? "border-[#1868db] bg-blue-50/70 text-[#1868db] shadow-2xs ring-1 ring-[#1868db]"
+                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                          )}
+                        >
+                          {isSelected && <Check className="size-3 text-[#1868db] stroke-[3]" />}
+                          <span>{lang.name}</span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ======================================================== */}
-            {/* STEP 3: USE OF COOKIES                                   */}
-            {/* ======================================================== */}
-            {activeStep === 3 && (
-              <div className="space-y-5 animate-in fade-in duration-150">
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900">Use of cookies</h3>
-                  <p className="text-xs text-slate-500">
-                    Disclose how first-party and third-party tracking technologies operate on your site.
-                  </p>
-                </div>
-
-                <div className="space-y-4 pt-1">
+              {/* STEP 2: ABOUT COOKIES */}
+              {activeStep === 2 && (
+                <div className="space-y-4 animate-in fade-in duration-150">
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Heading</label>
-                    <input
-                      type="text"
-                      value={useHeading}
-                      onChange={(e) => setUseHeading(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 focus:outline-hidden focus:border-[#1868db] focus:ring-1 focus:ring-[#1868db]"
-                    />
+                    <h3 className="text-sm font-bold text-slate-900">About cookies</h3>
+                    <p className="text-xs text-slate-500">
+                      Introduction explaining what cookies are to your visitors.
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Description</label>
-                    <textarea
-                      rows={8}
-                      value={useDescription}
-                      onChange={(e) => setUseDescription(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-lg border border-slate-300 focus:outline-hidden focus:border-[#1868db] focus:ring-1 focus:ring-[#1868db] leading-relaxed"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ======================================================== */}
-            {/* STEP 4: TYPES OF COOKIES (SCANNER INTEGRATION)           */}
-            {/* ======================================================== */}
-            {activeStep === 4 && (
-              <div className="space-y-5 animate-in fade-in duration-150">
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900">Types of cookies</h3>
-                  <p className="text-xs text-slate-500">
-                    Display itemized inventory tables of scanned cookies and tracking categories.
-                  </p>
-                </div>
-
-                <div className="space-y-4 pt-1">
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Heading</label>
-                    <input
-                      type="text"
-                      value={typesHeading}
-                      onChange={(e) => setTypesHeading(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                    />
-                  </div>
-
-                  {/* Cookie List Header with Last Scan Timestamp */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800">Cookie list</span>
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Heading</label>
+                      <input
+                        type="text"
+                        value={aboutHeading}
+                        onChange={(e) => setAboutHeading(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                      />
                     </div>
 
-                    <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200/80 flex items-start gap-2.5 text-xs text-blue-900">
-                      <AlertCircle className="size-4 text-[#1868db] shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">
-                        The cookie list displayed is based on your last scan on{" "}
-                        <strong>{lastScanDate || "September 30, 2026 12:08:44 (UTC)"}</strong>.
-                      </span>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Description</label>
+                      <textarea
+                        rows={6}
+                        value={aboutDescription}
+                        onChange={(e) => setAboutDescription(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db] leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: USE OF COOKIES */}
+              {activeStep === 3 && (
+                <div className="space-y-4 animate-in fade-in duration-150">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">How do we use cookies?</h3>
+                    <p className="text-xs text-slate-500">
+                      Explain why your website sets first-party and third-party cookies.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Heading</label>
+                      <input
+                        type="text"
+                        value={useHeading}
+                        onChange={(e) => setUseHeading(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                      />
                     </div>
 
-                    {/* Table View / Zero State */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-                      <div className="lg:col-span-2">
-                        {cookies.length > 0 ? (
-                          <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-2xs">
-                            <div className="overflow-x-auto max-h-72 overflow-y-auto">
-                              <table className="w-full text-left text-xs border-collapse">
-                                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold sticky top-0">
-                                  <tr>
-                                    <th className="px-3 py-2">Cookie</th>
-                                    <th className="px-3 py-2">Category</th>
-                                    <th className="px-3 py-2">Duration</th>
-                                    <th className="px-3 py-2">Purpose</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 text-slate-600">
-                                  {cookies.map((c, i) => (
-                                    <tr key={i} className="hover:bg-slate-50/60">
-                                      <td className="px-3 py-2 font-mono font-bold text-slate-900">{c.name}</td>
-                                      <td className="px-3 py-2 capitalize">{c.category}</td>
-                                      <td className="px-3 py-2 text-slate-500">{c.duration || "Session"}</td>
-                                      <td className="px-3 py-2 text-slate-500 truncate max-w-[160px]">
-                                        {c.description || "Maintains site service."}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        ) : (
-                          /* Clean Dashed Zero State Card */
-                          <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-8 text-center space-y-3.5">
-                            <div className="size-12 rounded-full bg-white border border-slate-200 flex items-center justify-center mx-auto text-slate-400 shadow-2xs">
-                              <Cookie className="size-6 text-slate-400" />
-                            </div>
-                            <div className="space-y-1">
-                              <h4 className="text-sm font-bold text-slate-900">No cookies detected</h4>
-                              <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-                                We couldn&apos;t detect any cookies during the latest scan. This may be because your site doesn&apos;t use cookies or some pages were not fully accessed during the scan.
-                              </p>
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={handleTriggerScan}
-                              disabled={isScanning}
-                              className="rounded-lg bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-4 py-2 shadow-xs cursor-pointer inline-flex items-center gap-2"
-                            >
-                              <Search className="size-3.5" />
-                              <span>{isScanning ? "Scanning Domain..." : "Scan again"}</span>
-                            </Button>
-                          </div>
-                        )}
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Description</label>
+                      <textarea
+                        rows={6}
+                        value={useDescription}
+                        onChange={(e) => setUseDescription(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db] leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: TYPES OF COOKIES */}
+              {activeStep === 4 && (
+                <div className="space-y-4 animate-in fade-in duration-150">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Types of cookies we use</h3>
+                    <p className="text-xs text-slate-500">
+                      Cookie declaration table automatically populates based on your domain scans.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Heading</label>
+                      <input
+                        type="text"
+                        value={typesHeading}
+                        onChange={(e) => setTypesHeading(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                      />
+                    </div>
+
+                    <div className="p-3.5 rounded-md border border-slate-200 bg-slate-50 space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                        <span>Discovered Cookie Inventory</span>
+                        <span className="text-[#1868db]">{cookies.length} Cookies Linked</span>
                       </div>
-
-                      {/* Right "What to know" Legal Sidebar Card */}
-                      <div className="lg:col-span-1 rounded-lg border border-slate-200/80 bg-slate-50/60 p-4 space-y-2.5 text-xs text-slate-700">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                          <FileText className="size-3.5 text-[#1868db]" />
-                          <span>What to know</span>
-                        </div>
-                        <div className="font-semibold text-slate-800 text-[11px]">
-                          Is it necessary to include the cookie list in my cookie policy?
-                        </div>
-                        <p className="text-[11px] text-slate-600 leading-relaxed">
-                          Yes, we recommend including the cookie list in your cookie policy. It&apos;s important to provide transparency to users about the cookies used on your website.
-                        </p>
-                        <p className="text-[11px] text-slate-600 leading-relaxed">
-                          A cookie declaration/list helps users understand the types, purposes, and durations of cookies, ensuring compliance with privacy regulations and enabling users to make informed choices.
-                        </p>
-                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Scheduled scanner keeps this table synchronized automatically.
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ======================================================== */}
-            {/* STEP 5: COOKIE PREFERENCES                               */}
-            {/* ======================================================== */}
-            {activeStep === 5 && (
-              <div className="space-y-5 animate-in fade-in duration-150">
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-900">Cookie preferences</h3>
-                  <p className="text-xs text-slate-500">
-                    Provide instructions and direct links on how visitors can revoke or change their preferences.
-                  </p>
-                </div>
-
-                <div className="space-y-4 pt-1">
+              {/* STEP 5: PREFERENCES */}
+              {activeStep === 5 && (
+                <div className="space-y-4 animate-in fade-in duration-150">
                   <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Heading</label>
-                    <input
-                      type="text"
-                      value={prefHeading}
-                      onChange={(e) => setPrefHeading(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                    />
+                    <h3 className="text-sm font-bold text-slate-900">Manage cookie preferences</h3>
+                    <p className="text-xs text-slate-500">
+                      Instructions for users to withdraw consent or change browser settings.
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                      Revisit consent widget
-                    </label>
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 font-mono text-xs text-slate-700 select-all">
-                      &lt;a class=&quot;usrly-banner-element&quot;&gt;Consent Preferences&lt;/a&gt;
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Heading</label>
+                      <input
+                        type="text"
+                        value={prefHeading}
+                        onChange={(e) => setPrefHeading(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Description</label>
+                      <textarea
+                        rows={6}
+                        value={prefDescription}
+                        onChange={(e) => setPrefDescription(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db] leading-relaxed"
+                      />
                     </div>
                   </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Description</label>
-                    <textarea
-                      rows={8}
-                      value={prefDescription}
-                      onChange={(e) => setPrefDescription(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-lg border border-slate-300 focus:outline-hidden focus:border-[#1868db] leading-relaxed"
-                    />
-                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* BOTTOM STEP CONTROLS FOOTER */}
-          <div className="pt-6 border-t border-slate-200 flex items-center justify-between mt-8">
-            <div>
-              {activeStep > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveStep((prev) => (prev - 1) as any)}
-                  className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-4 py-2 transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                >
-                  <ChevronLeft className="size-3.5" />
-                  <span>Previous</span>
-                </button>
               )}
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={handleSaveDraft}
-                disabled={isSaving}
-                className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-4 py-2 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {isSaving ? "Saving..." : "Save draft"}
-              </button>
+            {/* Bottom Actions */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between mt-6">
+              <div>
+                {activeStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep((prev) => (prev - 1) as any)}
+                    className="rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3 py-1.5 transition-colors cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <ChevronLeft className="size-3.5" />
+                    <span>Previous</span>
+                  </button>
+                )}
+              </div>
 
-              {activeStep < 5 ? (
-                <Button
-                  type="button"
-                  onClick={() => setActiveStep((prev) => (prev + 1) as any)}
-                  className="rounded-lg bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-5 py-2 shadow-xs cursor-pointer inline-flex items-center gap-1"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="size-3.5" />
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={() => setIsPreviewModalOpen(true)}
-                  className="rounded-lg bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-5 py-2 shadow-xs cursor-pointer"
-                >
-                  Generate cookie policy
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {activeStep < 5 ? (
+                  <Button
+                    type="button"
+                    onClick={() => setActiveStep((prev) => (prev + 1) as any)}
+                    className="rounded-md bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-4 py-1.5 shadow-xs cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="size-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    className="rounded-md bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-4 py-1.5 shadow-xs cursor-pointer"
+                  >
+                    Save & Finish
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* FULL POLICY PREVIEW & EXPORT MODAL */}
-      {isPreviewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2">
-                <FileText className="size-4 text-[#1868db]" />
-                <h3 className="text-sm font-bold text-slate-900">Generated Cookie Policy — {domain}</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPreviewModalOpen(false)}
-                className="text-xs font-bold text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal Tabs: Rendered | Embed Code | HTML */}
-            <div className="px-4 pt-3 border-b border-slate-200 flex items-center gap-3 text-xs font-bold">
-              {[
-                { id: "rendered", label: "Rendered Document" },
-                { id: "embed", label: "Dynamic Embed Code" },
-                { id: "html", label: "Raw HTML" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setPreviewTab(tab.id as any)}
-                  className={cn(
-                    "pb-2.5 border-b-2 transition-colors cursor-pointer",
-                    previewTab === tab.id
-                      ? "border-[#1868db] text-[#1868db]"
-                      : "border-transparent text-slate-500 hover:text-slate-900"
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto flex-1 text-xs space-y-4 leading-relaxed">
-              {previewTab === "rendered" && (
-                <div className="space-y-4 max-w-2xl mx-auto text-slate-800">
-                  <h1 className="text-xl font-bold text-slate-900">Cookie Policy for {domain}</h1>
-                  <p className="text-slate-500 italic">
-                    Last updated:{" "}
-                    {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                  </p>
-
-                  <div className="space-y-2 pt-2">
-                    <h2 className="text-sm font-bold text-slate-900">{aboutHeading}</h2>
-                    {aboutDescription.split("\n\n").map((p, i) => (
-                      <p key={i} className="text-slate-600">{p}</p>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2 pt-2">
-                    <h2 className="text-sm font-bold text-slate-900">{useHeading}</h2>
-                    {useDescription.split("\n\n").map((p, i) => (
-                      <p key={i} className="text-slate-600">{p}</p>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2 pt-2">
-                    <h2 className="text-sm font-bold text-slate-900">{typesHeading}</h2>
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-500">
-                      [Dynamic Live Cookie Table automatically rendered by Upfront CMP for {domain}]
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 pt-2">
-                    <h2 className="text-sm font-bold text-slate-900">{prefHeading}</h2>
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 rounded bg-[#1868db] text-white font-bold text-xs shadow-2xs"
-                    >
-                      Consent Preferences
-                    </button>
-                    {prefDescription.split("\n\n").map((p, i) => (
-                      <p key={i} className="text-slate-600">{p}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {previewTab === "embed" && (
-                <div className="space-y-3">
-                  <p className="text-slate-600">
-                    Paste this snippet into your website to embed the self-updating declaration widget:
-                  </p>
-                  <div className="bg-slate-900 text-slate-100 p-4 rounded-lg font-mono text-xs overflow-x-auto leading-relaxed">
-                    <code>{dynamicEmbedCode}</code>
-                  </div>
-                </div>
-              )}
-
-              {previewTab === "html" && (
-                <div className="space-y-3">
-                  <p className="text-slate-600">Complete standalone HTML policy:</p>
-                  <textarea
-                    readOnly
-                    rows={12}
-                    value={fullHtml}
-                    className="w-full p-3 font-mono text-[11px] bg-slate-900 text-slate-100 rounded-lg border border-slate-700 leading-relaxed"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setIsPreviewModalOpen(false)}
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-              >
-                Close
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  handleCopy(
-                    previewTab === "embed" ? dynamicEmbedCode : fullHtml,
-                    previewTab
-                  )
-                }
-                className="px-4 py-1.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white rounded-lg shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
-              >
-                {copiedType === previewTab ? (
-                  <>
-                    <Check className="size-3.5 text-white" />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="size-3.5" />
-                    <span>Copy Code</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

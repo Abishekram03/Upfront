@@ -814,7 +814,7 @@ export function ConsentOverview() {
                   href="/consent/logs"
                   className="text-xs font-semibold text-[#1868db] hover:underline dark:text-blue-400"
                 >
-                  Go to Proof-of-Consent Vault &rarr;
+                  View Consent Logs &rarr;
                 </Link>
               </div>
             )}

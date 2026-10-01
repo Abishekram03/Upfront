@@ -76,7 +76,7 @@ export function TablerNavbar({
       icon: FileCode,
     },
     {
-      title: "Proof-of-Consent Vault",
+      title: "Consent Logs",
       href: "/consent/logs",
       icon: FileCheck,
     },
