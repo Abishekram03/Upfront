@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 import { Site } from "@/lib/api"
+import { NotificationBell } from "./notification-bell"
 
 interface DashboardTopbarProps {
   onToggleSidebar?: () => void
@@ -125,31 +126,7 @@ export function DashboardTopbar({
 
       {/* Right side Actions */}
       <div className="flex items-center gap-3">
-        {/* Realtime Active Visitor Indicator */}
-        {activeDomain && (
-          <div className="hidden sm:flex items-center gap-2 rounded-[4px] border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600 font-medium">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-            </span>
-            <span>
-              <strong className="text-neutral-900">{realtimeVisitors}</strong> online
-            </span>
-          </div>
-        )}
-
-        {/* Tracking Code Snippet CTA */}
-        {onOpenSnippetModal && activeDomain && (
-          <Button
-            size="sm"
-            onClick={onOpenSnippetModal}
-            className="h-8 gap-1.5 bg-[#1868db] hover:bg-[#1456b8] text-white text-xs font-semibold rounded-[4px] px-3 shadow-xs"
-          >
-            <Code className="size-3.5" />
-            <span className="hidden sm:inline">Install Script</span>
-            <span className="sm:hidden">Script</span>
-          </Button>
-        )}
+        <NotificationBell />
       </div>
     </header>
   )

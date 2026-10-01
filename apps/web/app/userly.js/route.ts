@@ -1935,8 +1935,12 @@ const TRACKER_SCRIPT = `(function () {
 
     var banner = document.createElement("div");
     banner.className = "usrly-banner-wrapper upfront-banner";
+    var closeBtnHtml = config.show_close_button
+      ? \`<button class="usrly-modal-close" id="usrly-close-banner" aria-label="Close" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:14px;cursor:pointer;color:\${textMuted};padding:4px;line-height:1;z-index:10;">✕</button>\`
+      : "";
     banner.innerHTML = \`
-      <div class="usrly-banner-inner">
+      \${closeBtnHtml}
+      <div class="usrly-banner-inner\${config.show_close_button ? " usrly-has-close" : ""}">
         <div class="usrly-banner-text">
           <div class="usrly-banner-title">\${resolveText("title", config)}</div>
           <div class="usrly-banner-desc">
@@ -1952,6 +1956,14 @@ const TRACKER_SCRIPT = `(function () {
       </div>
     \`;
     shadow.appendChild(banner);
+
+    var btnCloseBanner = banner.querySelector("#usrly-close-banner");
+    if (btnCloseBanner) {
+      btnCloseBanner.onclick = function () {
+        var root = document.getElementById("usrly-cmp-root");
+        if (root) root.remove();
+      };
+    }
 
     var btnAccept = banner.querySelector("#usrly-btn-accept");
     if (btnAccept) {

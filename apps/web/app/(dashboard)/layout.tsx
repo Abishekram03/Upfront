@@ -17,6 +17,7 @@ import { useEntitlements } from "@/lib/entitlements-context"
 import { OnboardingWizard } from "@/components/dashboard/onboarding/onboarding-wizard"
 import { AlertCircle, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Toaster } from "@/components/ui/sonner"
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -151,6 +152,9 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
           domain={activeDomain}
         />
       )}
+
+      {/* Global Modern Sonner Toaster */}
+      <Toaster position="bottom-right" />
     </div>
   )
 }

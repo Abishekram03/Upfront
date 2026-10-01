@@ -27,6 +27,9 @@ import {
   Sparkles,
   HelpCircle,
   RotateCcw,
+  Clock,
+  Globe,
+  Info,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -56,6 +59,7 @@ import {
   resolveCMPText,
 } from "@/lib/i18n/translations"
 import { UpgradeGate, UpgradeBadge } from "@/components/ui/upgrade-gate"
+import { toast } from "@/components/ui/sonner"
 import { useEntitlements } from "@/lib/entitlements-context"
 
 export { LAW_PRESETS }
@@ -141,6 +145,161 @@ const COLOR_PRESETS = [
   { name: "Violet", hex: "#7c3aed" },
   { name: "Dark Slate", hex: "#0f172a" },
 ]
+
+function InfoTooltip({
+  text,
+  title,
+}: {
+  text: string
+  title?: string
+  align?: string
+  position?: string
+}) {
+  const [isVisible, setIsVisible] = useState(false)
+  const [coords, setCoords] = useState<{ top: number; left: number; placeAbove: boolean } | null>(null)
+  const triggerRef = useState<HTMLDivElement | null>(null)[1]
+  const elRef = useState<HTMLSpanElement | null>(null)
+
+  const showTooltip = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const placeAbove = rect.bottom > 220
+    const tooltipWidth = 260
+    
+    // Center relative to icon
+    let idealLeft = rect.left + rect.width / 2 - tooltipWidth / 2
+    // Clamp so it never bleeds off screen
+    const minLeft = 80 // Clear left 64px rail with padding
+    const maxLeft = typeof window !== "undefined" ? window.innerWidth - tooltipWidth - 16 : 400
+    const left = Math.max(minLeft, Math.min(idealLeft, maxLeft))
+    const top = placeAbove ? rect.top - 8 : rect.bottom + 8
+
+    setCoords({ top, left, placeAbove })
+    setIsVisible(true)
+  }
+
+  const hideTooltip = () => {
+    setIsVisible(false)
+  }
+
+  return (
+    <span
+      onMouseEnter={showTooltip}
+      onMouseLeave={hideTooltip}
+      className="inline-flex items-center cursor-help shrink-0 select-none"
+    >
+      <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-700 transition-colors" />
+      {isVisible && coords && (
+        <span
+          style={{
+            position: "fixed",
+            top: coords.placeAbove ? undefined : `${coords.top}px`,
+            bottom: coords.placeAbove ? `${typeof window !== "undefined" ? window.innerHeight - coords.top : 300}px` : undefined,
+            left: `${coords.left}px`,
+            width: "260px",
+            zIndex: 999999,
+          }}
+          className="pointer-events-none p-2.5 bg-slate-900 text-white text-[11px] leading-relaxed rounded-md shadow-2xl border border-slate-700 block animate-in fade-in-0 zoom-in-95 duration-100"
+        >
+          {title && <span className="font-bold text-white mb-0.5 block text-[11px]">{title}</span>}
+          <span className="text-slate-200 text-[10.5px] leading-normal block">{text}</span>
+        </span>
+      )}
+    </span>
+  )
+}
+
+interface ConsentTemplateCardProps {
+  config: StudioConfig
+  setConfig: React.Dispatch<React.SetStateAction<StudioConfig>>
+  setMockSwitches: (sw: any) => void
+}
+
+function ConsentTemplateCard({
+  config,
+  setConfig,
+  setMockSwitches,
+}: ConsentTemplateCardProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const currentTemplateId = (config as any).law_template || "gdpr"
+  const currentPreset = getPresetById(currentTemplateId)
+
+  const templateDescriptions: Record<string, string> = {
+    gdpr: "The selected template (opt-in banner) supports GDPR (EU & UK), LGPD (Brazil), PIPEDA (Canada), Law 25 (Quebec), POPIA (South Africa), nFADP (Switzerland), Privacy Act (Australia), PDPL (Saudi Arabia), PDPL (Argentina), PDPL (Andorra), DPA (Faroe Island)",
+    ccpa: "The selected template (opt-out banner) supports CCPA / CPRA (California), CPA (Colorado), CTDPA (Connecticut), UCPA (Utah), VCDPA (Virginia), OCPA (Oregon), TDPSA (Texas), MTDPA (Montana), and Delaware DPA",
+    notice_only: "The selected template (notice-only banner) provides an informational cookie disclosure for global visitors in jurisdictions where prior consent is not required.",
+    lgpd: "The selected template (opt-in banner) supports Brazil's Lei Geral de Proteção de Dados (LGPD) with legitimate interest disclosure and user consent management.",
+    dpdp: "The selected template supports India's Digital Personal Data Protection (DPDP) Act with purpose specification, explicit consent, and itemized cookie categories.",
+  }
+
+  const handleSelect = (preset: LawPreset) => {
+    setConfig((prev) => applyPresetToConfig(prev, preset))
+    setMockSwitches({
+      functional: preset.defaultCategories.functional,
+      analytics: preset.defaultCategories.analytics,
+      performance: preset.defaultCategories.performance,
+      advertisement: preset.defaultCategories.advertisement,
+    })
+    toast.success(`Applied ${preset.name} template`, {
+      description: `Buttons and consent rules updated for ${preset.jurisdiction}.`,
+    })
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200/90 bg-slate-50/70 p-3.5 shadow-2xs space-y-2.5 relative">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold text-slate-800">Consent Template</span>
+        
+        {/* Dropdown Menu */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-[4px] shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer"
+          >
+            <span>{currentPreset?.name ? currentPreset.name.split(" (")[0] : "GDPR"}</span>
+            <ChevronDown className={cn("size-3.5 text-slate-400 transition-transform", isOpen && "rotate-180")} />
+          </button>
+
+          {isOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setIsOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 w-56 rounded-lg border border-slate-200 bg-white p-1 shadow-xl z-40 animate-in fade-in-0 zoom-in-95 space-y-0.5">
+                {LAW_PRESETS.map((lp) => {
+                  const isSelected = currentTemplateId === lp.id
+                  return (
+                    <button
+                      key={lp.id}
+                      type="button"
+                      onClick={() => handleSelect(lp)}
+                      className={cn(
+                        "w-full flex items-center justify-between px-2.5 py-2 text-xs rounded-md text-left transition-colors cursor-pointer",
+                        isSelected
+                          ? "bg-blue-50/80 text-[#1868db] font-bold"
+                          : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      )}
+                    >
+                      <span className="truncate">{lp.name.split(" (")[0]}</span>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-1.5">
+                        <span className="text-[9px] font-medium text-slate-400">{lp.badge}</span>
+                        <Info className="size-3 text-slate-400" />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Dynamic Description based on selected template */}
+      <p className="text-[11px] text-slate-600 leading-relaxed">
+        {templateDescriptions[currentTemplateId] || currentPreset?.info || ""}
+      </p>
+    </div>
+  )
+}
 
 export function BannerStudio() {
   const { activeDomain, isLoadingSites } = useDomain()
@@ -228,7 +387,6 @@ export function BannerStudio() {
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
   const [isResetBannerModalOpen, setIsResetBannerModalOpen] = useState(false)
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false)
-  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const [copiedEmbed, setCopiedEmbed] = useState(false)
 
   // Live Canvas Viewport Controls
@@ -350,11 +508,13 @@ export function BannerStudio() {
       await saveConsentDraft(activeDomain, payload, baseVersion)
       setConfig(payload)
       setIsDraft(true)
-      setToast({ type: "success", message: "Draft saved. Changes will not affect live website until published." })
-      setTimeout(() => setToast(null), 4000)
+      toast.success("Draft saved successfully", {
+        description: "Changes are saved in working draft and will not affect live visitors until published.",
+      })
     } catch (err: any) {
-      setToast({ type: "error", message: err?.message || "Failed to save draft." })
-      setTimeout(() => setToast(null), 5000)
+      toast.error("Failed to save draft", {
+        description: err?.message || "Please check your network connection and try again.",
+      })
     } finally {
       setIsSavingDraft(false)
     }
@@ -369,11 +529,13 @@ export function BannerStudio() {
     try {
       await discardConsentDraft(activeDomain)
       await loadStudioData()
-      setToast({ type: "success", message: "Draft discarded. Reverted to live published configuration." })
-      setTimeout(() => setToast(null), 4000)
+      toast.success("Draft discarded", {
+        description: "Reverted to the active published configuration.",
+      })
     } catch (err: any) {
-      setToast({ type: "error", message: err?.message || "Failed to discard draft." })
-      setTimeout(() => setToast(null), 5000)
+      toast.error("Failed to discard draft", {
+        description: err?.message || "An unexpected error occurred.",
+      })
     }
   }
 
@@ -384,11 +546,7 @@ export function BannerStudio() {
       domain: activeDomain || "",
     }))
     setIsResetBannerModalOpen(false)
-    setToast({
-      type: "success",
-      message: "Banner reset to default configuration.",
-    })
-    setTimeout(() => setToast(null), 4000)
+    toast.success("Banner reset to default configuration")
   }
 
   // Compute validation
@@ -462,11 +620,13 @@ export function BannerStudio() {
       setPublishedConfig(res.config)
       setIsDraft(false)
       setIsPublishModalOpen(false)
-      setToast({ type: "success", message: `v${res.published_version} published successfully to production!` })
-      setTimeout(() => setToast(null), 5000)
+      toast.success("Banner published successfully!", {
+        description: "Your live website visitors will now see the updated banner.",
+      })
     } catch (err: any) {
-      setToast({ type: "error", message: err?.message || "Failed to publish configuration." })
-      setTimeout(() => setToast(null), 6000)
+      toast.error("Failed to publish configuration", {
+        description: err?.message || "An unexpected error occurred while publishing.",
+      })
     } finally {
       setIsPublishing(false)
     }
@@ -479,58 +639,18 @@ export function BannerStudio() {
   const copyEmbedSnippet = () => {
     navigator.clipboard.writeText('<div id="usrly-cookie-declaration"></div>')
     setCopiedEmbed(true)
+    toast.success("HTML Embed snippet copied to clipboard!")
     setTimeout(() => setCopiedEmbed(false), 2000)
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-white overflow-hidden select-none">
-      {/* 1. Studio Enterprise Header */}
-      <StudioHeader
-        activeDomain={activeDomain || ""}
-        publishedVersion={publishedVersion}
-        isDraft={isDraft}
-        isSavingDraft={isSavingDraft}
-        isPublishing={isPublishing}
-        onSaveDraft={handleSaveDraft}
-        onDiscardDraft={handleDiscardDraft}
-        onOpenPublishModal={() => setIsPublishModalOpen(true)}
-        onOpenVersionHistory={() => setIsVersionHistoryOpen(true)}
-      />
-
-      {/* Global Studio Toast Alert */}
-      {toast && (
-        <div
-          role="alert"
-          className={cn(
-            "mx-5 mt-3 p-3 rounded-lg border text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2",
-            toast.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-              : "bg-rose-50 border-rose-200 text-rose-900"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            {toast.type === "success" ? (
-              <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertCircle className="size-4 text-rose-600 shrink-0" />
-            )}
-            <span>{toast.message}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setToast(null)}
-            className="text-xs opacity-60 hover:opacity-100 font-bold ml-4 cursor-pointer"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
+    <div className="w-full h-full flex flex-col bg-slate-50 overflow-hidden select-none">
 
       {/* Main Studio Frame: Left Rail + Settings Panel + Right Live Canvas */}
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden w-full h-full">
         
-        {/* FAR-LEFT 58px VERTICAL ICON RAIL */}
-        <div className="w-[58px] shrink-0 border-r border-slate-200 bg-slate-50/90 flex flex-col justify-between py-3 items-center select-none">
+        {/* FAR-LEFT 64px VERTICAL ICON RAIL */}
+        <div className="w-[64px] shrink-0 border-r border-slate-200 bg-white flex flex-col justify-between py-3 items-center select-none z-10">
           <div className="w-full flex flex-col items-center space-y-1">
             {[
               { id: "general", label: "General", icon: Settings },
@@ -548,14 +668,14 @@ export function BannerStudio() {
                   onClick={() => setActiveRailTab(tab.id as any)}
                   title={tab.label}
                   className={cn(
-                    "w-full flex flex-col items-center justify-center py-3 text-[10px] font-bold gap-1 transition-all cursor-pointer relative",
+                    "w-full flex flex-col items-center justify-center py-2.5 text-[10px] font-semibold gap-1 transition-all cursor-pointer relative",
                     isActive
-                      ? "text-[#1868db] bg-white border-l-3 border-[#1868db] shadow-2xs font-bold"
-                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                      ? "text-[#1868db] bg-blue-50/70 border-r-2 border-[#1868db] font-bold"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                   )}
                 >
                   <Icon className={cn("size-4", isActive ? "text-[#1868db]" : "text-slate-500")} />
-                  <span className="scale-90">{tab.label}</span>
+                  <span className="leading-tight">{tab.label}</span>
                   {tab.capability && (
                     <UpgradeBadge capability={tab.capability} size="sm" showText={false} className="absolute top-1 right-1" />
                   )}
@@ -564,22 +684,46 @@ export function BannerStudio() {
             })}
           </div>
 
-          {/* Revisit Badge Icon Trigger at Rail Bottom */}
-          <div className="pt-4 border-t border-slate-200 w-full flex flex-col items-center">
+          {/* Viewport Device Switcher at Bottom of Left Rail */}
+          <div className="w-full flex flex-col items-center gap-1.5 pt-3 border-t border-slate-200">
             <button
               type="button"
-              onClick={() => setPreviewView(previewView === "notice" ? "preferences" : "notice")}
-              title="Toggle Live Preference Modal"
-              className="size-8 rounded-full bg-[#1868db] text-white flex items-center justify-center shadow-xs hover:scale-105 transition-transform cursor-pointer"
+              onClick={() => setPreviewDevice("desktop")}
+              title="Desktop Preview"
+              className={cn(
+                "p-2 rounded-md transition-colors cursor-pointer",
+                previewDevice === "desktop" ? "text-[#1868db] bg-blue-50" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              )}
             >
-              <Cookie className="size-4" />
+              <Monitor className="size-4" />
             </button>
-            <span className="text-[9px] font-bold text-slate-500 mt-1">Widget</span>
+            <button
+              type="button"
+              onClick={() => setPreviewDevice("tablet")}
+              title="Tablet Preview"
+              className={cn(
+                "p-2 rounded-md transition-colors cursor-pointer",
+                previewDevice === "tablet" ? "text-[#1868db] bg-blue-50" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              )}
+            >
+              <Tablet className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewDevice("mobile")}
+              title="Mobile Preview"
+              className={cn(
+                "p-2 rounded-md transition-colors cursor-pointer",
+                previewDevice === "mobile" ? "text-[#1868db] bg-blue-50" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              )}
+            >
+              <Smartphone className="size-4" />
+            </button>
           </div>
         </div>
 
-        {/* 400px SETTINGS & CONTROLS PANEL */}
-        <div className="w-[380px] lg:w-[410px] shrink-0 border-r border-slate-200 bg-white flex flex-col justify-between overflow-hidden h-full min-h-0">
+        {/* SETTINGS & CONTROLS PANEL */}
+        <div className="w-[360px] lg:w-[390px] shrink-0 border-r border-slate-200 bg-white flex flex-col justify-between overflow-hidden h-full min-h-0 shadow-xs z-10">
           <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
             
             {/* ======================================================== */}
@@ -587,122 +731,22 @@ export function BannerStudio() {
             {/* ======================================================== */}
             {activeRailTab === "general" && (
               <div className="space-y-4">
-                {/* 1-Click Law & Regulatory Template Dropdown */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <span>Regulatory Law Template</span>
-                      <div className="relative group cursor-pointer inline-flex items-center">
-                        <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-                        <div className="absolute left-0 top-full mt-1.5 hidden group-hover:block w-72 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-2xl z-50 pointer-events-none leading-relaxed border border-slate-700">
-                          Selecting a law template instantly applies legally compliant button configurations, copy presets, and default tracking behaviors for your jurisdiction.
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-
-                  {/* Dropdown with Titles */}
-                  <div className="relative">
-                    <select
-                      value={(config as any).law_template || "gdpr"}
-                      onChange={(e) => {
-                        const selectedId = e.target.value
-                        const found = LAW_PRESETS.find((p) => p.id === selectedId)
-                        if (found) {
-                          setConfig((prev) => applyPresetToConfig(prev, found))
-                          setMockSwitches({
-                            functional: found.defaultCategories.functional,
-                            analytics: found.defaultCategories.analytics,
-                            performance: found.defaultCategories.performance,
-                            advertisement: found.defaultCategories.advertisement,
-                          })
-                        }
-                      }}
-                      className="w-full px-3 py-2 text-xs font-semibold rounded-[4px] border border-slate-300 bg-white text-slate-900 shadow-2xs focus:outline-hidden focus:border-[#1868db] focus:ring-1 focus:ring-[#1868db] cursor-pointer appearance-none pr-8"
-                    >
-                      {LAW_PRESETS.map((lp) => (
-                        <option key={lp.id} value={lp.id}>
-                          {lp.name} — {lp.jurisdiction}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="size-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-
-                  {/* Chosen Template Description & Detail Card */}
-                  {(() => {
-                    const currentTemplateId = (config as any).law_template || "gdpr"
-                    const currentPreset = LAW_PRESETS.find((p) => p.id === currentTemplateId) || LAW_PRESETS[0]
-                    if (!currentPreset) return null
-                    return (
-                      <div className="p-3.5 rounded-[4px] border border-[#1868db]/30 bg-blue-50/40 space-y-2.5 animate-in fade-in">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-slate-900">{currentPreset.name}</span>
-                            <div className="relative group cursor-pointer inline-flex items-center">
-                              <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                              <div className="absolute left-0 top-full mt-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-2xl z-50 pointer-events-none leading-relaxed border border-slate-700">
-                                <strong>Jurisdiction:</strong> {currentPreset.jurisdiction}
-                              </div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-[#1868db] border border-blue-200">
-                            {currentPreset.badge}
-                          </span>
-                        </div>
-
-                        <p className="text-[11px] text-slate-600 leading-relaxed">
-                          {currentPreset.info}
-                        </p>
-
-                        <div className="pt-2 border-t border-blue-100 space-y-1.5 text-[10px]">
-                          <div className="flex items-center justify-between text-slate-500">
-                            <span>Jurisdiction:</span>
-                            <strong className="text-slate-700">{currentPreset.jurisdiction}</strong>
-                          </div>
-                          <div className="flex items-center justify-between text-slate-500">
-                            <span>Primary Action:</span>
-                            <strong className="text-slate-700">{currentPreset.bannerData.accept_all_label}</strong>
-                          </div>
-                          <div className="flex items-center justify-between text-slate-500">
-                            <span>Opt-Out / Reject:</span>
-                            <strong className="text-slate-700">{currentPreset.bannerData.reject_all_label}</strong>
-                          </div>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setConfig((prev) => applyPresetToConfig(prev, currentPreset))
-                            setMockSwitches({
-                              functional: currentPreset.defaultCategories.functional,
-                              analytics: currentPreset.defaultCategories.analytics,
-                              performance: currentPreset.defaultCategories.performance,
-                              advertisement: currentPreset.defaultCategories.advertisement,
-                            })
-                          }}
-                          className="w-full text-[10px] font-bold h-7 rounded-[4px] border-blue-200 bg-white text-[#1868db] hover:bg-blue-50"
-                        >
-                          Reset / Reapply {currentPreset.name} Copy
-                        </Button>
-                      </div>
-                    )
-                  })()}
-                </div>
+                {/* CookieYes-Style Consent Template Card */}
+                <ConsentTemplateCard
+                  config={config}
+                  setConfig={setConfig}
+                  setMockSwitches={setMockSwitches}
+                />
 
                 {/* Geo-targeting: Worldwide is Free, Regional is Growth */}
                 <div className="space-y-2 pt-2 border-t border-slate-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       <label className="text-xs font-bold text-slate-800 block">Geo-target banner</label>
-                      <div className="relative group cursor-pointer inline-flex items-center">
-                        <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                        <div className="absolute left-0 top-full mt-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-2xl z-50 pointer-events-none leading-relaxed border border-slate-700">
-                          Control where the banner is displayed. Restricting to EU/UK avoids showing consent banners in regions where prior consent is not legally required.
-                        </div>
-                      </div>
+                      <InfoTooltip
+                        position="bottom"
+                        text="Control where the banner is displayed. Restricting to EU/UK avoids showing consent banners in regions where prior consent is not legally required."
+                      />
                     </div>
                   </div>
                   <div className="space-y-1.5">
@@ -826,12 +870,10 @@ export function BannerStudio() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <label className="text-xs font-bold text-slate-800 block">Languages & Localization</label>
-                        <div className="relative group cursor-pointer inline-flex items-center">
-                          <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                          <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                            UpFront automatically serves localized CMP translations matching the visitor&apos;s browser language while preserving any custom customer copy overrides.
-                          </div>
-                        </div>
+                        <InfoTooltip
+                          position="top"
+                          text="UpFront automatically serves localized CMP translations matching the visitor's browser language while preserving any custom customer copy overrides."
+                        />
                       </div>
                       <UpgradeBadge capability="cmp.multilingual" size="sm" />
                     </div>
@@ -873,137 +915,172 @@ export function BannerStudio() {
             {/* ======================================================== */}
             {activeRailTab === "layout" && (
               <div className="space-y-4">
-                {/* Consent Template Selector */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <span>Consent Template</span>
-                      <div className="relative group cursor-pointer inline-flex items-center">
-                        <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-                        <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                          Active regulatory framework preset for this site.
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-                  <div className="relative">
-                    <select
-                      value={(config as any).law_template || "gdpr"}
-                      onChange={(e) => {
-                        const selectedId = e.target.value
-                        const found = LAW_PRESETS.find((p) => p.id === selectedId)
-                        if (found) {
-                          setConfig((prev) => applyPresetToConfig(prev, found))
-                          setMockSwitches({
-                            functional: found.defaultCategories.functional,
-                            analytics: found.defaultCategories.analytics,
-                            performance: found.defaultCategories.performance,
-                            advertisement: found.defaultCategories.advertisement,
-                          })
-                        }
-                      }}
-                      className="w-full px-3 py-2 text-xs font-semibold rounded-[4px] border border-slate-300 bg-white text-slate-900 shadow-2xs focus:outline-hidden focus:border-[#1868db] focus:ring-1 focus:ring-[#1868db] cursor-pointer appearance-none pr-8"
-                    >
-                      {LAW_PRESETS.map((lp) => (
-                        <option key={lp.id} value={lp.id}>
-                          {lp.name} ({lp.jurisdiction})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="size-4 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
+                {/* CookieYes-Style Consent Template Card */}
+                <ConsentTemplateCard
+                  config={config}
+                  setConfig={setConfig}
+                  setMockSwitches={setMockSwitches}
+                />
 
-                {/* Cookie Notice Form Factors */}
-                <div>
-                  <label className="text-xs font-bold text-slate-800 block mb-2">Cookie notice</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: "box", label: "Box", visual: "w-6 h-6 border border-slate-300 rounded-[2px] bg-blue-50 ml-1 mt-1", capability: "cmp.box_layout" as const },
-                      { id: "banner", label: "Banner", visual: "w-8 h-3 border border-slate-300 rounded-[2px] bg-[#1868db] mx-auto mt-2", capability: "cmp.banner" as const },
-                      { id: "popup", label: "Popup", visual: "size-4 border border-slate-300 rounded-[2px] bg-slate-400 m-auto mt-2", capability: "cmp.popup_layout" as const },
-                    ].map((form) => {
-                      const isSelected =
-                        form.id === "box"
-                          ? config.layout?.includes("floating") || config.layout === "box"
-                          : form.id === "banner"
-                          ? config.layout === "bottom_bar" || config.layout === "top_bar"
-                          : config.layout === "center_modal" || config.layout === "popup"
-                      const isLocked = !hasCapability(form.capability)
-
+                {/* 2. Cookie Notice Form Factors */}
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <label className="text-xs font-bold text-slate-800 block">Cookie notice</label>
+                  
+                  {/* 3 Visual Miniature Cards */}
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {/* BOX */}
+                    {(() => {
+                      const isSelected = config.layout?.includes("floating") || config.layout === "box"
                       return (
                         <button
-                          key={form.id}
                           type="button"
                           onClick={() => {
-                            if (isLocked) {
-                              openUpgradeModal("growth", form.id === "box" ? "Floating Box Layout" : "Popup Modal Layout")
-                              return
-                            }
-                            if (form.id === "box") setConfig({ ...config, layout: "floating_bottom_left" as any })
-                            else if (form.id === "banner") setConfig({ ...config, layout: "bottom_bar" })
-                            else setConfig({ ...config, layout: "center_modal" as any })
+                            setConfig({ ...config, layout: (config.box_position as any) || "floating_bottom_left" })
+                            setPreviewView("notice")
                           }}
                           className={cn(
-                            "p-2.5 rounded-[4px] border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-18 relative",
+                            "p-2.5 rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
                             isSelected
-                              ? "border-[#1868db] bg-blue-50/60 text-[#1868db] ring-1 ring-[#1868db]/30 font-bold"
-                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700",
-                            isLocked && "hover:border-amber-400"
+                              ? "border-[#1868db] bg-blue-50/40 text-[#1868db] ring-1 ring-[#1868db]"
+                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
                           )}
                         >
-                          {isLocked && (
-                            <div className="absolute top-1 right-1">
-                              <UpgradeBadge capability={form.capability} />
+                          {/* Miniature Graphic */}
+                          <div className="w-10 h-7 rounded bg-slate-100 border border-slate-200 relative overflow-hidden flex items-end p-0.5">
+                            <div className="w-3.5 h-2.5 rounded-xs bg-[#1868db]" />
+                          </div>
+                          <span className="text-[11px] font-semibold">Box</span>
+                          {isSelected && (
+                            <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
+                              <Check className="size-2.5 stroke-[3]" />
                             </div>
                           )}
-                          <div className={form.visual} />
-                          <span className="text-xs font-semibold">{form.label}</span>
                         </button>
                       )
-                    })}
+                    })()}
+
+                    {/* BANNER */}
+                    {(() => {
+                      const isSelected = config.layout === "bottom_bar" || config.layout === "top_bar"
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfig({ ...config, layout: "bottom_bar" })
+                            setPreviewView("notice")
+                          }}
+                          className={cn(
+                            "p-2.5 rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
+                            isSelected
+                              ? "border-[#1868db] bg-blue-50/40 text-[#1868db] ring-1 ring-[#1868db]"
+                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                          )}
+                        >
+                          {/* Miniature Graphic */}
+                          <div className="w-10 h-7 rounded bg-slate-100 border border-slate-200 relative overflow-hidden flex items-end p-0.5">
+                            <div className="w-full h-2 rounded-xs bg-[#1868db]" />
+                          </div>
+                          <span className="text-[11px] font-semibold">Banner</span>
+                          {isSelected && (
+                            <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
+                              <Check className="size-2.5 stroke-[3]" />
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })()}
+
+                    {/* POPUP */}
+                    {(() => {
+                      const isSelected = config.layout === "center_modal" || config.layout === "popup"
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfig({ ...config, layout: "center_modal" as any })
+                            setPreviewView("notice")
+                          }}
+                          className={cn(
+                            "p-2.5 rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-between h-20 relative group",
+                            isSelected
+                              ? "border-[#1868db] bg-blue-50/40 text-[#1868db] ring-1 ring-[#1868db]"
+                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                          )}
+                        >
+                          {/* Miniature Graphic */}
+                          <div className="w-10 h-7 rounded bg-slate-100 border border-slate-200 relative overflow-hidden flex items-center justify-center p-0.5">
+                            <div className="size-3.5 rounded-xs bg-[#1868db]" />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] font-semibold">Popup</span>
+                          </div>
+                          {isSelected && (
+                            <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
+                              <Check className="size-2.5 stroke-[3]" />
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })()}
                   </div>
 
-                  {/* 4-Corner Positioning for Box */}
+                  {/* Alignment Options (Radios directly below) */}
                   {(config.layout?.includes("floating") || config.layout === "box") && (
-                    <UpgradeGate capability="cmp.box_layout" featureName="Floating Box Layout">
-                      <div className="mt-3 p-3 bg-slate-50/80 rounded-[4px] border border-slate-200 space-y-2">
-                        <span className="text-[11px] font-bold text-slate-700 block">Position on screen</span>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          {[
-                            { id: "floating_bottom_left", label: "Bottom left" },
-                            { id: "floating_bottom_right", label: "Bottom right" },
-                            { id: "floating_top_left", label: "Top left" },
-                            { id: "floating_top_right", label: "Top right" },
-                          ].map((pos) => (
-                            <label key={pos.id} className="flex items-center gap-1.5 cursor-pointer text-slate-700">
-                              <input
-                                type="radio"
-                                name="box_position"
-                                checked={config.layout === pos.id || (pos.id === "floating_bottom_left" && config.layout === "box")}
-                                onChange={() => setConfig({ ...config, layout: pos.id as any })}
-                                className="text-[#1868db] focus:ring-[#1868db]"
-                              />
-                              <span className="text-[11px] font-medium">{pos.label}</span>
-                            </label>
-                          ))}
-                        </div>
+                    <div className="pt-2">
+                      <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+                        {[
+                          { id: "floating_bottom_left", label: "Bottom left" },
+                          { id: "floating_bottom_right", label: "Bottom right" },
+                          { id: "floating_top_left", label: "Top left" },
+                          { id: "floating_top_right", label: "Top right" },
+                        ].map((pos) => (
+                          <label key={pos.id} className="flex items-center gap-2 cursor-pointer text-slate-700 select-none">
+                            <input
+                              type="radio"
+                              name="box_position"
+                              checked={config.layout === pos.id || (pos.id === "floating_bottom_left" && config.layout === "box")}
+                              onChange={() => setConfig({ ...config, layout: pos.id as any, box_position: pos.id as any })}
+                              className="size-3.5 text-[#1868db] focus:ring-[#1868db]"
+                            />
+                            <span className="text-[11px] font-medium">{pos.label}</span>
+                          </label>
+                        ))}
                       </div>
-                    </UpgradeGate>
+                    </div>
+                  )}
+
+                  {(config.layout === "bottom_bar" || config.layout === "top_bar") && (
+                    <div className="pt-2">
+                      <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+                        {[
+                          { id: "bottom_bar", label: "Bottom" },
+                          { id: "top_bar", label: "Top" },
+                        ].map((pos) => (
+                          <label key={pos.id} className="flex items-center gap-2 cursor-pointer text-slate-700 select-none">
+                            <input
+                              type="radio"
+                              name="banner_position"
+                              checked={config.layout === pos.id}
+                              onChange={() => setConfig({ ...config, layout: pos.id as any })}
+                              className="size-3.5 text-[#1868db] focus:ring-[#1868db]"
+                            />
+                            <span className="text-[11px] font-medium">{pos.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {/* Preference Centre Layout (Locked to Center Modal) */}
-                <div className="pt-2 border-t border-slate-200 space-y-1.5">
+                {/* 3. Preference Centre Layout (Locked to Center Modal) */}
+                <div className="space-y-2 pt-3 border-t border-slate-100">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <span>Preference Centre Layout</span>
-                      <div className="relative group cursor-pointer inline-flex items-center">
-                        <HelpCircle className="size-3.5 text-slate-400 hover:text-slate-600 transition-colors" />
-                        <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                          Preference Centre is configured as a focused, accessible Center Modal dialog with itemized category accordions.
-                        </div>
-                      </div>
+                      <InfoTooltip
+                        position="top"
+                        text="Preference Centre is configured as a focused, accessible Center Modal dialog with itemized category accordions."
+                      />
                     </label>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-[#1868db] border border-blue-200">
                       Center Modal
@@ -1015,7 +1092,7 @@ export function BannerStudio() {
                       setConfig((prev) => ({ ...prev, preference_layout: "center" }))
                       setPreviewView("preferences")
                     }}
-                    className="w-full p-2.5 rounded-[4px] border border-[#1868db]/30 bg-blue-50/40 hover:bg-blue-50 transition-all cursor-pointer flex items-center justify-between text-left"
+                    className="w-full p-2.5 rounded-lg border border-[#1868db]/40 bg-blue-50/40 hover:bg-blue-50 transition-all cursor-pointer flex items-center justify-between text-left"
                   >
                     <div>
                       <div className="text-xs font-bold text-slate-900">Center Modal Dialog</div>
@@ -1025,18 +1102,34 @@ export function BannerStudio() {
                   </button>
                 </div>
 
-                {/* Categories on first layer toggle */}
-                <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-bold text-slate-800">Categories on first layer</div>
-                    <div className="text-[11px] text-slate-500">Display category toggles directly on banner</div>
+                {/* 4. Categories on first layer toggle */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-800">Categories on first layer</span>
+                    <InfoTooltip
+                      position="top"
+                      text="Display consent category checkboxes directly on the initial notice layer."
+                    />
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={config.categories_on_first_layer || false}
-                    onChange={(e) => setConfig({ ...config, categories_on_first_layer: e.target.checked })}
-                    className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
-                  />
+                  
+                  {/* iOS Style Switch Toggle */}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={config.categories_on_first_layer || false}
+                    onClick={() => setConfig({ ...config, categories_on_first_layer: !config.categories_on_first_layer })}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                      config.categories_on_first_layer ? "bg-[#1868db]" : "bg-slate-200"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                        config.categories_on_first_layer ? "translate-x-4" : "translate-x-0"
+                      )}
+                    />
+                  </button>
                 </div>
               </div>
             )}
@@ -1045,7 +1138,14 @@ export function BannerStudio() {
             {/* TAB 3: 5-ACCORDION CONTENT MANAGEMENT                    */}
             {/* ======================================================== */}
             {activeRailTab === "content" && (
-              <div className="space-y-2">
+              <div className="space-y-3">
+                {/* CookieYes-Style Consent Template Card */}
+                <ConsentTemplateCard
+                  config={config}
+                  setConfig={setConfig}
+                  setMockSwitches={setMockSwitches}
+                />
+
                 {/* 1. Cookie Notice Accordion */}
                 <div className="border border-slate-200 rounded-[4px] overflow-hidden">
                   <button
@@ -1086,12 +1186,11 @@ export function BannerStudio() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             <span className="text-[11px] font-bold text-slate-700">Close [X] button</span>
-                            <div className="relative group cursor-pointer inline-flex items-center">
-                              <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                              <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-64 p-2.5 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                                <strong>Italian DPA / EDPB Requirement:</strong> Under Italian Garante Privacy and EDPB guidelines, clicking [X] must dismiss the notice and continue navigation while maintaining default settings (rejecting all non-essential trackers and keeping only technical cookies active).
-                              </div>
-                            </div>
+                            <InfoTooltip
+                              title="Italian DPA / EDPB Requirement"
+                              position="top"
+                              text="Under Italian Garante Privacy and EDPB guidelines, clicking [X] must dismiss the notice and continue navigation while maintaining default settings (rejecting non-essential trackers)."
+                            />
                           </div>
                           <input
                             type="checkbox"
@@ -1324,12 +1423,11 @@ export function BannerStudio() {
                         <div>
                           <div className="flex items-center gap-1.5 mb-1">
                             <label className="text-[11px] font-bold text-slate-700">Cookie</label>
-                            <div className="relative group cursor-pointer inline-flex items-center">
-                              <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                              <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-60 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                                <strong>Technical Identifier:</strong> The actual name of the cookie or storage key stored in the visitor&apos;s browser (e.g. <code>_ga</code>, <code>cf_clearance</code>).
-                              </div>
-                            </div>
+                            <InfoTooltip
+                              title="Technical Identifier"
+                              position="top"
+                              text="The actual name of the cookie or storage key stored in the visitor's browser (e.g. _ga, cf_clearance)."
+                            />
                           </div>
                           <input
                             type="text"
@@ -1343,12 +1441,11 @@ export function BannerStudio() {
                         <div>
                           <div className="flex items-center gap-1.5 mb-1">
                             <label className="text-[11px] font-bold text-slate-700">Duration</label>
-                            <div className="relative group cursor-pointer inline-flex items-center">
-                              <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                              <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-60 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                                <strong>Expiration Lifespan:</strong> How long the cookie persists before auto-expiring (e.g. <code>Session</code>, <code>30 days</code>, <code>1 year</code>). Mandatory under GDPR Article 13.
-                              </div>
-                            </div>
+                            <InfoTooltip
+                              title="Expiration Lifespan"
+                              position="top"
+                              text="How long the cookie persists before auto-expiring (e.g. Session, 30 days, 1 year). Mandatory under GDPR Article 13."
+                            />
                           </div>
                           <input
                             type="text"
@@ -1362,12 +1459,11 @@ export function BannerStudio() {
                         <div>
                           <div className="flex items-center gap-1.5 mb-1">
                             <label className="text-[11px] font-bold text-slate-700">Description</label>
-                            <div className="relative group cursor-pointer inline-flex items-center">
-                              <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                              <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-60 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                                <strong>Purpose Specification:</strong> Plain-language disclosure explaining why this specific tracker is placed and what personal data it processes.
-                              </div>
-                            </div>
+                            <InfoTooltip
+                              title="Purpose Specification"
+                              position="top"
+                              text="Plain-language disclosure explaining why this specific tracker is placed and what personal data it processes."
+                            />
                           </div>
                           <input
                             type="text"
@@ -1381,12 +1477,11 @@ export function BannerStudio() {
                         <div>
                           <div className="flex items-center gap-1.5 mb-1">
                             <label className="text-[11px] font-bold text-slate-700">&quot;Always Active&quot; label</label>
-                            <div className="relative group cursor-pointer inline-flex items-center">
-                              <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                              <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-60 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                                <strong>Non-deactivatable Badge:</strong> Displayed on Necessary cookies to inform visitors that security & session cookies cannot be toggled off.
-                              </div>
-                            </div>
+                            <InfoTooltip
+                              title="Non-deactivatable Badge"
+                              position="top"
+                              text="Displayed on Necessary cookies to inform visitors that security & session cookies cannot be toggled off."
+                            />
                           </div>
                           <input
                             type="text"
@@ -1400,12 +1495,11 @@ export function BannerStudio() {
                         <div>
                           <div className="flex items-center gap-1.5 mb-1">
                             <label className="text-[11px] font-bold text-slate-700">&quot;No cookies to display&quot; label</label>
-                            <div className="relative group cursor-pointer inline-flex items-center">
-                              <HelpCircle className="size-3 text-slate-400 hover:text-slate-700" />
-                              <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block w-60 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-50 pointer-events-none leading-relaxed">
-                                <strong>Zero-State Fallback:</strong> Displayed inside category accordions when the scanner detects 0 active cookies under that category.
-                              </div>
-                            </div>
+                            <InfoTooltip
+                              title="Zero-State Fallback"
+                              position="top"
+                              text="Displayed inside category accordions when the scanner detects 0 active cookies under that category."
+                            />
                           </div>
                           <input
                             type="text"
@@ -1609,13 +1703,13 @@ export function BannerStudio() {
 
           </div>
 
-          {/* Sticky Bottom Action */}
-          <div className="p-3 border-t border-slate-200 bg-slate-50/80 flex items-center gap-2 shrink-0">
+          {/* Sticky Bottom Action in Settings Drawer */}
+          <div className="p-3.5 border-t border-slate-200 bg-white flex items-center gap-2 shrink-0">
             <button
               type="button"
               disabled={isSavingDraft || isPublishing || !activeDomain}
               onClick={handleSaveDraft}
-              className="flex-1 rounded-[4px] border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold py-2 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+              className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3.5 py-2 transition-colors cursor-pointer disabled:opacity-50"
             >
               {isSavingDraft ? "Saving..." : "Save Draft"}
             </button>
@@ -1623,198 +1717,71 @@ export function BannerStudio() {
               type="button"
               onClick={() => setIsPublishModalOpen(true)}
               disabled={isPublishing || !activeDomain}
-              className="flex-1 rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold py-2 shadow-xs cursor-pointer disabled:opacity-50"
+              className="flex-1 rounded-lg bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold py-2 shadow-xs cursor-pointer disabled:opacity-50"
             >
-              Review & Publish
+              Publish Changes
             </Button>
           </div>
         </div>
 
-        {/* CENTER-RIGHT LIVE SIMULATED WEBPAGE CANVAS */}
-        <div className="flex-1 min-h-0 bg-slate-100/70 p-4 sm:p-6 flex flex-col justify-between overflow-hidden h-full">
-          
-          {/* Canvas Top Bar: Device Switcher + Preview Toggle + Publish Action */}
-          <div className="flex items-center justify-between bg-white px-3.5 py-2 rounded-[4px] border border-slate-200 mb-3 shadow-2xs shrink-0 gap-3">
-            {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setPreviewView("notice")}
-                className={cn(
-                  "px-2.5 py-1 rounded transition-colors cursor-pointer",
-                  previewView === "notice" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                1. Notice Banner
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewView("preferences")}
-                className={cn(
-                  "px-2.5 py-1 rounded transition-colors cursor-pointer",
-                  previewView === "preferences" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                )}
-              >
-                2. Preference Centre
-              </button>
-            </div>
+        {/* RIGHT LIVE SIMULATED WEBPAGE CANVAS (FULL BLEED MATCHING COOKIEYES) */}
+        <div className="flex-1 min-h-0 bg-white flex flex-col justify-between overflow-hidden h-full relative">
+          <div
+            className={cn(
+              "relative bg-white overflow-hidden transition-all duration-300 flex flex-col justify-between w-full h-full upfront-banner-canvas",
+              previewDevice === "desktop"
+                ? "w-full h-full"
+                : previewDevice === "tablet"
+                ? "w-[768px] max-w-full h-full mx-auto border-x border-slate-200 shadow-2xl"
+                : "w-[375px] max-w-full h-full mx-auto border-x border-slate-200 shadow-2xl"
+            )}
+          >
+            {/* CMP & Custom CSS Scoped Styles */}
+            <style
+              dangerouslySetInnerHTML={{
+                __html: `
+                  .upfront-banner-canvas {
+                    --usrly-primary: ${config.primary_color || "#1868db"};
+                    --usrly-bg: ${config.theme === "dark" ? "#0f172a" : "#ffffff"};
+                    --usrly-text: ${config.theme === "dark" ? "#f8fafc" : "#0f172a"};
+                    --usrly-text-muted: ${config.theme === "dark" ? "#94a3b8" : "#64748b"};
+                    --usrly-border: ${config.theme === "dark" ? "#334155" : "#e2e8f0"};
+                    --usrly-radius: ${config.border_radius === "rounded-full" ? "9999px" : config.border_radius === "rounded-lg" ? "12px" : config.border_radius === "rounded-none" ? "0px" : "6px"};
+                  }
+                  .upfront-banner-canvas .usrly-btn-primary {
+                    background-color: var(--usrly-primary);
+                    color: #ffffff;
+                  }
+                  .upfront-banner-canvas .usrly-btn-outline {
+                    border-color: var(--usrly-primary);
+                    color: var(--usrly-primary);
+                  }
+                  .upfront-banner-canvas .usrly-btn-secondary {
+                    background-color: ${config.theme === "dark" ? "#1e293b" : "#ffffff"};
+                    color: ${config.theme === "dark" ? "#f8fafc" : "#0f172a"};
+                    border-color: ${config.theme === "dark" ? "#334155" : "#e2e8f0"};
+                  }
+                  ${config.custom_css ? validateAndSanitizeCSS(config.custom_css).sanitizedCss || "" : ""}
+                `,
+              }}
+            />
 
-            {/* Middle: Viewport Device Icons */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 hidden sm:flex">
-              <button
-                type="button"
-                onClick={() => setPreviewDevice("desktop")}
-                title="Desktop View"
-                className={cn(
-                  "p-1.5 rounded text-xs transition-colors cursor-pointer",
-                  previewDevice === "desktop" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
-                )}
-              >
-                <Monitor className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewDevice("tablet")}
-                title="Tablet View"
-                className={cn(
-                  "p-1.5 rounded text-xs transition-colors cursor-pointer",
-                  previewDevice === "tablet" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
-                )}
-              >
-                <Tablet className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewDevice("mobile")}
-                title="Mobile View"
-                className={cn(
-                  "p-1.5 rounded text-xs transition-colors cursor-pointer",
-                  previewDevice === "mobile" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-400 hover:text-slate-700"
-                )}
-              >
-                <Smartphone className="size-3.5" />
-              </button>
-            </div>
-
-            {/* Right Action: Language Preview Switcher + Draft Status Badge */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded border border-slate-200">
-                <span className="text-[10px] font-bold text-slate-500 hidden sm:inline">Preview Lang:</span>
-                <select
-                  value={previewLanguage}
-                  onChange={(e) => setPreviewLanguage(e.target.value)}
-                  className="text-xs font-semibold bg-transparent border-0 text-slate-800 focus:outline-hidden cursor-pointer"
-                  title="Simulate visitor browser language"
-                >
-                  {SUPPORTED_LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.name} ({l.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {isDraft ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                  <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  <span>Draft Preview</span>
-                </div>
+            {/* REAL CONNECTED WEBSITE LIVE PREVIEW */}
+            <div className="relative w-full h-full flex-1 overflow-hidden bg-slate-50 flex flex-col select-none">
+              {activeDomain ? (
+                <iframe
+                  src={`/api/v1/consent/preview-proxy?domain=${encodeURIComponent(activeDomain)}`}
+                  title={`Live preview of ${activeDomain}`}
+                  className="w-full h-full border-0 pointer-events-none select-none bg-white"
+                  sandbox="allow-same-origin allow-scripts allow-forms"
+                />
               ) : (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  <span className="size-1.5 rounded-full bg-emerald-500" />
-                  <span>Live Preview (v{publishedVersion})</span>
+                <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-3 bg-slate-50">
+                  <Globe className="size-10 text-slate-300 stroke-[1.5]" />
+                  <p className="text-xs font-semibold text-slate-500">Connect a domain to see your live website preview</p>
                 </div>
               )}
             </div>
-          </div>
-
-          {/* SIMULATED WEBPAGE FRAME */}
-          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden py-1">
-            <div
-              className={cn(
-                "relative bg-white border border-slate-200 rounded-[6px] overflow-hidden shadow-xl transition-all duration-300 flex flex-col justify-between h-[560px] max-h-full upfront-banner-canvas",
-                previewDevice === "desktop"
-                  ? "w-full max-w-[980px]"
-                  : previewDevice === "tablet"
-                  ? "w-[580px]"
-                  : "w-[350px]"
-              )}
-            >
-              {/* CMP & Custom CSS Scoped Styles */}
-              <style
-                dangerouslySetInnerHTML={{
-                  __html: `
-                    .upfront-banner-canvas {
-                      --usrly-primary: ${config.primary_color || "#1868db"};
-                      --usrly-bg: ${config.theme === "dark" ? "#0f172a" : "#ffffff"};
-                      --usrly-text: ${config.theme === "dark" ? "#f8fafc" : "#0f172a"};
-                      --usrly-text-muted: ${config.theme === "dark" ? "#94a3b8" : "#64748b"};
-                      --usrly-border: ${config.theme === "dark" ? "#334155" : "#e2e8f0"};
-                      --usrly-radius: ${config.border_radius === "rounded-full" ? "9999px" : config.border_radius === "rounded-lg" ? "12px" : config.border_radius === "rounded-none" ? "0px" : "6px"};
-                    }
-                    .upfront-banner-canvas .usrly-btn-primary {
-                      background-color: var(--usrly-primary);
-                      color: #ffffff;
-                    }
-                    .upfront-banner-canvas .usrly-btn-outline {
-                      border-color: var(--usrly-primary);
-                      color: var(--usrly-primary);
-                    }
-                    .upfront-banner-canvas .usrly-btn-secondary {
-                      background-color: ${config.theme === "dark" ? "#1e293b" : "#ffffff"};
-                      color: ${config.theme === "dark" ? "#f8fafc" : "#0f172a"};
-                      border-color: ${config.theme === "dark" ? "#334155" : "#e2e8f0"};
-                    }
-                    ${config.custom_css ? validateAndSanitizeCSS(config.custom_css).sanitizedCss || "" : ""}
-                  `,
-                }}
-              />
-
-              {/* Webpage Content: Clean Sleek Browser Canvas */}
-              <div className="relative w-full h-full flex-1 overflow-hidden bg-slate-50 flex flex-col">
-                {/* Browser Mock Address Bar */}
-                <div className="h-8 bg-slate-100 border-b border-slate-200 px-3 flex items-center gap-2 select-none shrink-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-full bg-slate-300" />
-                    <span className="size-2 rounded-full bg-slate-300" />
-                    <span className="size-2 rounded-full bg-slate-300" />
-                  </div>
-                  <div className="flex-1 max-w-sm mx-auto bg-white border border-slate-200 rounded px-2.5 py-0.5 text-[10px] text-slate-500 font-mono flex items-center justify-center gap-1">
-                    <span className="text-emerald-600 font-bold">🔒</span>
-                    <span className="truncate">https://{activeDomain || "yourwebsite.com"}</span>
-                  </div>
-                </div>
-
-                {/* Clean Canvas Wireframe Content */}
-                <div className="flex-1 p-6 space-y-4 overflow-y-auto select-none pointer-events-none opacity-40">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                    <div className="h-4 w-24 bg-slate-300 rounded" />
-                    <div className="flex gap-3">
-                      <div className="h-3 w-12 bg-slate-200 rounded" />
-                      <div className="h-3 w-12 bg-slate-200 rounded" />
-                      <div className="h-3 w-16 bg-slate-300 rounded" />
-                    </div>
-                  </div>
-                  <div className="space-y-2 max-w-md mx-auto pt-4 text-center">
-                    <div className="h-6 w-3/4 bg-slate-300 rounded mx-auto" />
-                    <div className="h-3 w-1/2 bg-slate-200 rounded mx-auto" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 pt-4">
-                    <div className="h-20 bg-white border border-slate-200 rounded-md p-3 space-y-2">
-                      <div className="size-4 bg-slate-200 rounded" />
-                      <div className="h-3 w-3/4 bg-slate-200 rounded" />
-                    </div>
-                    <div className="h-20 bg-white border border-slate-200 rounded-md p-3 space-y-2">
-                      <div className="size-4 bg-slate-200 rounded" />
-                      <div className="h-3 w-3/4 bg-slate-200 rounded" />
-                    </div>
-                    <div className="h-20 bg-white border border-slate-200 rounded-md p-3 space-y-2">
-                      <div className="size-4 bg-slate-200 rounded" />
-                      <div className="h-3 w-3/4 bg-slate-200 rounded" />
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               {/* LIVE NOTICE BANNER OVERLAY */}
               {previewView === "notice" && (
@@ -1876,22 +1843,33 @@ export function BannerStudio() {
                         </div>
                       </div>
                     </div>
-                  ) : config.layout === "bottom_bar" ? (
+                  ) : config.layout === "bottom_bar" || config.layout === "top_bar" ? (
                     <div className={cn(
-                      "usrly-banner-wrapper upfront-banner p-3.5 sm:p-4 border-t shadow-xl transition-all z-10 shrink-0",
+                      "usrly-banner-wrapper upfront-banner p-3.5 sm:p-4 shadow-xl transition-all z-10 shrink-0 relative",
+                      config.layout === "top_bar" ? "border-b order-first" : "border-t order-last",
                       config.theme === "dark" ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
                     )}>
+                      {config.show_close_button && (
+                        <button
+                          type="button"
+                          className={cn(
+                            "absolute top-2.5 right-3 text-xs leading-none p-1 rounded transition-colors z-20 cursor-pointer",
+                            config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400 hover:text-slate-700"
+                          )}
+                          aria-label="Close banner"
+                        >
+                          ✕
+                        </button>
+                      )}
                       <div className={cn(
                         "usrly-banner-inner",
+                        config.show_close_button && "pr-6 sm:pr-8",
                         previewDevice === "mobile"
                           ? "flex flex-col gap-3 w-full"
                           : "flex flex-col md:flex-row md:items-center justify-between gap-3"
                       )}>
                         <div className="usrly-banner-text space-y-1 w-full flex-1">
-                          <div className="flex items-center justify-between">
-                            <h4 className={cn("usrly-banner-title text-xs font-bold", config.theme === "dark" ? "text-white" : "text-slate-900")}>{getText("title")}</h4>
-                            {config.show_close_button && <button type="button" className={cn("text-xs ml-2", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400")}>✕</button>}
-                          </div>
+                          <h4 className={cn("usrly-banner-title text-xs font-bold", config.theme === "dark" ? "text-white" : "text-slate-900")}>{getText("title")}</h4>
                           <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{getText("description")}</p>
                         </div>
 
@@ -1955,7 +1933,18 @@ export function BannerStudio() {
                     >
                       <div className="flex items-start justify-between">
                         <h4 className={cn("usrly-banner-title text-xs font-bold leading-snug", config.theme === "dark" ? "text-white" : "text-slate-900")}>{getText("title")}</h4>
-                        {config.show_close_button && <button type="button" className={cn("text-xs ml-2", config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400")}>✕</button>}
+                        {config.show_close_button && (
+                          <button
+                            type="button"
+                            className={cn(
+                              "text-xs ml-2 cursor-pointer transition-colors",
+                              config.theme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-400 hover:text-slate-700"
+                            )}
+                            aria-label="Close banner"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                       <p className={cn("usrly-banner-desc text-[11px] leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>{getText("description")}</p>
 
@@ -2346,7 +2335,6 @@ export function BannerStudio() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* 2. Atomic Publish Confirmation Modal */}
       <PublishModal

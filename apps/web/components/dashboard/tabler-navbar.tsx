@@ -51,7 +51,7 @@ export function TablerNavbar({
 
   const consentNavItems: NavItem[] = [
     {
-      title: "Consent Overview",
+      title: "Overview",
       href: "/consent",
       icon: ShieldCheck,
     },

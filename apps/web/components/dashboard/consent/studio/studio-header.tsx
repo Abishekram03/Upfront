@@ -82,9 +82,6 @@ export function StudioHeader({
                 Live Published
               </span>
             )}
-
-            <span className="text-slate-300 font-normal">|</span>
-            <span className="font-mono text-xs text-slate-500">v{publishedVersion}</span>
           </div>
 
           <p className="text-[11px] text-slate-400">

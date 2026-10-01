@@ -20,6 +20,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import { Site } from "@/lib/api"
 import { ToolType, tools } from "./tool-switcher"
 import { UserProfileMenu } from "./user-profile-menu"
+import { NotificationBell } from "./notification-bell"
 import { useEntitlements } from "@/lib/entitlements-context"
 
 interface TablerHeaderProps {
@@ -156,55 +157,10 @@ export function TablerHeader({
             )}
           </div>
 
-          {/* RIGHT: Realtime + Install CTA + App Launcher (app.svg) + Profile Menu */}
+          {/* RIGHT: Notifications + App Launcher (app.svg) + Profile Menu */}
           <div className="flex items-center gap-2 sm:gap-2.5">
-            {/* Workspace Plan Tier Badge */}
-            {plan === "business" ? (
-              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs">
-                <Crown className="size-3.5 fill-amber-500 text-amber-600" />
-                <span>Business</span>
-              </span>
-            ) : plan === "growth" ? (
-              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
-                <Zap className="size-3.5 fill-blue-500 text-blue-600" />
-                <span>Growth</span>
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => openUpgradeModal("growth")}
-                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 border border-slate-200 transition-all cursor-pointer shadow-2xs"
-                title="Upgrade Workspace Plan"
-              >
-                <Sparkles className="size-3 text-blue-600" />
-                <span>Free Plan &bull; <strong className="text-[#1868db]">Upgrade</strong></span>
-              </button>
-            )}
-
-            {/* Realtime Active Indicator */}
-            {activeDomain && (
-              <div className="hidden lg:flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 font-medium">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                </span>
-                <span>
-                  <strong className="text-slate-900">{realtimeVisitors}</strong> online
-                </span>
-              </div>
-            )}
-
-            {/* Install Script Modal CTA */}
-            {onOpenSnippetModal && activeDomain && (
-              <Button
-                size="sm"
-                onClick={onOpenSnippetModal}
-                className="h-9 gap-1.5 bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-semibold rounded-lg px-3 shadow-xs"
-              >
-                <Code className="size-3.5" />
-                <span className="hidden sm:inline">Install Script</span>
-              </Button>
-            )}
+            {/* Notification Bell Dropdown */}
+            <NotificationBell />
 
             {/* App Launcher (app.svg) Dropdown */}
             <div className="relative">

@@ -139,22 +139,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Access to private or metadata network targets is forbidden." }, { status: 403 })
   }
 
-  // 4. Server-Side Site Authorization Check
+  // 4. Server-Side Site Verification (Optional Log)
   try {
     await ensureTables()
-    const siteResult = await pool.query(
+    await pool.query(
       "SELECT id, domain FROM sites WHERE domain = $1 OR domain = $2 LIMIT 1",
       [hostname, targetUrl.host]
     )
-
-    // If domain is not registered in the system, render secure preview fallback without egress
-    if (siteResult.rows.length === 0) {
-      const fallbackHtml = `<!DOCTYPE html><html><head>${safetyScript}</head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;color:#64748b;"><div style="text-align:center;padding:24px;"><h3>Preview Canvas</h3><p style="font-size:13px;color:#94a3b8;">${hostname}</p></div></body></html>`
-      return new NextResponse(fallbackHtml, {
-        status: 200,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      })
-    }
   } catch (dbErr) {
     console.warn("Site verification error in preview-proxy:", dbErr)
   }
