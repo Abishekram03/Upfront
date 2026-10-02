@@ -309,6 +309,17 @@ export async function ensureTables() {
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS supported_languages TEXT[] DEFAULT ARRAY['en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'hi'];
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS show_cookie_list_on_banner BOOLEAN DEFAULT TRUE;
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS show_google_privacy_policy BOOLEAN DEFAULT TRUE;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS category_configs JSONB;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS necessary_title VARCHAR(255);
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS necessary_description TEXT;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS functional_title VARCHAR(255);
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS functional_description TEXT;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS analytics_title VARCHAR(255);
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS analytics_description TEXT;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS performance_title VARCHAR(255);
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS performance_description TEXT;
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS advertisement_title VARCHAR(255);
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS advertisement_description TEXT;
         ALTER TABLE consent_receipts ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
         ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS script_pattern_regex TEXT;
         ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS discovery_source VARCHAR(50) DEFAULT 'http_set_cookie';

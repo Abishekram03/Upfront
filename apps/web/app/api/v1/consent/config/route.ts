@@ -170,7 +170,66 @@ export async function POST(req: Request) {
       }
     }
 
-    const id = randomUUID()
+    // Fetch current config to safely preserve non-specified fields
+    const currentConfigRes = await pool.query(`SELECT * FROM consent_configs WHERE domain = $1`, [domain])
+    const currentConfig = currentConfigRes.rows[0] || null
+
+    const id = currentConfig?.id || randomUUID()
+    const categoryConfigsJson = body.category_configs
+      ? JSON.stringify(body.category_configs)
+      : (currentConfig?.category_configs ? JSON.stringify(currentConfig.category_configs) : null)
+
+    const layout = body.layout || currentConfig?.layout || "bottom_bar"
+    const theme = body.theme || currentConfig?.theme || "light"
+    const primaryColor = body.primary_color || currentConfig?.primary_color || "#1868db"
+    const borderRadius = body.border_radius || currentConfig?.border_radius || "rounded-md"
+    const title = body.title || currentConfig?.title || "We value your privacy"
+    const description = body.description || currentConfig?.description || "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies."
+    const privacyPolicyUrl = body.privacy_policy_url !== undefined ? body.privacy_policy_url : (currentConfig?.privacy_policy_url || "/privacy")
+    const acceptAllLabel = body.accept_all_label || currentConfig?.accept_all_label || "Accept All"
+    const rejectAllLabel = body.reject_all_label || currentConfig?.reject_all_label || "Reject All"
+    const preferencesLabel = body.preferences_label || currentConfig?.preferences_label || "Customise"
+    const preferencesTitle = body.preferences_title || currentConfig?.preferences_title || "Customise Consent Preferences"
+    const preferencesDescription = body.preferences_description || currentConfig?.preferences_description || "We respect your privacy preferences and allow you to select which cookies and tracking technologies are enabled."
+    const savePreferencesLabel = body.save_preferences_label || currentConfig?.save_preferences_label || "Save My Preferences"
+    const alwaysActiveLabel = body.always_active_label || currentConfig?.always_active_label || "Always Active"
+    const noCookiesToDisplayLabel = body.no_cookies_to_display_label || currentConfig?.no_cookies_to_display_label || "No cookies to display"
+    const cookieColumnLabel = body.cookie_column_label || currentConfig?.cookie_column_label || "Cookie"
+    const durationColumnLabel = body.duration_column_label || currentConfig?.duration_column_label || "Duration"
+    const descriptionColumnLabel = body.description_column_label || currentConfig?.description_column_label || "Description"
+    const isEnabled = body.is_enabled !== undefined ? body.is_enabled : (currentConfig?.is_enabled ?? true)
+    const enableNecessary = body.enable_necessary_category !== undefined ? body.enable_necessary_category : (currentConfig?.enable_necessary_category ?? true)
+    const enableFunctional = body.enable_functional_category !== undefined ? body.enable_functional_category : (currentConfig?.enable_functional_category ?? true)
+    const enableAnalytics = body.enable_analytics_category !== undefined ? body.enable_analytics_category : (currentConfig?.enable_analytics_category ?? true)
+    const enablePerformance = body.enable_performance_category !== undefined ? body.enable_performance_category : (currentConfig?.enable_performance_category ?? true)
+    const enableAdvertisement = body.enable_advertisement_category !== undefined ? body.enable_advertisement_category : (currentConfig?.enable_advertisement_category ?? true)
+    const showRevisitButton = body.show_revisit_button !== undefined ? body.show_revisit_button : (currentConfig?.show_revisit_button ?? true)
+    const revisitButtonPosition = body.revisit_button_position || currentConfig?.revisit_button_position || "bottom_left"
+    const enableConsentModeV2 = body.enable_consent_mode_v2 !== undefined ? body.enable_consent_mode_v2 : (currentConfig?.enable_consent_mode_v2 ?? true)
+    const enableIabTcf = body.enable_iab_tcf !== undefined ? body.enable_iab_tcf : (currentConfig?.enable_iab_tcf ?? true)
+    const enableAutoLanguage = body.enable_auto_language !== undefined ? body.enable_auto_language : (currentConfig?.enable_auto_language ?? true)
+    const defaultLanguage = body.default_language || currentConfig?.default_language || "en"
+    const supportedLanguages = body.supported_languages || currentConfig?.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi"]
+    const geoTargeting = body.geo_targeting || currentConfig?.geo_targeting || "all"
+    const targetCountries = body.target_countries !== undefined ? (Array.isArray(body.target_countries) ? body.target_countries : []) : (currentConfig?.target_countries || [])
+    const enableGpc = body.enable_gpc !== undefined ? body.enable_gpc : (currentConfig?.enable_gpc ?? true)
+    const consentVersion = body.consent_version || currentConfig?.consent_version || "1.0"
+    const customCss = body.custom_css !== undefined ? body.custom_css : (currentConfig?.custom_css || "")
+    const lawTemplate = body.law_template || currentConfig?.law_template || "gdpr"
+    const showCookieList = body.show_cookie_list_on_banner !== undefined ? body.show_cookie_list_on_banner : (currentConfig?.show_cookie_list_on_banner ?? true)
+    const showGooglePolicy = body.show_google_privacy_policy !== undefined ? body.show_google_privacy_policy : (currentConfig?.show_google_privacy_policy ?? false)
+
+    const necessaryTitle = body.necessary_title || body.category_configs?.necessary?.name || currentConfig?.necessary_title || null
+    const necessaryDesc = body.necessary_description || body.category_configs?.necessary?.description || currentConfig?.necessary_description || null
+    const functionalTitle = body.functional_title || body.category_configs?.functional?.name || currentConfig?.functional_title || null
+    const functionalDesc = body.functional_description || body.category_configs?.functional?.description || currentConfig?.functional_description || null
+    const analyticsTitle = body.analytics_title || body.category_configs?.analytics?.name || currentConfig?.analytics_title || null
+    const analyticsDesc = body.analytics_description || body.category_configs?.analytics?.description || currentConfig?.analytics_description || null
+    const perfTitle = body.performance_title || body.category_configs?.performance?.name || currentConfig?.performance_title || null
+    const perfDesc = body.performance_description || body.category_configs?.performance?.description || currentConfig?.performance_description || null
+    const adTitle = body.advertisement_title || body.category_configs?.advertisement?.name || currentConfig?.advertisement_title || null
+    const adDesc = body.advertisement_description || body.category_configs?.advertisement?.description || currentConfig?.advertisement_description || null
+
     const upsertRes = await pool.query(
       `INSERT INTO consent_configs (
         id, domain, is_enabled, layout, theme, primary_color, border_radius,
@@ -183,6 +242,10 @@ export async function POST(req: Request) {
         show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf,
         enable_auto_language, default_language, supported_languages, geo_targeting,
         target_countries, enable_gpc, consent_version, custom_css, law_template,
+        show_cookie_list_on_banner, show_google_privacy_policy, category_configs,
+        necessary_title, necessary_description, functional_title, functional_description,
+        analytics_title, analytics_description, performance_title, performance_description,
+        advertisement_title, advertisement_description,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
@@ -195,6 +258,10 @@ export async function POST(req: Request) {
         $27, $28, $29, $30,
         $31, $32, $33, $34,
         $35, $36, $37, $38, $39,
+        $40, $41, $42::jsonb,
+        $43, $44, $45, $46,
+        $47, $48, $49, $50,
+        $51, $52,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -235,48 +302,74 @@ export async function POST(req: Request) {
         consent_version = EXCLUDED.consent_version,
         custom_css = EXCLUDED.custom_css,
         law_template = EXCLUDED.law_template,
+        show_cookie_list_on_banner = COALESCE(EXCLUDED.show_cookie_list_on_banner, consent_configs.show_cookie_list_on_banner),
+        show_google_privacy_policy = COALESCE(EXCLUDED.show_google_privacy_policy, consent_configs.show_google_privacy_policy),
+        category_configs = COALESCE(EXCLUDED.category_configs, consent_configs.category_configs),
+        necessary_title = COALESCE(EXCLUDED.necessary_title, consent_configs.necessary_title),
+        necessary_description = COALESCE(EXCLUDED.necessary_description, consent_configs.necessary_description),
+        functional_title = COALESCE(EXCLUDED.functional_title, consent_configs.functional_title),
+        functional_description = COALESCE(EXCLUDED.functional_description, consent_configs.functional_description),
+        analytics_title = COALESCE(EXCLUDED.analytics_title, consent_configs.analytics_title),
+        analytics_description = COALESCE(EXCLUDED.analytics_description, consent_configs.analytics_description),
+        performance_title = COALESCE(EXCLUDED.performance_title, consent_configs.performance_title),
+        performance_description = COALESCE(EXCLUDED.performance_description, consent_configs.performance_description),
+        advertisement_title = COALESCE(EXCLUDED.advertisement_title, consent_configs.advertisement_title),
+        advertisement_description = COALESCE(EXCLUDED.advertisement_description, consent_configs.advertisement_description),
         updated_at = NOW()
       RETURNING *`,
       [
         id,
         domain,
-        body.is_enabled !== undefined ? body.is_enabled : true,
-        body.layout || "bottom_bar",
-        body.theme || "light",
-        body.primary_color || "#1868db",
-        body.border_radius || "rounded-md",
-        body.title || "We value your privacy",
-        body.description || "We use cookies to enhance your browsing experience...",
-        body.privacy_policy_url || "/privacy",
-        body.accept_all_label || "Accept All",
-        body.reject_all_label || "Reject All",
-        body.preferences_label || "Customise",
-        body.preferences_title || "Customise Consent Preferences",
-        body.preferences_description || "We respect your privacy preferences...",
-        body.save_preferences_label || "Save My Preferences",
-        body.always_active_label || "Always Active",
-        body.no_cookies_to_display_label || "No cookies to display",
-        body.cookie_column_label || "Cookie",
-        body.duration_column_label || "Duration",
-        body.description_column_label || "Description",
-        body.enable_necessary_category !== undefined ? body.enable_necessary_category : true,
-        body.enable_functional_category !== undefined ? body.enable_functional_category : true,
-        body.enable_analytics_category !== undefined ? body.enable_analytics_category : true,
-        body.enable_performance_category !== undefined ? body.enable_performance_category : true,
-        body.enable_advertisement_category !== undefined ? body.enable_advertisement_category : true,
-        body.show_revisit_button !== undefined ? body.show_revisit_button : true,
-        body.revisit_button_position || "bottom_left",
-        body.enable_consent_mode_v2 !== undefined ? body.enable_consent_mode_v2 : true,
-        body.enable_iab_tcf !== undefined ? body.enable_iab_tcf : true,
-        body.enable_auto_language !== undefined ? body.enable_auto_language : true,
-        body.default_language || "en",
-        body.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi"],
-        body.geo_targeting || "all",
-        Array.isArray(body.target_countries) ? body.target_countries : [],
-        body.enable_gpc !== undefined ? body.enable_gpc : true,
-        body.consent_version || "1.0",
-        body.custom_css || "",
-        body.law_template || "gdpr",
+        isEnabled,
+        layout,
+        theme,
+        primaryColor,
+        borderRadius,
+        title,
+        description,
+        privacyPolicyUrl,
+        acceptAllLabel,
+        rejectAllLabel,
+        preferencesLabel,
+        preferencesTitle,
+        preferencesDescription,
+        savePreferencesLabel,
+        alwaysActiveLabel,
+        noCookiesToDisplayLabel,
+        cookieColumnLabel,
+        durationColumnLabel,
+        descriptionColumnLabel,
+        enableNecessary,
+        enableFunctional,
+        enableAnalytics,
+        enablePerformance,
+        enableAdvertisement,
+        showRevisitButton,
+        revisitButtonPosition,
+        enableConsentModeV2,
+        enableIabTcf,
+        enableAutoLanguage,
+        defaultLanguage,
+        supportedLanguages,
+        geoTargeting,
+        targetCountries,
+        enableGpc,
+        consentVersion,
+        customCss,
+        lawTemplate,
+        showCookieList,
+        showGooglePolicy,
+        categoryConfigsJson,
+        necessaryTitle,
+        necessaryDesc,
+        functionalTitle,
+        functionalDesc,
+        analyticsTitle,
+        analyticsDesc,
+        perfTitle,
+        perfDesc,
+        adTitle,
+        adDesc,
       ]
     )
 

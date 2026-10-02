@@ -69,19 +69,19 @@ export const CMP_TRANSLATIONS: Record<string, CMPTranslationDictionary> = {
     description_column_label: "Description",
     necessary_title: "Necessary",
     necessary_description:
-      "Necessary cookies are essential for page rendering, session management, and storing your consent preferences.",
+      "Necessary cookies are required to enable the basic features of this site, such as providing secure log-in or adjusting your consent preferences. These cookies do not store any personally identifiable data.",
     functional_title: "Functional",
     functional_description:
-      "Functional features enable live chat widgets, video embeds, language selectors, and interactive tools.",
+      "Functional cookies help perform certain functionalities like sharing the content of the website on social media platforms, collecting feedback, and other third-party features.",
     analytics_title: "Analytics",
     analytics_description:
-      "Analytical cookies help measure traffic, bounce rates, and popular pages to improve website performance.",
+      "Analytical cookies are used to understand how visitors interact with the website. These cookies help provide information on metrics such as the number of visitors, bounce rate, traffic source, etc.",
     performance_title: "Performance",
     performance_description:
-      "Performance cookies monitor site speed, server response times, and frontend error telemetry.",
+      "Performance cookies are used to understand and analyze the key performance indexes of the website which helps in delivering a better user experience for the visitors.",
     advertisement_title: "Advertisement",
     advertisement_description:
-      "Marketing cookies enable personalized advertising and attribution tracking across third-party platforms.",
+      "Advertisement cookies are used to provide visitors with customized advertisements based on the pages you visited previously and to analyze the effectiveness of the ad campaigns.",
     blocked_content_alt_text: "Please accept cookies to access this content",
     revisit_button_label: "Consent Preferences",
   },
@@ -346,6 +346,19 @@ export function resolveCMPText(
 ): string {
   const lang = (langCode || (config && config.default_language) || "en").toLowerCase().split("-")[0] || "en"
   const englishDefault = CMP_TRANSLATIONS["en"]?.[key] || ""
+
+  // Check category_configs nested dictionary if applicable
+  if (config && config.category_configs) {
+    for (const cat of ["necessary", "functional", "analytics", "performance", "advertisement"]) {
+      if (key === `${cat}_title` && config.category_configs[cat]?.title) {
+        return config.category_configs[cat].title
+      }
+      if (key === `${cat}_description` && config.category_configs[cat]?.description) {
+        return config.category_configs[cat].description
+      }
+    }
+  }
+
   const customVal = config ? config[key] : undefined
 
   // If customer provided custom text that differs from the base English default, manual copy takes precedence

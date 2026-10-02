@@ -98,8 +98,18 @@ export async function POST(req: Request) {
     const currentRes = await client.query(`SELECT * FROM consent_configs WHERE domain = $1`, [domain])
     const currentConfig = currentRes.rows[0] || null
 
-    // 3. Increment version (e.g. restoring v1.2 while on v1.4 creates v1.5)
-    const newVersion = incrementVersion(currentConfig?.consent_version || "1.0")
+    // 3. Increment version (ensure guaranteed uniqueness)
+    const existingVersionsRes = await client.query(
+      `SELECT version FROM consent_versions WHERE domain = $1`,
+      [domain]
+    )
+    const existingVersionSet = new Set(existingVersionsRes.rows.map((r: any) => r.version))
+
+    let candidateVersion = incrementVersion(currentConfig?.consent_version || "1.0")
+    while (existingVersionSet.has(candidateVersion)) {
+      candidateVersion = incrementVersion(candidateVersion)
+    }
+    const newVersion = candidateVersion
     const diffs = [`Restored configuration from historical version ${targetVersion}`]
 
     await client.query("BEGIN")
@@ -109,7 +119,11 @@ export async function POST(req: Request) {
     await client.query(
       `INSERT INTO consent_versions (
         id, domain, version, config, change_summary, published_at, previous_version
-      ) VALUES ($1, $2, $3, $4, $5, NOW(), $6)`,
+      ) VALUES ($1, $2, $3, $4, $5, NOW(), $6)
+      ON CONFLICT (domain, version) DO UPDATE SET
+        config = EXCLUDED.config,
+        change_summary = EXCLUDED.change_summary,
+        published_at = NOW()`,
       [
         newVersionId,
         domain,

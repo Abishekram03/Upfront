@@ -195,8 +195,18 @@ export async function POST(req: Request) {
       }, { status: 409, headers: CORS_HEADERS })
     }
 
-    // 4. Calculate diff & new version
-    const newVersion = incrementVersion(currentPublished?.consent_version || "1.0")
+    // 4. Calculate diff & guaranteed unique new version
+    const existingVersionsRes = await client.query(
+      `SELECT version FROM consent_versions WHERE domain = $1`,
+      [domain]
+    )
+    const existingVersionSet = new Set(existingVersionsRes.rows.map((r: any) => r.version))
+
+    let candidateVersion = incrementVersion(currentPublished?.consent_version || "1.0")
+    while (existingVersionSet.has(candidateVersion)) {
+      candidateVersion = incrementVersion(candidateVersion)
+    }
+    const newVersion = candidateVersion
     const diffs = computeConfigurationDiff(currentPublished, draftConfig)
 
     await client.query("BEGIN")
@@ -206,7 +216,11 @@ export async function POST(req: Request) {
     await client.query(
       `INSERT INTO consent_versions (
         id, domain, version, config, change_summary, published_at, previous_version
-      ) VALUES ($1, $2, $3, $4, $5, NOW(), $6)`,
+      ) VALUES ($1, $2, $3, $4, $5, NOW(), $6)
+      ON CONFLICT (domain, version) DO UPDATE SET
+        config = EXCLUDED.config,
+        change_summary = EXCLUDED.change_summary,
+        published_at = NOW()`,
       [
         versionId,
         domain,
@@ -219,6 +233,10 @@ export async function POST(req: Request) {
 
     // 6. Atomically update production consent_configs
     const configId = currentPublished?.id || randomUUID()
+    const categoryConfigsJson = draftConfig.category_configs
+      ? JSON.stringify(draftConfig.category_configs)
+      : (currentPublished?.category_configs ? JSON.stringify(currentPublished.category_configs) : null)
+
     const upsertRes = await client.query(
       `INSERT INTO consent_configs (
         id, domain, is_enabled, layout, theme, primary_color, border_radius,
@@ -229,8 +247,12 @@ export async function POST(req: Request) {
         enable_necessary_category, enable_functional_category,
         enable_analytics_category, enable_performance_category, enable_advertisement_category,
         show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf, geo_targeting,
-        enable_gpc, consent_version, custom_css, law_template,
+        target_countries, enable_gpc, consent_version, custom_css, law_template,
         enable_auto_language, default_language, supported_languages,
+        show_cookie_list_on_banner, show_google_privacy_policy, category_configs,
+        necessary_title, necessary_description, functional_title, functional_description,
+        analytics_title, analytics_description, performance_title, performance_description,
+        advertisement_title, advertisement_description,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
@@ -241,8 +263,12 @@ export async function POST(req: Request) {
         $22, $23,
         $24, $25, $26,
         $27, $28, $29, $30, $31,
-        $32, $33, $34, $35,
-        $36, $37, $38,
+        $32, $33, $34, $35, $36,
+        $37, $38, $39,
+        $40, $41, $42::jsonb,
+        $43, $44, $45, $46,
+        $47, $48, $49, $50,
+        $51, $52,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -275,6 +301,7 @@ export async function POST(req: Request) {
         enable_consent_mode_v2 = EXCLUDED.enable_consent_mode_v2,
         enable_iab_tcf = EXCLUDED.enable_iab_tcf,
         geo_targeting = EXCLUDED.geo_targeting,
+        target_countries = COALESCE(EXCLUDED.target_countries, consent_configs.target_countries),
         enable_gpc = EXCLUDED.enable_gpc,
         consent_version = EXCLUDED.consent_version,
         custom_css = EXCLUDED.custom_css,
@@ -282,47 +309,74 @@ export async function POST(req: Request) {
         enable_auto_language = EXCLUDED.enable_auto_language,
         default_language = EXCLUDED.default_language,
         supported_languages = EXCLUDED.supported_languages,
+        show_cookie_list_on_banner = COALESCE(EXCLUDED.show_cookie_list_on_banner, consent_configs.show_cookie_list_on_banner),
+        show_google_privacy_policy = COALESCE(EXCLUDED.show_google_privacy_policy, consent_configs.show_google_privacy_policy),
+        category_configs = COALESCE(EXCLUDED.category_configs, consent_configs.category_configs),
+        necessary_title = COALESCE(EXCLUDED.necessary_title, consent_configs.necessary_title),
+        necessary_description = COALESCE(EXCLUDED.necessary_description, consent_configs.necessary_description),
+        functional_title = COALESCE(EXCLUDED.functional_title, consent_configs.functional_title),
+        functional_description = COALESCE(EXCLUDED.functional_description, consent_configs.functional_description),
+        analytics_title = COALESCE(EXCLUDED.analytics_title, consent_configs.analytics_title),
+        analytics_description = COALESCE(EXCLUDED.analytics_description, consent_configs.analytics_description),
+        performance_title = COALESCE(EXCLUDED.performance_title, consent_configs.performance_title),
+        performance_description = COALESCE(EXCLUDED.performance_description, consent_configs.performance_description),
+        advertisement_title = COALESCE(EXCLUDED.advertisement_title, consent_configs.advertisement_title),
+        advertisement_description = COALESCE(EXCLUDED.advertisement_description, consent_configs.advertisement_description),
         updated_at = NOW()
       RETURNING *`,
       [
         configId,
         domain,
         draftConfig.is_enabled !== undefined ? draftConfig.is_enabled : true,
-        draftConfig.layout || "bottom_bar",
-        draftConfig.theme || "light",
-        draftConfig.primary_color || "#1868db",
-        draftConfig.border_radius || "rounded-md",
-        draftConfig.title || "We value your privacy",
-        draftConfig.description || "We use cookies to enhance your browsing experience...",
-        draftConfig.privacy_policy_url || "/privacy",
-        draftConfig.accept_all_label || "Accept All",
-        draftConfig.reject_all_label || "Reject All",
-        draftConfig.preferences_label || "Customise",
-        draftConfig.preferences_title || "Customise Consent Preferences",
-        draftConfig.preferences_description || "We respect your privacy preferences...",
-        draftConfig.save_preferences_label || "Save My Preferences",
-        draftConfig.always_active_label || "Always Active",
-        draftConfig.no_cookies_to_display_label || "No cookies to display",
-        draftConfig.cookie_column_label || "Cookie",
-        draftConfig.duration_column_label || "Duration",
-        draftConfig.description_column_label || "Description",
-        draftConfig.enable_necessary_category !== undefined ? draftConfig.enable_necessary_category : true,
-        draftConfig.enable_functional_category !== undefined ? draftConfig.enable_functional_category : true,
-        draftConfig.enable_analytics_category !== undefined ? draftConfig.enable_analytics_category : true,
-        draftConfig.enable_performance_category !== undefined ? draftConfig.enable_performance_category : true,
-        draftConfig.enable_advertisement_category !== undefined ? draftConfig.enable_advertisement_category : true,
-        draftConfig.show_revisit_button !== undefined ? draftConfig.show_revisit_button : true,
-        draftConfig.revisit_button_position || "bottom_left",
-        draftConfig.enable_consent_mode_v2 !== undefined ? draftConfig.enable_consent_mode_v2 : true,
-        draftConfig.enable_iab_tcf !== undefined ? draftConfig.enable_iab_tcf : true,
-        draftConfig.geo_targeting || "all",
-        draftConfig.enable_gpc !== undefined ? draftConfig.enable_gpc : true,
+        draftConfig.layout || (currentPublished?.layout || "bottom_bar"),
+        draftConfig.theme || (currentPublished?.theme || "light"),
+        draftConfig.primary_color || (currentPublished?.primary_color || "#1868db"),
+        draftConfig.border_radius || (currentPublished?.border_radius || "rounded-md"),
+        draftConfig.title || (currentPublished?.title || "We value your privacy"),
+        draftConfig.description || (currentPublished?.description || "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies."),
+        draftConfig.privacy_policy_url || (currentPublished?.privacy_policy_url || "/privacy"),
+        draftConfig.accept_all_label || (currentPublished?.accept_all_label || "Accept All"),
+        draftConfig.reject_all_label || (currentPublished?.reject_all_label || "Reject All"),
+        draftConfig.preferences_label || (currentPublished?.preferences_label || "Customise"),
+        draftConfig.preferences_title || (currentPublished?.preferences_title || "Customise Consent Preferences"),
+        draftConfig.preferences_description || (currentPublished?.preferences_description || "We respect your privacy preferences and allow you to select which cookies and tracking technologies are enabled."),
+        draftConfig.save_preferences_label || (currentPublished?.save_preferences_label || "Save My Preferences"),
+        draftConfig.always_active_label || (currentPublished?.always_active_label || "Always Active"),
+        draftConfig.no_cookies_to_display_label || (currentPublished?.no_cookies_to_display_label || "No cookies to display"),
+        draftConfig.cookie_column_label || (currentPublished?.cookie_column_label || "Cookie"),
+        draftConfig.duration_column_label || (currentPublished?.duration_column_label || "Duration"),
+        draftConfig.description_column_label || (currentPublished?.description_column_label || "Description"),
+        draftConfig.enable_necessary_category !== undefined ? draftConfig.enable_necessary_category : (currentPublished?.enable_necessary_category ?? true),
+        draftConfig.enable_functional_category !== undefined ? draftConfig.enable_functional_category : (currentPublished?.enable_functional_category ?? true),
+        draftConfig.enable_analytics_category !== undefined ? draftConfig.enable_analytics_category : (currentPublished?.enable_analytics_category ?? true),
+        draftConfig.enable_performance_category !== undefined ? draftConfig.enable_performance_category : (currentPublished?.enable_performance_category ?? true),
+        draftConfig.enable_advertisement_category !== undefined ? draftConfig.enable_advertisement_category : (currentPublished?.enable_advertisement_category ?? true),
+        draftConfig.show_revisit_button !== undefined ? draftConfig.show_revisit_button : (currentPublished?.show_revisit_button ?? true),
+        draftConfig.revisit_button_position || (currentPublished?.revisit_button_position || "bottom_left"),
+        draftConfig.enable_consent_mode_v2 !== undefined ? draftConfig.enable_consent_mode_v2 : (currentPublished?.enable_consent_mode_v2 ?? true),
+        draftConfig.enable_iab_tcf !== undefined ? draftConfig.enable_iab_tcf : (currentPublished?.enable_iab_tcf ?? true),
+        draftConfig.geo_targeting || (currentPublished?.geo_targeting || "all"),
+        draftConfig.target_countries || (currentPublished?.target_countries || null),
+        draftConfig.enable_gpc !== undefined ? draftConfig.enable_gpc : (currentPublished?.enable_gpc ?? true),
         newVersion,
-        draftConfig.custom_css || "",
-        draftConfig.law_template || "gdpr",
-        draftConfig.enable_auto_language !== undefined ? draftConfig.enable_auto_language : true,
-        draftConfig.default_language || "en",
-        draftConfig.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi"],
+        draftConfig.custom_css || (currentPublished?.custom_css || ""),
+        draftConfig.law_template || (currentPublished?.law_template || "gdpr"),
+        draftConfig.enable_auto_language !== undefined ? draftConfig.enable_auto_language : (currentPublished?.enable_auto_language ?? true),
+        draftConfig.default_language || (currentPublished?.default_language || "en"),
+        draftConfig.supported_languages || (currentPublished?.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi"]),
+        draftConfig.show_cookie_list_on_banner !== undefined ? draftConfig.show_cookie_list_on_banner : (currentPublished?.show_cookie_list_on_banner ?? true),
+        draftConfig.show_google_privacy_policy !== undefined ? draftConfig.show_google_privacy_policy : (currentPublished?.show_google_privacy_policy ?? false),
+        categoryConfigsJson,
+        draftConfig.necessary_title || (currentPublished?.necessary_title || null),
+        draftConfig.necessary_description || (currentPublished?.necessary_description || null),
+        draftConfig.functional_title || (currentPublished?.functional_title || null),
+        draftConfig.functional_description || (currentPublished?.functional_description || null),
+        draftConfig.analytics_title || (currentPublished?.analytics_title || null),
+        draftConfig.analytics_description || (currentPublished?.analytics_description || null),
+        draftConfig.performance_title || (currentPublished?.performance_title || null),
+        draftConfig.performance_description || (currentPublished?.performance_description || null),
+        draftConfig.advertisement_title || (currentPublished?.advertisement_title || null),
+        draftConfig.advertisement_description || (currentPublished?.advertisement_description || null),
       ]
     )
 

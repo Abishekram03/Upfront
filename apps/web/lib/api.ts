@@ -201,6 +201,18 @@ export interface ConsentConfig {
   geo_targeting: "all" | "eu_only" | "eu_uk_only" | "custom" | string
   target_countries?: string[]
   enable_gpc?: boolean
+  law_template?: string
+  category_configs?: Record<string, any>
+  necessary_title?: string
+  necessary_description?: string
+  functional_title?: string
+  functional_description?: string
+  analytics_title?: string
+  analytics_description?: string
+  performance_title?: string
+  performance_description?: string
+  advertisement_title?: string
+  advertisement_description?: string
   show_branding?: boolean
   hide_branding?: boolean
   consent_version?: string

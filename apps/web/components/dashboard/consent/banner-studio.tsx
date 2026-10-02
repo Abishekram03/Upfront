@@ -450,9 +450,9 @@ export function BannerStudio() {
     return resolveCMPText(key, config, previewLanguage)
   }
 
-  // Interactive accordions inside preference centre preview
+  // Interactive accordions inside preference centre preview (all closed by default)
   const [mockExpanded, setMockExpanded] = useState<Record<string, boolean>>({
-    necessary: true,
+    necessary: false,
     functional: false,
     analytics: false,
     performance: false,
@@ -509,9 +509,15 @@ export function BannerStudio() {
       const activeConfig = draftData.config || pubData
       if (activeConfig) {
         setConfigState((prev) => {
+          let desc = activeConfig.description
+          if (!desc || desc === "We use cookies to enhance your browsing experience...") {
+            const templatePreset = getPresetById(activeConfig.law_template || "gdpr")
+            desc = templatePreset.bannerData.description
+          }
           const merged = {
             ...prev,
             ...activeConfig,
+            description: desc,
             primary_color: activeConfig.primary_color || "#1868db",
             enable_gpc: activeConfig.enable_gpc !== undefined ? activeConfig.enable_gpc : false,
             consent_version: activeConfig.consent_version || "1.0",

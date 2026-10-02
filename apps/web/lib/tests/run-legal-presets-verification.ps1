@@ -6,13 +6,13 @@ Write-Host "=================================================================" -
 Write-Host " UpFront CMP Legal Presets Final Runtime Verification & Hardening" -ForegroundColor Cyan
 Write-Host "=================================================================`n" -ForegroundColor Cyan
 
-$webRoute = Get-Content -Raw 'apps/web/app/userly.js/route.ts'
-$apiTracker = Get-Content -Raw 'apps/api/tracker/userly.js'
-$presetsIdx = Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/index.ts'
-$gdprPresetFile = Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/gdpr.ts'
-$dpdpPresetFile = Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/dpdp.ts'
-$lgpdPresetFile = Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/lgpd.ts'
-$noticePresetFile = Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/notice-only.ts'
+$webRoute = if (Test-Path 'app/script.js/route.ts') { Get-Content -Raw 'app/script.js/route.ts' } elseif (Test-Path 'apps/web/app/script.js/route.ts') { Get-Content -Raw 'apps/web/app/script.js/route.ts' } else { Get-Content -Raw 'apps/web/app/userly.js/route.ts' }
+$apiTracker = if (Test-Path '../../apps/api/tracker/userly.js') { Get-Content -Raw '../../apps/api/tracker/userly.js' } elseif (Test-Path 'apps/api/tracker/userly.js') { Get-Content -Raw 'apps/api/tracker/userly.js' } else { "" }
+$presetsIdx = if (Test-Path 'components/dashboard/consent/studio/presets/index.ts') { Get-Content -Raw 'components/dashboard/consent/studio/presets/index.ts' } else { Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/index.ts' }
+$gdprPresetFile = if (Test-Path 'components/dashboard/consent/studio/presets/gdpr.ts') { Get-Content -Raw 'components/dashboard/consent/studio/presets/gdpr.ts' } else { Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/gdpr.ts' }
+$dpdpPresetFile = if (Test-Path 'components/dashboard/consent/studio/presets/dpdp.ts') { Get-Content -Raw 'components/dashboard/consent/studio/presets/dpdp.ts' } else { Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/dpdp.ts' }
+$lgpdPresetFile = if (Test-Path 'components/dashboard/consent/studio/presets/lgpd.ts') { Get-Content -Raw 'components/dashboard/consent/studio/presets/lgpd.ts' } else { Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/lgpd.ts' }
+$noticePresetFile = if (Test-Path 'components/dashboard/consent/studio/presets/notice-only.ts') { Get-Content -Raw 'components/dashboard/consent/studio/presets/notice-only.ts' } else { Get-Content -Raw 'apps/web/components/dashboard/consent/studio/presets/notice-only.ts' }
 
 $passCount = 0
 $totalTests = 0

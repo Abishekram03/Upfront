@@ -82,6 +82,8 @@ export function applyPresetToConfig<T extends Record<string, any>>(
     pref_reject_all_label: preset.bannerData.pref_reject_all_label,
 
     // Preference Center texts
+    preferences_title: preset.preferenceCenterData.title,
+    preferences_description: preset.preferenceCenterData.description,
     preference_title: preset.preferenceCenterData.title,
     preference_description: preset.preferenceCenterData.description,
     always_active_label: preset.preferenceCenterData.always_active_label,
@@ -98,7 +100,46 @@ export function applyPresetToConfig<T extends Record<string, any>>(
     advertisement_title: preset.categories.advertisement.title,
     advertisement_description: preset.categories.advertisement.description,
 
+    // Category configs dictionary
+    category_configs: {
+      necessary: {
+        name: preset.categories.necessary.title,
+        description: preset.categories.necessary.description,
+        required: true,
+        enabled: true,
+      },
+      functional: {
+        name: preset.categories.functional.title,
+        description: preset.categories.functional.description,
+        required: false,
+        enabled: preset.defaultCategories.functional,
+      },
+      analytics: {
+        name: preset.categories.analytics.title,
+        description: preset.categories.analytics.description,
+        required: false,
+        enabled: preset.defaultCategories.analytics,
+      },
+      performance: {
+        name: preset.categories.performance.title,
+        description: preset.categories.performance.description,
+        required: false,
+        enabled: preset.defaultCategories.performance,
+      },
+      advertisement: {
+        name: preset.categories.advertisement.title,
+        description: preset.categories.advertisement.description,
+        required: false,
+        enabled: preset.defaultCategories.advertisement,
+      },
+    },
+
     // Category default states
+    enable_necessary_category: true,
+    enable_functional_category: preset.id !== "notice_only",
+    enable_analytics_category: preset.id !== "notice_only",
+    enable_performance_category: preset.id !== "notice_only",
+    enable_advertisement_category: preset.id !== "notice_only",
     default_functional: preset.defaultCategories.functional,
     default_analytics: preset.defaultCategories.analytics,
     default_performance: preset.defaultCategories.performance,

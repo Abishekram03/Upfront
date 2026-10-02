@@ -253,7 +253,6 @@ export function CookieManager() {
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("")
-  const [language, setLanguage] = useState("English [Default]")
 
   // Publishing / notification toast
   const [isPublishing, setIsPublishing] = useState(false)
@@ -320,10 +319,11 @@ export function CookieManager() {
     if (!activeDomain) return
     setIsLoading(true)
     try {
-      const [cookiesRes, scanRes, schedRes] = await Promise.all([
+      const [cookiesRes, scanRes, schedRes, configRes] = await Promise.all([
         fetch(`/api/v1/consent/cookies?domain=${encodeURIComponent(activeDomain)}`),
         fetch(`/api/v1/consent/scanner?domain=${encodeURIComponent(activeDomain)}`),
         fetch(`/api/v1/consent/scanner/schedule?domain=${encodeURIComponent(activeDomain)}`),
+        fetch(`/api/v1/consent/config?domain=${encodeURIComponent(activeDomain)}`),
       ])
 
       if (cookiesRes.ok) {
@@ -356,6 +356,28 @@ export function CookieManager() {
           })
         } else {
           setSchedule(null)
+        }
+      }
+
+      if (configRes.ok) {
+        const cfgData = await configRes.json()
+        if (cfgData.category_configs) {
+          setCategoryConfigs(cfgData.category_configs)
+        } else {
+          setCategoryConfigs((prev) => {
+            const next = { ...prev }
+            if (cfgData.necessary_description && next.necessary) next.necessary.description = cfgData.necessary_description
+            if (cfgData.necessary_title && next.necessary) next.necessary.name = cfgData.necessary_title
+            if (cfgData.functional_description && next.functional) next.functional.description = cfgData.functional_description
+            if (cfgData.functional_title && next.functional) next.functional.name = cfgData.functional_title
+            if (cfgData.analytics_description && next.analytics) next.analytics.description = cfgData.analytics_description
+            if (cfgData.analytics_title && next.analytics) next.analytics.name = cfgData.analytics_title
+            if (cfgData.performance_description && next.performance) next.performance.description = cfgData.performance_description
+            if (cfgData.performance_title && next.performance) next.performance.name = cfgData.performance_title
+            if (cfgData.advertisement_description && next.advertisement) next.advertisement.description = cfgData.advertisement_description
+            if (cfgData.advertisement_title && next.advertisement) next.advertisement.name = cfgData.advertisement_title
+            return next
+          })
         }
       }
     } catch (err) {
@@ -470,11 +492,31 @@ export function CookieManager() {
 
   // Publish Changes (syncs to SDK/CDN)
   const handlePublishChanges = async () => {
+    if (!activeDomain) return
     setIsPublishing(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600))
+      await fetch("/api/v1/consent/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: activeDomain,
+          category_configs: categoryConfigs,
+          necessary_title: categoryConfigs.necessary?.name,
+          necessary_description: categoryConfigs.necessary?.description,
+          functional_title: categoryConfigs.functional?.name,
+          functional_description: categoryConfigs.functional?.description,
+          analytics_title: categoryConfigs.analytics?.name,
+          analytics_description: categoryConfigs.analytics?.description,
+          performance_title: categoryConfigs.performance?.name,
+          performance_description: categoryConfigs.performance?.description,
+          advertisement_title: categoryConfigs.advertisement?.name,
+          advertisement_description: categoryConfigs.advertisement?.description,
+        }),
+      })
       setShowPublishSuccess(true)
       setTimeout(() => setShowPublishSuccess(false), 3000)
+    } catch (err) {
+      console.error("Failed to publish category config changes:", err)
     } finally {
       setIsPublishing(false)
     }
@@ -912,26 +954,10 @@ export function CookieManager() {
       {/* ========================================================= */}
       {activeMainTab === "cookies" && (
         <div className="space-y-4">
-          {/* Subheader Toolbar: Language Dropdown, Search, Publish Changes */}
+          {/* Subheader Toolbar: Search & Publish Changes */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="h-8 text-xs font-medium bg-white border border-slate-200 rounded-[4px] pl-2.5 pr-8 text-slate-700 appearance-none cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[#1868db]"
-                >
-                  <option value="English [Default]">English [Default]</option>
-                  <option value="Spanish">Spanish</option>
-                  <option value="French">French</option>
-                  <option value="German">German</option>
-                  <option value="Italian">Italian</option>
-                  <option value="Portuguese">Portuguese</option>
-                </select>
-                <ChevronDown className="size-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-
-              <div className="relative flex-1 sm:w-64">
+              <div className="relative flex-1 sm:w-80">
                 <Search className="size-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"

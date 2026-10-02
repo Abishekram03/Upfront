@@ -52,15 +52,15 @@ const TRACKER_SCRIPT = `(function () {
       duration_column_label: "Duration",
       description_column_label: "Description",
       necessary_title: "Necessary",
-      necessary_description: "Necessary cookies are essential for page rendering, session management, and storing your consent preferences.",
+      necessary_description: "Necessary cookies are required to enable the basic features of this site, such as providing secure log-in or adjusting your consent preferences. These cookies do not store any personally identifiable data.",
       functional_title: "Functional",
-      functional_description: "Functional features enable live chat widgets, video embeds, language selectors, and interactive tools.",
+      functional_description: "Functional cookies help perform certain functionalities like sharing the content of the website on social media platforms, collecting feedback, and other third-party features.",
       analytics_title: "Analytics",
-      analytics_description: "Analytical cookies help measure traffic, bounce rates, and popular pages to improve website performance.",
+      analytics_description: "Analytical cookies are used to understand how visitors interact with the website. These cookies help provide information on metrics such as the number of visitors, bounce rate, traffic source, etc.",
       performance_title: "Performance",
-      performance_description: "Performance cookies monitor site speed, server response times, and frontend error telemetry.",
+      performance_description: "Performance cookies are used to understand and analyze the key performance indexes of the website which helps in delivering a better user experience for the visitors.",
       advertisement_title: "Advertisement",
-      advertisement_description: "Marketing cookies enable personalized advertising and attribution tracking across third-party platforms.",
+      advertisement_description: "Advertisement cookies are used to provide visitors with customized advertisements based on the pages you visited previously and to analyze the effectiveness of the ad campaigns.",
       blocked_content_alt_text: "Please accept cookies to access this content",
       revisit_button_label: "Consent Preferences",
       read_privacy_policy: "Read Privacy Policy"
@@ -318,6 +318,22 @@ const TRACKER_SCRIPT = `(function () {
     }
 
     return (dict && dict[key]) || enDefault || "";
+  }
+
+  function resolveCategoryTitle(catKey, config, customLang) {
+    if (config && config.category_configs && config.category_configs[catKey] && config.category_configs[catKey].title) {
+      return config.category_configs[catKey].title;
+    }
+    var flatKey = catKey + "_title";
+    return resolveText(flatKey, config, customLang);
+  }
+
+  function resolveCategoryDesc(catKey, config, customLang) {
+    if (config && config.category_configs && config.category_configs[catKey] && config.category_configs[catKey].description) {
+      return config.category_configs[catKey].description;
+    }
+    var flatKey = catKey + "_description";
+    return resolveText(flatKey, config, customLang);
   }
 
   // =========================================================================
@@ -1883,13 +1899,13 @@ const TRACKER_SCRIPT = `(function () {
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-nec">
                 <div class="usrly-cat-left">
-                  <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">\${resolveText("necessary_title", config)}</span>
+                  <span class="usrly-cat-arrow">›</span>
+                  <span class="usrly-cat-title">\${resolveCategoryTitle("necessary", config)}</span>
                 </div>
                 <span class="usrly-cat-always-active">\${resolveText("always_active_label", config)}</span>
               </div>
-              <div class="usrly-cat-desc visible" id="desc-nec">
-                <p style="margin-bottom:6px;">\${resolveText("necessary_description", config)}</p>
+              <div class="usrly-cat-desc" id="desc-nec">
+                <p style="margin-bottom:6px;">\${resolveCategoryDesc("necessary", config)}</p>
                 \${renderCategoryCookieTable("necessary")}
               </div>
             </div>
@@ -1898,16 +1914,16 @@ const TRACKER_SCRIPT = `(function () {
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-func">
                 <div class="usrly-cat-left">
-                  <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">\${resolveText("functional_title", config)}</span>
+                  <span class="usrly-cat-arrow">›</span>
+                  <span class="usrly-cat-title">\${resolveCategoryTitle("functional", config)}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-func" \${functionalChecked ? "checked" : ""}>
                   <span class="usrly-slider"></span>
                 </label>
               </div>
-              <div class="usrly-cat-desc visible" id="desc-func">
-                <p style="margin-bottom:6px;">\${resolveText("functional_description", config)}</p>
+              <div class="usrly-cat-desc" id="desc-func">
+                <p style="margin-bottom:6px;">\${resolveCategoryDesc("functional", config)}</p>
                 \${renderCategoryCookieTable("functional")}
               </div>
             </div>
@@ -1917,16 +1933,16 @@ const TRACKER_SCRIPT = `(function () {
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-ana">
                 <div class="usrly-cat-left">
-                  <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">\${resolveText("analytics_title", config)}</span>
+                  <span class="usrly-cat-arrow">›</span>
+                  <span class="usrly-cat-title">\${resolveCategoryTitle("analytics", config)}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-ana" \${analyticsChecked ? "checked" : ""}>
                   <span class="usrly-slider"></span>
                 </label>
               </div>
-              <div class="usrly-cat-desc visible" id="desc-ana">
-                <p style="margin-bottom:6px;">\${resolveText("analytics_description", config)}</p>
+              <div class="usrly-cat-desc" id="desc-ana">
+                <p style="margin-bottom:6px;">\${resolveCategoryDesc("analytics", config)}</p>
                 \${renderCategoryCookieTable("analytics")}
               </div>
             </div>
@@ -1936,16 +1952,16 @@ const TRACKER_SCRIPT = `(function () {
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-perf">
                 <div class="usrly-cat-left">
-                  <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">\${resolveText("performance_title", config)}</span>
+                  <span class="usrly-cat-arrow">›</span>
+                  <span class="usrly-cat-title">\${resolveCategoryTitle("performance", config)}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-perf" \${performanceChecked ? "checked" : ""}>
                   <span class="usrly-slider"></span>
                 </label>
               </div>
-              <div class="usrly-cat-desc visible" id="desc-perf">
-                <p style="margin-bottom:6px;">\${resolveText("performance_description", config)}</p>
+              <div class="usrly-cat-desc" id="desc-perf">
+                <p style="margin-bottom:6px;">\${resolveCategoryDesc("performance", config)}</p>
                 \${renderCategoryCookieTable("performance")}
               </div>
             </div>
@@ -1955,16 +1971,16 @@ const TRACKER_SCRIPT = `(function () {
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-ad">
                 <div class="usrly-cat-left">
-                  <span class="usrly-cat-arrow expanded">›</span>
-                  <span class="usrly-cat-title">\${resolveText("advertisement_title", config)}</span>
+                  <span class="usrly-cat-arrow">›</span>
+                  <span class="usrly-cat-title">\${resolveCategoryTitle("advertisement", config)}</span>
                 </div>
                 <label class="usrly-switch">
                   <input type="checkbox" id="usrly-toggle-ad" \${adChecked ? "checked" : ""}>
                   <span class="usrly-slider"></span>
                 </label>
               </div>
-              <div class="usrly-cat-desc visible" id="desc-ad">
-                <p style="margin-bottom:6px;">\${resolveText("advertisement_description", config)}</p>
+              <div class="usrly-cat-desc" id="desc-ad">
+                <p style="margin-bottom:6px;">\${resolveCategoryDesc("advertisement", config)}</p>
                 \${renderCategoryCookieTable("advertisement")}
               </div>
             </div>
@@ -2266,6 +2282,12 @@ const TRACKER_SCRIPT = `(function () {
     },
     resolveText: function (key, lang) {
       return resolveText(key, activeConfig, lang);
+    },
+    resolveCategoryTitle: function (catKey, lang) {
+      return resolveCategoryTitle(catKey, activeConfig, lang);
+    },
+    resolveCategoryDesc: function (catKey, lang) {
+      return resolveCategoryDesc(catKey, activeConfig, lang);
     },
     version: "2.1.0",
   };

@@ -55,6 +55,28 @@ function formatRelativeTime(dateString: string | null | undefined): string {
   }
 }
 
+function getStoredNotificationState(domain: string): { readIds: string[]; clearedIds: string[] } {
+  if (typeof window === "undefined" || !domain) return { readIds: [], clearedIds: [] }
+  try {
+    const readRaw = localStorage.getItem(`usrly_notifications_read_${domain}`)
+    const clearedRaw = localStorage.getItem(`usrly_notifications_cleared_${domain}`)
+    return {
+      readIds: readRaw ? JSON.parse(readRaw) : [],
+      clearedIds: clearedRaw ? JSON.parse(clearedRaw) : [],
+    }
+  } catch {
+    return { readIds: [], clearedIds: [] }
+  }
+}
+
+function saveStoredNotificationState(domain: string, readIds: string[], clearedIds: string[]) {
+  if (typeof window === "undefined" || !domain) return
+  try {
+    localStorage.setItem(`usrly_notifications_read_${domain}`, JSON.stringify(readIds))
+    localStorage.setItem(`usrly_notifications_cleared_${domain}`, JSON.stringify(clearedIds))
+  } catch {}
+}
+
 export function NotificationBell() {
   const { activeDomain } = useDomain()
   const domain = activeDomain || ""
@@ -121,7 +143,7 @@ export function NotificationBell() {
                 : `Scan initiated for ${domain}. Discovering trackers and cookies...`,
               domain,
               timestamp,
-              isRead: idx > 0, // Latest scan is unread
+              isRead: idx > 0, // Latest scan is unread by default
               actionUrl: "/consent/cookies",
               actionLabel: "View Cookie List",
               priority: "medium",
@@ -196,8 +218,20 @@ export function NotificationBell() {
           })
         }
 
+        // Apply persistent read and cleared state from localStorage
+        const { readIds, clearedIds } = getStoredNotificationState(domain)
+        const clearedSet = new Set(clearedIds)
+        const readSet = new Set(readIds)
+
+        const visibleItems = items
+          .filter((it) => !clearedSet.has(it.id))
+          .map((it) => ({
+            ...it,
+            isRead: readSet.has(it.id) ? true : it.isRead,
+          }))
+
         if (isMounted) {
-          setNotifications(items)
+          setNotifications(visibleItems)
         }
       } catch (err) {
         console.warn("Could not load real notification data:", err)
@@ -240,16 +274,42 @@ export function NotificationBell() {
   }, [notifications, filter])
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, isRead: true }))
+      const { readIds, clearedIds } = getStoredNotificationState(domain)
+      const allRead = Array.from(new Set([...readIds, ...prev.map((n) => n.id)]))
+      saveStoredNotificationState(domain, allRead, clearedIds)
+      return updated
+    })
   }
 
   const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    )
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      const { readIds, clearedIds } = getStoredNotificationState(domain)
+      if (!readIds.includes(id)) {
+        saveStoredNotificationState(domain, [...readIds, id], clearedIds)
+      }
+      return updated
+    })
+  }
+
+  const clearNotification = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setNotifications((prev) => {
+      const updated = prev.filter((n) => n.id !== id)
+      const { readIds, clearedIds } = getStoredNotificationState(domain)
+      if (!clearedIds.includes(id)) {
+        saveStoredNotificationState(domain, readIds, [...clearedIds, id])
+      }
+      return updated
+    })
   }
 
   const clearAll = () => {
+    const { readIds, clearedIds } = getStoredNotificationState(domain)
+    const allCleared = Array.from(new Set([...clearedIds, ...notifications.map((n) => n.id)]))
+    saveStoredNotificationState(domain, readIds, allCleared)
     setNotifications([])
   }
 
@@ -420,9 +480,9 @@ export function NotificationBell() {
                           {n.description}
                         </p>
 
-                        {/* Action CTA */}
-                        {n.actionUrl && (
-                          <div className="pt-1.5 flex items-center justify-between">
+                        {/* Action CTA & Dismiss */}
+                        <div className="pt-1.5 flex items-center justify-between">
+                          {n.actionUrl ? (
                             <Link
                               href={n.actionUrl}
                               onClick={() => setIsOpen(false)}
@@ -431,12 +491,24 @@ export function NotificationBell() {
                               <span>{n.actionLabel || "View"}</span>
                               <ChevronRight className="size-3" />
                             </Link>
+                          ) : (
+                            <span />
+                          )}
 
+                          <div className="flex items-center gap-2">
                             {!n.isRead && (
-                              <span className="size-1.5 rounded-full bg-[#1868db]" />
+                              <span className="size-1.5 rounded-full bg-[#1868db]" title="Unread" />
                             )}
+                            <button
+                              type="button"
+                              onClick={(e) => clearNotification(n.id, e)}
+                              title="Dismiss notification"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
                   )
