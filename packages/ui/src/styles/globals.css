@@ -17,6 +17,18 @@
     --color-sidebar-primary: var(--sidebar-primary);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar: var(--sidebar);
+    --color-ink: var(--ink);
+    --color-ink-soft: var(--ink-soft);
+    --color-surface: var(--surface);
+    --color-line: var(--line);
+    --color-brand: var(--brand);
+    --color-brand-dark: var(--brand-dark);
+    --color-brand-soft: var(--brand-soft);
+    --color-brand-mist: var(--brand-mist);
+    --color-success: var(--success);
+    --color-success-soft: var(--success-soft);
+    --color-warning: var(--warning);
+    --color-warning-soft: var(--warning-soft);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -49,6 +61,18 @@
 }
 
 :root {
+    --ink: #0f172a;
+    --ink-soft: #475569;
+    --surface: #ffffff;
+    --line: #e2e8f0;
+    --brand: #1868db;
+    --brand-dark: #1559be;
+    --brand-soft: #dbeafe;
+    --brand-mist: #eff6ff;
+    --success: #10b981;
+    --success-soft: #ecfdf5;
+    --warning: #f59e0b;
+    --warning-soft: #fffbeb;
     --background: #f8fafc;
     --foreground: #0f172a;
     --card: #ffffff;
@@ -298,4 +322,100 @@ html.dark *::-webkit-scrollbar-thumb:active,
 }
 .btn-outline-blue:hover {
     background-color: var(--primary-subtle);
+}
+
+/* ==========================================================================
+   UpFront Marketing Landing Page Utilities
+   ========================================================================== */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.bg-grid-fade {
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 55%, transparent 100%);
+}
+
+.live-dot {
+  position: relative;
+  display: inline-flex;
+  height: 0.5rem;
+  width: 0.5rem;
+}
+.live-dot::before,
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background-color: var(--success);
+}
+.live-dot::after {
+  animation: live-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes live-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card-lift {
+  transition:
+    box-shadow 0.25s ease,
+    transform 0.25s ease,
+    border-color 0.25s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 12px 32px -12px rgba(15, 23, 42, 0.12);
+}
+
+@keyframes chart-draw {
+  from {
+    stroke-dashoffset: 1200;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.chart-line {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: chart-draw 1.6s ease-out 0.3s forwards;
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.bar-grow {
+  transform-origin: bottom;
+  animation: bar-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

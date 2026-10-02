@@ -5,9 +5,11 @@ import { AVAILABLE_POLICIES, PolicyDefinition, DomainPolicyRecord, PolicyId } fr
 import { PolicyCard } from "./policy-card"
 import { PolicyPreviewModal } from "./policy-preview-modal"
 import { PolicyWizardModal } from "./policy-wizard-modal"
+import { PolicyDetailsView } from "./policy-details-view"
 import { StagedPolicyEditor } from "./staged-policy-editor"
+import { PrivacyPolicyEditor } from "./privacy-policy-editor"
+import { TermsPolicyEditor } from "./terms-policy-editor"
 import { CookiePolicyGenerator } from "@/components/dashboard/consent/cookie-policy-generator"
-import { PolicyGenerator } from "@/components/dashboard/consent/policy-generator"
 import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
 import { useDomain } from "@/lib/domain-context"
 import { FileText, Loader2 } from "lucide-react"
@@ -64,8 +66,8 @@ export function PolicyDashboardView() {
   // Live CMP cookie policy data layer for the selected domain
   const cmpCookieData = useCMPCookiePolicy(cleanDomain)
 
-  // View state: "dashboard" | "editor"
-  const [viewMode, setViewMode] = useState<"dashboard" | "editor">("dashboard")
+  // View state: "dashboard" | "details" | "editor"
+  const [viewMode, setViewMode] = useState<"dashboard" | "details" | "editor">("dashboard")
   const [stagedEditingPolicy, setStagedEditingPolicy] = useState<PolicyDefinition | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -138,6 +140,11 @@ export function PolicyDashboardView() {
     setViewMode("editor")
   }
 
+  const handleOpenDetails = (policy: PolicyDefinition) => {
+    setStagedEditingPolicy(policy)
+    setViewMode("details")
+  }
+
   const handleOpenEdit = (policy: PolicyDefinition) => {
     setStagedEditingPolicy(policy)
     setViewMode("editor")
@@ -158,7 +165,34 @@ export function PolicyDashboardView() {
   }
 
   // =========================================================================
-  // VIEW MODE: STAGED QUESTIONNAIRE EDITOR (FOR ALL POLICIES)
+  // VIEW MODE: POLICY DETAILS SCREEN (PREVIEW + NOTICE/INFO PANEL)
+  // =========================================================================
+  if (viewMode === "details" && stagedEditingPolicy) {
+    return (
+      <div className="max-w-[1400px] w-full mx-auto px-6 sm:px-10 py-6">
+        <PolicyDetailsView
+          policy={stagedEditingPolicy}
+          record={activeRecords[stagedEditingPolicy.id]}
+          domain={cleanDomain}
+          onBack={() => {
+            setViewMode("dashboard")
+            setStagedEditingPolicy(null)
+            fetchPolicies()
+          }}
+          onEdit={() => {
+            setViewMode("editor")
+          }}
+          onPublish={(record) => {
+            handleSavePolicy(record)
+            fetchPolicies()
+          }}
+        />
+      </div>
+    )
+  }
+
+  // =========================================================================
+  // VIEW MODE: DEDICATED STAGED QUESTIONNAIRE EDITORS (COOKIE-POLICY STYLE UI)
   // =========================================================================
   if (viewMode === "editor" && stagedEditingPolicy) {
     if (stagedEditingPolicy.id === "cookies") {
@@ -167,9 +201,52 @@ export function PolicyDashboardView() {
           <CookiePolicyGenerator
             initialViewMode="editor"
             onBack={() => {
-              setViewMode("dashboard")
-              setStagedEditingPolicy(null)
+              setViewMode("details")
               fetchPolicies()
+            }}
+          />
+        </div>
+      )
+    }
+
+    if (stagedEditingPolicy.id === "privacy") {
+      return (
+        <div className="max-w-[1400px] w-full mx-auto px-6 sm:px-10 py-6">
+          <PrivacyPolicyEditor
+            policy={stagedEditingPolicy}
+            domain={cleanDomain}
+            existingRecord={activeRecords[stagedEditingPolicy.id]}
+            onBack={() => {
+              setViewMode("details")
+              fetchPolicies()
+            }}
+            onSaveDraft={(record) => {
+              handleSavePolicy(record)
+            }}
+            onPublish={(record) => {
+              handleSavePolicy(record)
+            }}
+          />
+        </div>
+      )
+    }
+
+    if (stagedEditingPolicy.id === "terms") {
+      return (
+        <div className="max-w-[1400px] w-full mx-auto px-6 sm:px-10 py-6">
+          <TermsPolicyEditor
+            policy={stagedEditingPolicy}
+            domain={cleanDomain}
+            existingRecord={activeRecords[stagedEditingPolicy.id]}
+            onBack={() => {
+              setViewMode("details")
+              fetchPolicies()
+            }}
+            onSaveDraft={(record) => {
+              handleSavePolicy(record)
+            }}
+            onPublish={(record) => {
+              handleSavePolicy(record)
             }}
           />
         </div>
@@ -183,8 +260,7 @@ export function PolicyDashboardView() {
           domain={cleanDomain}
           existingRecord={activeRecords[stagedEditingPolicy.id]}
           onBack={() => {
-            setViewMode("dashboard")
-            setStagedEditingPolicy(null)
+            setViewMode("details")
             fetchPolicies()
           }}
           onSaveDraft={(record) => {
@@ -238,8 +314,8 @@ export function PolicyDashboardView() {
                 policy={policy}
                 record={record}
                 onGenerate={handleOpenCreate}
-                onPreview={handleOpenPreview}
-                onViewDetails={handleOpenEdit}
+                onPreview={handleOpenDetails}
+                onViewDetails={handleOpenDetails}
               />
             )
           })}

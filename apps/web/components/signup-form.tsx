@@ -6,17 +6,10 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { authClient } from "@/lib/auth-client"
-import { Loader2 } from "lucide-react"
+import { createSite } from "@/lib/api"
+import { Loader2, ArrowRight, CheckCircle2, Globe, ShieldCheck } from "lucide-react"
 
 export function SignupForm({
   className,
@@ -25,198 +18,267 @@ export function SignupForm({
   const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [domain, setDomain] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  const cleanDomainInput = (raw: string) => {
+    return raw
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//i, "")
+      .replace(/^www\./i, "")
+      .replace(/\/.*$/, "")
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
 
+    const cleanedDomain = cleanDomainInput(domain)
+
     try {
       const { data, error: err } = await authClient.signUp.email({
-        name,
-        email,
+        name: name.trim(),
+        email: email.trim(),
         password,
         callbackURL: "/analytics",
       })
 
       if (err) {
         setError(err.message || "Failed to create account. Please try again.")
-      } else if (data) {
-        router.push("/analytics")
+        setLoading(false)
+        return
+      }
+
+      if (data) {
+        // Automatically create initial site if domain provided
+        if (cleanedDomain) {
+          try {
+            await createSite(cleanedDomain)
+          } catch (siteErr) {
+            console.warn("Auto-site creation warning:", siteErr)
+          }
+          router.push(`/analytics?domain=${encodeURIComponent(cleanedDomain)}`)
+        } else {
+          router.push("/analytics")
+        }
       }
     } catch (e: any) {
       setError(e.message || "An unexpected error occurred.")
-    } finally {
       setLoading(false)
     }
   }
 
-  const handleSocialLogin = async (provider: "google" | "apple") => {
-    try {
-      await authClient.signIn.social({
-        provider,
-        callbackURL: "/",
-      })
-    } catch (e: any) {
-      setError(e.message || `Failed to sign up with ${provider}`)
-    }
-  }
-
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="overflow-hidden p-0 border-neutral-200 shadow-sm bg-white">
-        <CardContent className="grid p-0 md:grid-cols-2">
-          <form onSubmit={handleSubmit} className="p-6 md:p-8">
-            <FieldGroup>
-              <div className="flex flex-col items-center gap-2 text-center">
-                <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Create an account</h1>
-                <p className="text-balance text-sm text-neutral-500">
-                  Start your free UpFront journey
-                </p>
-              </div>
+    <div className={cn("min-h-screen w-full grid lg:grid-cols-2 bg-white", className)} {...props}>
+      {/* LEFT SIDE: Signup Form */}
+      <div className="flex flex-col justify-between p-6 sm:p-10 lg:p-16 max-w-xl mx-auto w-full">
+        {/* Brand Logo Header */}
+        <div>
+          <Link href="/" aria-label="UpFront Home" className="inline-block">
+            <Image
+              src="/logo/syft-logo-black.svg"
+              alt="UpFront"
+              width={140}
+              height={38}
+              className="h-8 w-auto object-contain"
+              priority
+            />
+          </Link>
+        </div>
 
-              {error && (
-                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-600 font-medium">
-                  {error}
-                </div>
-              )}
+        {/* Main Form Area */}
+        <div className="my-auto py-8">
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-medium tracking-normal text-ink">
+              Create your workspace
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              Start with the Free plan today — unlimited websites, no credit card required.
+            </p>
+          </div>
 
-              <Field>
-                <FieldLabel htmlFor="name" className="text-neutral-700">Full Name</FieldLabel>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
-                  required
-                  className="bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400"
-                />
-              </Field>
+          {error && (
+            <div className="mb-6 p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-xs font-medium text-rose-600">
+              {error}
+            </div>
+          )}
 
-              <Field>
-                <FieldLabel htmlFor="email" className="text-neutral-700">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="m@example.com"
-                  required
-                  className="bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400"
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="password" className="text-neutral-700">Password</FieldLabel>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="bg-white border-neutral-200 text-neutral-900"
-                />
-              </Field>
-
-              <Field>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#1868db] hover:bg-[#1456b8] text-white font-medium rounded-[4px] shadow-sm transition-all"
-                >
-                  {loading ? <Loader2 className="size-4 animate-spin" /> : "Create Account"}
-                </Button>
-              </Field>
-
-              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-white *:data-[slot=field-separator-content]:text-neutral-400">
-                Or continue with
-              </FieldSeparator>
-
-              <Field className="grid grid-cols-3 gap-3">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => handleSocialLogin("apple")}
-                  className="border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-[4px]"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="size-4">
-                    <path
-                      d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <span className="sr-only">Sign up with Apple</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => handleSocialLogin("google")}
-                  className="border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-[4px]"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="size-4">
-                    <path
-                      d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <span className="sr-only">Sign up with Google</span>
-                </Button>
-                <Button variant="outline" type="button" className="border-neutral-200 hover:bg-neutral-50 text-neutral-700 rounded-[4px]">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="size-4">
-                    <path
-                      d="M6.915 4.03c-1.968 0-3.683 1.28-4.871 3.113C.704 9.208 0 11.883 0 14.449c0 .706.07 1.369.21 1.973a6.624 6.624 0 0 0 .265.86 5.297 5.297 0 0 0 .371.761c.696 1.159 1.818 1.927 3.593 1.927 1.497 0 2.633-.671 3.965-2.444.76-1.012 1.144-1.626 2.663-4.32l.756-1.339.186-.325c.061.1.121.196.183.3l2.152 3.595c.724 1.21 1.665 2.556 2.47 3.314 1.046.987 1.992 1.22 3.06 1.22 1.075 0 1.876-.355 2.455-.843a3.743 3.743 0 0 0 .81-.973c.542-.939.861-2.127.861-3.745 0-2.72-.681-5.357-2.084-7.45-1.282-1.912-2.957-2.93-4.716-2.93-1.047 0-2.088.467-3.053 1.308-.652.57-1.257 1.29-1.82 2.05-.69-.875-1.335-1.547-1.958-2.056-1.182-.966-2.315-1.303-3.454-1.303zm10.16 2.053c1.147 0 2.188.758 2.992 1.999 1.132 1.748 1.647 4.195 1.647 6.4 0 1.548-.368 2.9-1.839 2.9-.58 0-1.027-.23-1.664-1.004-.496-.601-1.343-1.878-2.832-4.358l-.617-1.028a44.908 44.908 0 0 0-1.255-1.98c.07-.109.141-.224.211-.327 1.12-1.667 2.118-2.602 3.358-2.602zm-10.201.553c1.265 0 2.058.791 2.675 1.446.307.327.737.871 1.234 1.579l-1.02 1.566c-.757 1.163-1.882 3.017-2.837 4.338-1.191 1.649-1.81 1.817-2.486 1.817-.524 0-1.038-.237-1.383-.794-.263-.426-.464-1.13-.464-2.046 0-2.221.63-4.535 1.66-6.088.454-.687.964-1.226 1.533-1.533a2.264 2.264 0 0 1 1.088-.285z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <span className="sr-only">Sign up with Meta</span>
-                </Button>
-              </Field>
-
-              <FieldDescription className="text-center text-xs text-neutral-500">
-                Already have an account?{" "}
-                <Link href="/login" className="text-[#1868db] font-semibold underline underline-offset-2 hover:text-[#1456b8]">
-                  Login
-                </Link>
-              </FieldDescription>
-            </FieldGroup>
-          </form>
-
-          <div className="relative hidden bg-slate-50 p-8 md:flex flex-col justify-between border-l border-slate-200">
-            <div className="flex items-center gap-2">
-              <Image
-                src="/UpFront-Logo-Blue-600.svg"
-                alt="UpFront Logo"
-                width={130}
-                height={36}
-                className="h-8 w-auto object-contain"
-                priority
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="name" className="block text-xs font-medium text-ink mb-1.5">
+                Full Name
+              </label>
+              <Input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="John Doe"
+                required
+                autoComplete="name"
+                className="h-11 rounded-lg border-line bg-surface px-3.5 text-sm text-ink placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
               />
             </div>
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-slate-800 leading-snug">
-                "Simple privacy analytics + integrated consent management in one lightweight script."
-              </p>
-              <p className="text-xs text-slate-500">
-                Get started for free in under 2 minutes. A product by Syft Technologies.
-              </p>
+
+            <div>
+              <label htmlFor="email" className="block text-xs font-medium text-ink mb-1.5">
+                Work Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                required
+                autoComplete="email"
+                className="h-11 rounded-lg border-line bg-surface px-3.5 text-sm text-ink placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+              />
             </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="domain" className="text-xs font-medium text-ink">
+                  Website Domain
+                </label>
+                <span className="text-[11px] text-muted-foreground">e.g. yoursite.com</span>
+              </div>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted-foreground">
+                  <Globe className="h-4 w-4" />
+                </div>
+                <Input
+                  id="domain"
+                  type="text"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="acme-store.com"
+                  required
+                  autoComplete="url"
+                  className="h-11 pl-10 pr-3.5 rounded-lg border-line bg-surface text-sm text-ink placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-xs font-medium text-ink mb-1.5">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+                className="h-11 rounded-lg border-line bg-surface px-3.5 text-sm text-ink placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 mt-2 bg-primary hover:bg-brand-dark text-white text-sm font-medium rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  Create Account
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </form>
+
+          <p className="mt-8 text-center text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-primary hover:text-brand-dark transition-colors underline-offset-2 hover:underline"
+            >
+              Log in
+            </Link>
+          </p>
+        </div>
+
+        {/* Footer Legal Links */}
+        <div className="pt-6 border-t border-line text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-3">
+          <p>© {new Date().getFullYear()} UpFront by Syft Technologies</p>
+          <div className="flex items-center gap-4">
+            <Link href="/terms" className="hover:text-ink transition-colors">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-ink transition-colors">
+              Privacy
+            </Link>
+            <Link href="/docs" className="hover:text-ink transition-colors">
+              Docs
+            </Link>
           </div>
-        </CardContent>
-      </Card>
-      <FieldDescription className="px-6 text-center text-xs text-neutral-500">
-        By clicking continue, you agree to our{" "}
-        <Link href="/terms" className="underline underline-offset-2 hover:text-neutral-700">
-          Terms of Service
-        </Link>{" "}
-        and{" "}
-        <Link href="/privacy" className="underline underline-offset-2 hover:text-neutral-700">
-          Privacy Policy
-        </Link>.
-      </FieldDescription>
+        </div>
+      </div>
+
+      {/* RIGHT SIDE: Visual Showcase with Mobile login-rafiki.svg */}
+      <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-brand-mist/80 via-surface to-brand-mist/40 border-l border-line relative overflow-hidden">
+        {/* Subtle grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.05] pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, #0f172a 1px, transparent 1px), linear-gradient(to bottom, #0f172a 1px, transparent 1px)",
+            backgroundSize: "36px 36px",
+          }}
+        />
+
+        <div className="relative z-10 flex items-center justify-between">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface border border-line px-3 py-1 text-xs font-medium text-primary shadow-xs">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            No credit card required
+          </span>
+          <span className="text-xs font-medium text-muted-foreground">Instant setup</span>
+        </div>
+
+        {/* Center Illustration */}
+        <div className="relative z-10 my-auto flex flex-col items-center text-center px-4">
+          <div className="relative w-full max-w-md h-72 sm:h-80 mb-6 drop-shadow-sm">
+            <Image
+              src="/illustrations/Sign up-pana.svg"
+              alt="Sign Up Illustration"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          <h2 className="text-2xl font-medium tracking-normal text-ink max-w-md">
+            Everything your website needs in one place.
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground max-w-sm">
+            Real-time traffic metrics, custom consent banner builder, cookie scanner, and proof-of-consent vault.
+          </p>
+        </div>
+
+        {/* Feature Highlights Footer */}
+        <div className="relative z-10 grid grid-cols-3 gap-3 border-t border-line/60 pt-6">
+          <div className="flex items-center gap-2 text-xs font-medium text-ink-soft">
+            <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+            <span>Unlimited sites</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-medium text-ink-soft">
+            <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+            <span>50,000 views free</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-medium text-ink-soft">
+            <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+            <span>Google Consent Mode</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

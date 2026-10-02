@@ -1,10 +1,14 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Ojuju, DM_Sans } from "next/font/google"
+import { Poppins, Geist_Mono, Ojuju, DM_Sans } from "next/font/google"
 import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@workspace/ui/lib/utils"
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" })
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-sans",
+})
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -41,10 +45,9 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={cn(
-        "antialiased",
+        "antialiased font-sans",
+        poppins.variable,
         fontMono.variable,
-        "font-sans",
-        geist.variable,
         ojuju.variable,
         dmSans.variable
       )}
