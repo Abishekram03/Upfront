@@ -95,6 +95,7 @@ function computeConfigurationDiff(oldConfig: any, newConfig: any): string[] {
 
   if (oldConfig.title !== newConfig.title) diffs.push("Updated banner title")
   if (oldConfig.description !== newConfig.description) diffs.push("Updated banner description")
+  if (oldConfig.show_close_button !== newConfig.show_close_button) diffs.push(`Close [X] button set to ${newConfig.show_close_button ? "Visible" : "Hidden"}`)
   if (oldConfig.primary_color !== newConfig.primary_color) diffs.push(`Changed primary color to ${newConfig.primary_color}`)
   if (oldConfig.layout !== newConfig.layout) diffs.push(`Changed layout to ${newConfig.layout}`)
   if (oldConfig.theme !== newConfig.theme) diffs.push(`Changed theme to ${newConfig.theme}`)
@@ -240,7 +241,7 @@ export async function POST(req: Request) {
     const upsertRes = await client.query(
       `INSERT INTO consent_configs (
         id, domain, is_enabled, layout, theme, primary_color, border_radius,
-        title, description, privacy_policy_url, accept_all_label, reject_all_label,
+        title, description, privacy_policy_url, show_close_button, accept_all_label, reject_all_label,
         preferences_label, preferences_title, preferences_description, save_preferences_label,
         always_active_label, no_cookies_to_display_label, cookie_column_label,
         duration_column_label, description_column_label,
@@ -256,19 +257,19 @@ export async function POST(req: Request) {
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
-        $8, $9, $10, $11, $12,
-        $13, $14, $15, $16,
-        $17, $18, $19,
-        $20, $21,
-        $22, $23,
-        $24, $25, $26,
-        $27, $28, $29, $30, $31,
-        $32, $33, $34, $35, $36,
-        $37, $38, $39,
-        $40, $41, $42::jsonb,
-        $43, $44, $45, $46,
-        $47, $48, $49, $50,
-        $51, $52,
+        $8, $9, $10, $11, $12, $13,
+        $14, $15, $16, $17,
+        $18, $19, $20,
+        $21, $22,
+        $23, $24,
+        $25, $26, $27,
+        $28, $29, $30, $31, $32,
+        $33, $34, $35, $36, $37,
+        $38, $39, $40,
+        $41, $42, $43::jsonb,
+        $44, $45, $46, $47,
+        $48, $49, $50, $51,
+        $52, $53,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -280,6 +281,7 @@ export async function POST(req: Request) {
         title = EXCLUDED.title,
         description = EXCLUDED.description,
         privacy_policy_url = EXCLUDED.privacy_policy_url,
+        show_close_button = EXCLUDED.show_close_button,
         accept_all_label = EXCLUDED.accept_all_label,
         reject_all_label = EXCLUDED.reject_all_label,
         preferences_label = EXCLUDED.preferences_label,
@@ -335,6 +337,7 @@ export async function POST(req: Request) {
         draftConfig.title || (currentPublished?.title || "We value your privacy"),
         draftConfig.description || (currentPublished?.description || "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies."),
         draftConfig.privacy_policy_url || (currentPublished?.privacy_policy_url || "/privacy"),
+        draftConfig.show_close_button !== undefined ? Boolean(draftConfig.show_close_button) : (currentPublished?.show_close_button ?? false),
         draftConfig.accept_all_label || (currentPublished?.accept_all_label || "Accept All"),
         draftConfig.reject_all_label || (currentPublished?.reject_all_label || "Reject All"),
         draftConfig.preferences_label || (currentPublished?.preferences_label || "Customise"),

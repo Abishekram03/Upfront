@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useDomain } from "@/lib/domain-context"
 import {
   FileText,
@@ -15,7 +15,12 @@ import {
   Monitor,
   Printer,
   X,
-  ExternalLink,
+  RefreshCw,
+  Sliders,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@/lib/utils"
@@ -32,6 +37,7 @@ interface ConsentReceipt {
   analytics: boolean
   performance: boolean
   advertisement: boolean
+  marketing?: boolean
   user_agent_category?: string
   consent_version?: string
   created_at: string
@@ -42,36 +48,82 @@ export function ConsentLedger() {
   const [receipts, setReceipts] = useState<ConsentReceipt[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [filterType, setFilterType] = useState<"all" | "consented" | "rejected" | "custom">("all")
   const [selectedReceipt, setSelectedReceipt] = useState<ConsentReceipt | null>(null)
 
-  useEffect(() => {
+  // Pagination states
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(15)
+  const [totalRecords, setTotalRecords] = useState(0)
+
+  const fetchReceipts = useCallback(async () => {
     if (!activeDomain) {
       setIsLoading(false)
+      setReceipts([])
+      setTotalRecords(0)
       return
     }
-    fetchReceipts()
-  }, [activeDomain])
 
-  const fetchReceipts = async () => {
-    if (!activeDomain) return
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/v1/consent/receipts?domain=${encodeURIComponent(activeDomain)}&limit=100`)
+      const queryParams = new URLSearchParams({
+        domain: activeDomain,
+        page: page.toString(),
+        limit: pageSize.toString(),
+      })
+
+      if (searchQuery.trim()) {
+        queryParams.set("search", searchQuery.trim())
+      }
+
+      const res = await fetch(`/api/v1/consent/receipts?${queryParams.toString()}`)
       if (res.ok) {
-        const data = await res.json()
+        const data: ConsentReceipt[] = await res.json()
         setReceipts(data || [])
+
+        // Extract total count from response header if available
+        const totalHeader = res.headers.get("x-total-count")
+        if (totalHeader) {
+          const parsed = parseInt(totalHeader, 10)
+          if (!isNaN(parsed)) {
+            setTotalRecords(parsed)
+          }
+        } else {
+          setTotalRecords(data.length)
+        }
       }
     } catch (err) {
       console.error("Failed to load consent records:", err)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [activeDomain, page, pageSize, searchQuery])
+
+  useEffect(() => {
+    fetchReceipts()
+  }, [fetchReceipts])
+
+  // Filter in-memory for category status tabs
+  const filteredReceipts = useMemo(() => {
+    return receipts.filter((r) => {
+      const isAd = r.advertisement || r.marketing || false
+      const isAcceptedAll = r.consent_given && r.functional && r.analytics && r.performance && isAd
+      const isRejectedAll = !r.consent_given && !r.functional && !r.analytics && !r.performance && !isAd
+
+      if (filterType === "consented") return isAcceptedAll || r.consent_given
+      if (filterType === "rejected") return isRejectedAll
+      if (filterType === "custom") return !isAcceptedAll && !isRejectedAll && r.consent_given
+      return true
+    })
+  }, [receipts, filterType])
+
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize))
 
   const exportCSV = () => {
-    if (receipts.length === 0) return
-    const headers = "Consent ID,Domain,Visitor Hash,Country,Consent Given,Necessary,Functional,Analytics,Performance,Advertisement,Device,Version,Timestamp\n"
-    const rows = receipts
+    if (filteredReceipts.length === 0) return
+    const headers =
+      "Consent ID,Domain,Visitor Hash,Country,Consent Given,Necessary,Functional,Analytics,Performance,Advertisement,Device,Version,Timestamp\n"
+    const rows = filteredReceipts
       .map((r) =>
         [
           r.id,
@@ -83,7 +135,7 @@ export function ConsentLedger() {
           r.functional ? "1" : "0",
           r.analytics ? "1" : "0",
           r.performance ? "1" : "0",
-          r.advertisement ? "1" : "0",
+          r.advertisement || r.marketing ? "1" : "0",
           r.user_agent_category || "Desktop",
           r.consent_version || "1.0",
           r.created_at,
@@ -95,37 +147,42 @@ export function ConsentLedger() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.setAttribute("download", `consent-audit-trail-${activeDomain}-${new Date().toISOString().slice(0, 10)}.csv`)
+    link.setAttribute(
+      "download",
+      `consent-audit-trail-${activeDomain}-${new Date().toISOString().slice(0, 10)}.csv`
+    )
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  const filteredReceipts = receipts.filter(
-    (r) =>
-      r.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.visitor_hash.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (r.country && r.country.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-16">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">Consent Logs</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Audit log of visitor consent choices, regulatory versions, and category preferences for{" "}
+          <p className="text-xs text-slate-500 mt-1">
+            Tamper-evident audit log of visitor consent choices, regulatory versions, and category preferences for{" "}
             <strong className="text-slate-700">{activeDomain || "your domain"}</strong>.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
-            onClick={exportCSV}
-            disabled={receipts.length === 0}
+            onClick={() => fetchReceipts()}
+            disabled={isLoading}
             variant="outline"
-            className="rounded-[4px] text-xs font-bold px-3.5 py-1.5 h-8.5 flex items-center gap-1.5 cursor-pointer bg-white"
+            className="rounded-[4px] text-xs font-semibold px-3 py-1.5 h-8.5 flex items-center gap-1.5 cursor-pointer bg-white text-slate-700 hover:bg-slate-50"
+          >
+            <RefreshCw className={cn("size-3.5 text-[#1868db]", isLoading && "animate-spin")} />
+            Refresh
+          </Button>
+
+          <Button
+            onClick={exportCSV}
+            disabled={filteredReceipts.length === 0}
+            className="rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-3.5 py-1.5 h-8.5 flex items-center gap-1.5 cursor-pointer shadow-xs"
           >
             <Download className="size-3.5" />
             Export CSV
@@ -133,35 +190,89 @@ export function ConsentLedger() {
         </div>
       </div>
 
-      {/* Filter / Search Bar */}
-      <div className="relative">
-        <Search className="size-4 text-slate-400 absolute left-3 top-2.5" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by Consent ID, Visitor Hash, or Country..."
-          className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-[4px] text-xs focus:outline-hidden focus:border-[#1868db]"
-        />
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-[4px] border border-slate-200 shadow-2xs">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setPage(1)
+            }}
+            placeholder="Search by Consent ID, Visitor Hash, or Country..."
+            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-[4px] border border-slate-200 bg-slate-50/60 text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:border-[#1868db] focus:bg-white transition-colors"
+          />
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center bg-slate-100 p-0.5 rounded-[4px] border border-slate-200 text-xs">
+          <button
+            type="button"
+            onClick={() => setFilterType("all")}
+            className={cn(
+              "px-2.5 py-1 rounded-[4px] font-bold transition-all cursor-pointer",
+              filterType === "all" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+            )}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType("consented")}
+            className={cn(
+              "px-2.5 py-1 rounded-[4px] font-bold transition-all cursor-pointer",
+              filterType === "consented" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+            )}
+          >
+            Consented
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType("rejected")}
+            className={cn(
+              "px-2.5 py-1 rounded-[4px] font-bold transition-all cursor-pointer",
+              filterType === "rejected" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+            )}
+          >
+            Rejected All
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType("custom")}
+            className={cn(
+              "px-2.5 py-1 rounded-[4px] font-bold transition-all cursor-pointer",
+              filterType === "custom" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+            )}
+          >
+            Custom
+          </button>
+        </div>
       </div>
 
       {/* Audit Log Table */}
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
         {isLoading ? (
-          <div className="p-8 text-center text-xs text-slate-400">Loading audit receipts...</div>
+          <div className="p-12 text-center text-xs text-slate-400">
+            <RefreshCw className="size-5 animate-spin mx-auto text-[#1868db] mb-2" />
+            Loading audit receipts...
+          </div>
         ) : filteredReceipts.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="size-8 text-slate-300 mx-auto mb-2" />
             <h4 className="text-xs font-bold text-slate-700">No consent receipts logged yet</h4>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Consent events from visitors interacting with your banner will appear here with tamper-evident records.
+            <p className="text-[11px] text-slate-400 mt-0.5 max-w-sm mx-auto">
+              {searchQuery
+                ? "No consent receipts match your search query."
+                : "Consent events from visitors interacting with your banner will appear here with tamper-evident records."}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold text-[11px]">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold text-[11px] uppercase tracking-wider">
                   <th className="py-2.5 px-4">Consent ID & Hash</th>
                   <th className="py-2.5 px-4">Status</th>
                   <th className="py-2.5 px-4">Consented Categories</th>
@@ -172,89 +283,179 @@ export function ConsentLedger() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredReceipts.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="font-mono font-bold text-slate-900 text-[11px] truncate max-w-[140px]">
-                        {r.id.slice(0, 13)}...
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-mono truncate max-w-[140px]">
-                        {r.visitor_hash.slice(0, 16)}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      {r.consent_given ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="size-3" /> Consented
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                          <XCircle className="size-3" /> Rejected All
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-700">
-                          NEC
-                        </span>
-                        {r.functional && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                            FUNC
+                {filteredReceipts.map((r) => {
+                  const isAd = r.advertisement || r.marketing || false
+                  const isAcceptedAll = r.consent_given && r.functional && r.analytics && r.performance && isAd
+                  const isRejectedAll = !r.consent_given && !r.functional && !r.analytics && !r.performance && !isAd
+
+                  return (
+                    <tr key={r.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="font-mono font-bold text-slate-900 text-[11px] truncate max-w-[140px]">
+                          {r.id.slice(0, 13)}...
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono truncate max-w-[140px]">
+                          {r.visitor_hash.slice(0, 16)}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        {isAcceptedAll || r.consent_given ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="size-3" /> Consented
                           </span>
-                        )}
-                        {r.analytics && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                            ANA
+                        ) : isRejectedAll ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            <XCircle className="size-3" /> Rejected All
                           </span>
-                        )}
-                        {r.performance && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            PERF
-                          </span>
-                        )}
-                        {r.advertisement && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                            ADV
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5 text-slate-700">
-                        <Globe className="size-3 text-slate-400" />
-                        <span>{r.country || "Global"}</span>
-                        <span className="text-slate-300">•</span>
-                        {r.user_agent_category === "Mobile" ? (
-                          <Smartphone className="size-3 text-slate-400" />
                         ) : (
-                          <Monitor className="size-3 text-slate-400" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-bold bg-blue-50 text-[#1868db] border border-blue-200">
+                            <Sliders className="size-3" /> Custom
+                          </span>
                         )}
-                        <span className="text-[10px] text-slate-500">{r.user_agent_category || "Desktop"}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
-                      v{r.consent_version || "1.0"}
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">
-                      {new Date(r.created_at).toLocaleString()}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSelectedReceipt(r)}
-                        className="h-7 text-[11px] font-bold rounded-[4px] cursor-pointer"
-                      >
-                        View Receipt
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-700">
+                            NEC
+                          </span>
+                          {r.functional && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                              FUNC
+                            </span>
+                          )}
+                          {r.analytics && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                              ANA
+                            </span>
+                          )}
+                          {r.performance && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              PERF
+                            </span>
+                          )}
+                          {isAd && (
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                              ADV
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1.5 text-slate-700">
+                          <Globe className="size-3 text-slate-400" />
+                          <span>{r.country || "Global"}</span>
+                          <span className="text-slate-300">•</span>
+                          {r.user_agent_category === "Mobile" ? (
+                            <Smartphone className="size-3 text-slate-400" />
+                          ) : (
+                            <Monitor className="size-3 text-slate-400" />
+                          )}
+                          <span className="text-[10px] text-slate-500">{r.user_agent_category || "Desktop"}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
+                        v{r.consent_version || "1.0"}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 text-[11px] whitespace-nowrap">
+                        {new Date(r.created_at).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedReceipt(r)}
+                          className="h-7 text-[11px] font-bold rounded-[4px] cursor-pointer"
+                        >
+                          View Receipt
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
+
+        {/* Pagination Controls Footer */}
+        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          {/* Records summary and page size selector */}
+          <div className="flex items-center gap-3 text-slate-600">
+            <span>
+              Showing{" "}
+              <strong>
+                {totalRecords === 0 ? 0 : (page - 1) * pageSize + 1} -{" "}
+                {Math.min(page * pageSize, totalRecords)}
+              </strong>{" "}
+              of <strong>{totalRecords}</strong> records
+            </span>
+
+            <div className="flex items-center gap-1.5 pl-3 border-l border-slate-200">
+              <span className="text-slate-400">Rows:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(parseInt(e.target.value, 10))
+                  setPage(1)
+                }}
+                className="bg-white border border-slate-200 rounded-[3px] px-2 py-0.5 text-xs font-semibold text-slate-700 cursor-pointer focus:outline-hidden focus:border-[#1868db]"
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Navigation Buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              disabled={page === 1 || isLoading}
+              className="p-1.5 rounded-[4px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              title="First Page"
+            >
+              <ChevronsLeft className="size-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1 || isLoading}
+              className="px-2.5 py-1 rounded-[4px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center gap-1"
+            >
+              <ChevronLeft className="size-3.5" />
+              <span>Prev</span>
+            </button>
+
+            <span className="px-3 py-1 font-bold text-slate-800 bg-white border border-slate-200 rounded-[4px]">
+              Page {page} of {totalPages}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || isLoading}
+              className="px-2.5 py-1 rounded-[4px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-semibold disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center gap-1"
+            >
+              <span>Next</span>
+              <ChevronRight className="size-3.5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages || isLoading}
+              className="p-1.5 rounded-[4px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              title="Last Page"
+            >
+              <ChevronsRight className="size-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Proof-of-Consent Certificate Modal */}
@@ -319,7 +520,7 @@ export function ConsentLedger() {
                   </div>
                   <div className="flex items-center justify-between p-1.5 bg-slate-50 rounded col-span-2">
                     <span>Advertisement & Retargeting:</span>
-                    <strong>{selectedReceipt.advertisement ? "Granted" : "Blocked"}</strong>
+                    <strong>{selectedReceipt.advertisement || selectedReceipt.marketing ? "Granted" : "Blocked"}</strong>
                   </div>
                 </div>
               </div>

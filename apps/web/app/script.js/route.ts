@@ -2138,8 +2138,14 @@ const TRACKER_SCRIPT = `(function () {
     var btnCloseBanner = banner.querySelector("#usrly-close-banner");
     if (btnCloseBanner) {
       btnCloseBanner.onclick = function () {
-        var root = document.getElementById("usrly-cmp-root");
-        if (root) root.remove();
+        applyAndClose({
+          consent_given: false,
+          necessary: true,
+          functional: false,
+          analytics: false,
+          performance: false,
+          advertisement: false,
+        });
       };
     }
 

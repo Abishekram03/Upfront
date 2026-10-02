@@ -282,6 +282,7 @@ export async function ensureTables() {
         UPDATE workspaces SET first_site_id = (SELECT id FROM sites WHERE sites.workspace_id = workspaces.id ORDER BY created_at ASC LIMIT 1) WHERE first_site_id IS NULL AND id IN (SELECT DISTINCT workspace_id FROM sites WHERE workspace_id IS NOT NULL);
         UPDATE sites SET installation_status = 'detected' WHERE installation_status = 'not_started' AND (id IN (SELECT DISTINCT site_id FROM pageviews UNION SELECT DISTINCT site_id FROM sessions) OR domain IN (SELECT DISTINCT domain FROM consent_configs WHERE is_enabled = TRUE));
 
+        ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS show_close_button BOOLEAN DEFAULT FALSE;
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_necessary_category BOOLEAN DEFAULT TRUE;
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_functional_category BOOLEAN DEFAULT TRUE;
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS enable_analytics_category BOOLEAN DEFAULT TRUE;

@@ -168,6 +168,7 @@ export interface ConsentConfig {
   title: string
   description: string
   privacy_policy_url: string
+  show_close_button?: boolean
   accept_all_label: string
   reject_all_label: string
   preferences_label: string

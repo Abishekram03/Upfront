@@ -1423,7 +1423,7 @@ export function BannerStudio() {
                     type="button"
                     role="switch"
                     aria-checked={config.categories_on_first_layer || false}
-                    onClick={() => setConfig({ ...config, categories_on_first_layer: !config.categories_on_first_layer })}
+                    onClick={() => setConfig((prev) => ({ ...prev, categories_on_first_layer: !prev.categories_on_first_layer }))}
                     className={cn(
                       "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
                       config.categories_on_first_layer ? "bg-[#1868db]" : "bg-slate-200"
@@ -1433,6 +1433,37 @@ export function BannerStudio() {
                       className={cn(
                         "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
                         config.categories_on_first_layer ? "translate-x-4" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                {/* 5. Close [X] button toggle */}
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-800">Close [X] button</span>
+                    <InfoTooltip
+                      title="Italian DPA / EDPB Requirement"
+                      position="top"
+                      text="Under Italian Garante Privacy and EDPB guidelines, clicking [X] must dismiss the notice and continue navigation while maintaining default settings (rejecting non-essential trackers)."
+                    />
+                  </div>
+                  
+                  {/* iOS Style Switch Toggle */}
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={config.show_close_button || false}
+                    onClick={() => setConfig((prev) => ({ ...prev, show_close_button: !prev.show_close_button }))}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                      config.show_close_button ? "bg-[#1868db]" : "bg-slate-200"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                        config.show_close_button ? "translate-x-4" : "translate-x-0"
                       )}
                     />
                   </button>
@@ -1501,7 +1532,7 @@ export function BannerStudio() {
                           <input
                             type="checkbox"
                             checked={config.show_close_button || false}
-                            onChange={(e) => setConfig({ ...config, show_close_button: e.target.checked })}
+                            onChange={(e) => setConfig((prev) => ({ ...prev, show_close_button: e.target.checked }))}
                             className="size-3.5 rounded text-[#1868db] focus:ring-[#1868db]"
                           />
                         </div>

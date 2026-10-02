@@ -63,7 +63,7 @@ export async function GET(req: Request) {
       const insertRes = await pool.query(
         `INSERT INTO consent_configs (
           id, domain, is_enabled, layout, theme, primary_color, border_radius,
-          title, description, privacy_policy_url, accept_all_label, reject_all_label,
+          title, description, privacy_policy_url, show_close_button, accept_all_label, reject_all_label,
           preferences_label, preferences_title, preferences_description, save_preferences_label,
           always_active_label, no_cookies_to_display_label, cookie_column_label,
           duration_column_label, description_column_label,
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
           $1, $2, TRUE, 'bottom_bar', 'light', '#1868db', 'rounded-md',
           'We value your privacy',
           'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking ''Accept All'', you consent to our use of cookies.',
-          '/privacy', 'Accept All', 'Reject All',
+          '/privacy', FALSE, 'Accept All', 'Reject All',
           'Customise', 'Customise Consent Preferences', 'We respect your privacy preferences and allow you to select which cookies and tracking technologies are enabled.', 'Save My Preferences',
           'Always Active', 'No cookies to display', 'Cookie',
           'Duration', 'Description',
@@ -186,6 +186,7 @@ export async function POST(req: Request) {
     const title = body.title || currentConfig?.title || "We value your privacy"
     const description = body.description || currentConfig?.description || "We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking 'Accept All', you consent to our use of cookies."
     const privacyPolicyUrl = body.privacy_policy_url !== undefined ? body.privacy_policy_url : (currentConfig?.privacy_policy_url || "/privacy")
+    const showCloseButton = body.show_close_button !== undefined ? body.show_close_button : (currentConfig?.show_close_button ?? false)
     const acceptAllLabel = body.accept_all_label || currentConfig?.accept_all_label || "Accept All"
     const rejectAllLabel = body.reject_all_label || currentConfig?.reject_all_label || "Reject All"
     const preferencesLabel = body.preferences_label || currentConfig?.preferences_label || "Customise"
@@ -233,7 +234,7 @@ export async function POST(req: Request) {
     const upsertRes = await pool.query(
       `INSERT INTO consent_configs (
         id, domain, is_enabled, layout, theme, primary_color, border_radius,
-        title, description, privacy_policy_url, accept_all_label, reject_all_label,
+        title, description, privacy_policy_url, show_close_button, accept_all_label, reject_all_label,
         preferences_label, preferences_title, preferences_description, save_preferences_label,
         always_active_label, no_cookies_to_display_label, cookie_column_label,
         duration_column_label, description_column_label,
@@ -249,19 +250,19 @@ export async function POST(req: Request) {
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
-        $8, $9, $10, $11, $12,
-        $13, $14, $15, $16,
-        $17, $18, $19,
-        $20, $21,
-        $22, $23,
-        $24, $25, $26,
-        $27, $28, $29, $30,
-        $31, $32, $33, $34,
-        $35, $36, $37, $38, $39,
-        $40, $41, $42::jsonb,
-        $43, $44, $45, $46,
-        $47, $48, $49, $50,
-        $51, $52,
+        $8, $9, $10, $11, $12, $13,
+        $14, $15, $16, $17,
+        $18, $19, $20,
+        $21, $22,
+        $23, $24,
+        $25, $26, $27,
+        $28, $29, $30, $31,
+        $32, $33, $34, $35,
+        $36, $37, $38, $39, $40,
+        $41, $42, $43::jsonb,
+        $44, $45, $46, $47,
+        $48, $49, $50, $51,
+        $52, $53,
         NOW(), NOW()
       )
       ON CONFLICT (domain) DO UPDATE SET
@@ -273,6 +274,7 @@ export async function POST(req: Request) {
         title = EXCLUDED.title,
         description = EXCLUDED.description,
         privacy_policy_url = EXCLUDED.privacy_policy_url,
+        show_close_button = EXCLUDED.show_close_button,
         accept_all_label = EXCLUDED.accept_all_label,
         reject_all_label = EXCLUDED.reject_all_label,
         preferences_label = EXCLUDED.preferences_label,
@@ -328,6 +330,7 @@ export async function POST(req: Request) {
         title,
         description,
         privacyPolicyUrl,
+        showCloseButton,
         acceptAllLabel,
         rejectAllLabel,
         preferencesLabel,
