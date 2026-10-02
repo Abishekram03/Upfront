@@ -69,7 +69,7 @@ export function TablerNavbar({
       icon: Cookie,
     },
     {
-      title: "Cookie Policy",
+      title: "Legal Policies",
       href: "/consent/policy",
       icon: FileText,
     },
@@ -90,7 +90,13 @@ export function TablerNavbar({
   const checkIsActive = (itemHref: string) => {
     if (pathname === itemHref) return true
     if (pathname === "/" && itemHref === "/analytics") return true
-    if (itemHref !== "/consent" && itemHref !== "/analytics" && pathname.startsWith(itemHref)) return true
+    if (
+      itemHref !== "/consent" &&
+      itemHref !== "/analytics" &&
+      itemHref !== "/policy" &&
+      pathname.startsWith(itemHref)
+    )
+      return true
     return false
   }
 

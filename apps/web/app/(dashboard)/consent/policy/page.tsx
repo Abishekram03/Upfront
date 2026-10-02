@@ -1,11 +1,13 @@
-import { CookiePolicyGenerator } from "@/components/dashboard/consent/cookie-policy-generator"
+import { PolicyDashboardView } from "@/components/dashboard/policy/policy-dashboard-view"
+import { Metadata } from "next"
 
-export const metadata = {
-  title: "Cookie Policy Generator — Upfront",
-  description: "Generate and embed a clean, transparent cookie declaration policy for your website",
+export const metadata: Metadata = {
+  title: "Legal Policies & Compliance Suite — CMP",
+  description: "Generate, customize, and publish industry-standard Privacy Policy, Cookie Policy, Terms of Service, and compliance documents for your website.",
 }
 
-export default function CookiePolicyPage() {
-  return <CookiePolicyGenerator />
+export default function ConsentPolicyPage() {
+  return <PolicyDashboardView />
 }
+
 

@@ -41,12 +41,55 @@ const LANGUAGES = [
   { code: "nl", name: "Nederlands", flag: "🇳🇱" },
 ]
 
-export function CookiePolicyGenerator() {
+const DEFAULT_COOKIES: DiscoveredCookie[] = [
+  {
+    name: "_ga",
+    category: "analytics",
+    service_name: "Google Analytics",
+    duration: "2 years",
+    description: "Used to distinguish users and calculate visitor, session and campaign data for analytics reports.",
+  },
+  {
+    name: "_gid",
+    category: "analytics",
+    service_name: "Google Analytics",
+    duration: "24 hours",
+    description: "Used to store and count pageviews across user visits.",
+  },
+  {
+    name: "upfront_test_functional",
+    category: "functional",
+    service_name: "UpFront CMP",
+    duration: "Session",
+    description: "Preserves user interface state, preferred language, and regional preferences.",
+  },
+  {
+    name: "consentos_consent",
+    category: "necessary",
+    service_name: "UpFront CMP",
+    duration: "1 year",
+    description: "Stores the visitor's consent state and preferences for cookie categories.",
+  },
+  {
+    name: "session",
+    category: "necessary",
+    service_name: "Authentication",
+    duration: "Session",
+    description: "Maintains encrypted session authentication state during browsing.",
+  },
+]
+
+interface CookiePolicyGeneratorProps {
+  onBack?: () => void
+  initialViewMode?: "card" | "editor"
+}
+
+export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: CookiePolicyGeneratorProps = {}) {
   const { activeDomain } = useDomain()
   const domain = activeDomain || "onconnect.one"
 
   // View state: "card" (Clean Status Card) | "editor" (5-Step Customization Wizard)
-  const [viewMode, setViewMode] = useState<"card" | "editor">("card")
+  const [viewMode, setViewMode] = useState<"card" | "editor">(initialViewMode)
 
   // Wizard Step
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | 5>(1)
@@ -54,7 +97,7 @@ export function CookiePolicyGenerator() {
   const [isSaving, setIsSaving] = useState(false)
 
   // Scanner & Cookies State
-  const [cookies, setCookies] = useState<DiscoveredCookie[]>([])
+  const [cookies, setCookies] = useState<DiscoveredCookie[]>(DEFAULT_COOKIES)
   const [lastScanDate, setLastScanDate] = useState<string | null>(null)
   const [isLoadingCookies, setIsLoadingCookies] = useState(true)
 
@@ -101,11 +144,15 @@ export function CookiePolicyGenerator() {
 
         if (cookiesRes.ok) {
           const cookieData = await cookiesRes.json()
-          if (Array.isArray(cookieData)) {
+          if (Array.isArray(cookieData) && cookieData.length > 0) {
             setCookies(cookieData)
-          } else if (cookieData?.cookies && Array.isArray(cookieData.cookies)) {
+          } else if (cookieData?.cookies && Array.isArray(cookieData.cookies) && cookieData.cookies.length > 0) {
             setCookies(cookieData.cookies)
+          } else {
+            setCookies(DEFAULT_COOKIES)
           }
+        } else {
+          setCookies(DEFAULT_COOKIES)
         }
 
         if (scanRes.ok) {
@@ -124,6 +171,7 @@ export function CookiePolicyGenerator() {
         }
       } catch (err) {
         console.warn("Could not load policy cookie data:", err)
+        setCookies(DEFAULT_COOKIES)
       } finally {
         setIsLoadingCookies(false)
       }
@@ -137,7 +185,11 @@ export function CookiePolicyGenerator() {
     setTimeout(() => {
       setIsSaving(false)
       toast.success("Cookie policy saved successfully!")
-      setViewMode("card")
+      if (onBack) {
+        onBack()
+      } else {
+        setViewMode("card")
+      }
     }, 300)
   }
 
@@ -441,11 +493,17 @@ export function CookiePolicyGenerator() {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setViewMode("card")}
+          onClick={() => {
+            if (onBack) {
+              onBack()
+            } else {
+              setViewMode("card")
+            }
+          }}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
         >
           <ArrowLeft className="size-3.5" />
-          <span>Back to Policy</span>
+          <span>Back to Policies</span>
         </button>
 
         <div className="flex items-center gap-2">

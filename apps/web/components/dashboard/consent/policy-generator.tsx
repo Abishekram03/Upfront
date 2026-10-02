@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useDomain } from "@/lib/domain-context"
 import {
   FileText,
@@ -13,10 +13,9 @@ import {
   Building,
   Save,
   Send,
-  RefreshCw,
   Eye,
   Check,
-  Layers,
+  ExternalLink,
 } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@/lib/utils"
@@ -30,8 +29,52 @@ interface CookieItem {
   description?: string
 }
 
-export function PolicyGenerator() {
-  const { activeDomain } = useDomain()
+interface PolicyGeneratorProps {
+  onBack?: () => void
+  domain?: string
+}
+
+const DEFAULT_BASELINE_COOKIES: CookieItem[] = [
+  {
+    name: "_ga",
+    category: "analytics",
+    service_name: "Google Analytics",
+    duration: "2 years",
+    description: "Used by Google Analytics to distinguish unique users.",
+  },
+  {
+    name: "_gid",
+    category: "analytics",
+    service_name: "Google Analytics",
+    duration: "24 hours",
+    description: "Used by Google Analytics to throttle request rate.",
+  },
+  {
+    name: "upfront_test_functional",
+    category: "functional",
+    service_name: "Uncatalogued Provider",
+    duration: "12 months",
+    description: "Remembers user preferences and interface settings across sessions.",
+  },
+  {
+    name: "consentos_consent",
+    category: "necessary",
+    service_name: "Consent Management",
+    duration: "12 months",
+    description: "Stores the visitor's cookie consent status and preferences.",
+  },
+  {
+    name: "session",
+    category: "necessary",
+    service_name: "Session Management",
+    duration: "Session",
+    description: "Maintains user state and security across page requests.",
+  },
+]
+
+export function PolicyGenerator({ onBack, domain }: PolicyGeneratorProps = {}) {
+  const { activeDomain: contextDomain } = useDomain()
+  const activeDomain = domain || contextDomain
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [savingDraft, setSavingDraft] = useState(false)
@@ -45,7 +88,9 @@ export function PolicyGenerator() {
   const [companyName, setCompanyName] = useState("Our Company")
   const [websiteUrl, setWebsiteUrl] = useState(`https://${activeDomain || "example.com"}`)
   const [contactEmail, setContactEmail] = useState(`privacy@${activeDomain || "example.com"}`)
-  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10))
+  const [effectiveDate, setEffectiveDate] = useState(
+    new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  )
   const [lawTemplate, setLawTemplate] = useState("gdpr")
   const [enableGPCMention, setEnableGPCMention] = useState(true)
   const [enableGCMv2Mention, setEnableGCMv2Mention] = useState(true)
@@ -69,7 +114,7 @@ export function PolicyGenerator() {
         setCompanyName(pol.company_name || "Our Company")
         setWebsiteUrl(pol.website_url || `https://${activeDomain}`)
         setContactEmail(pol.contact_email || `privacy@${activeDomain}`)
-        setEffectiveDate(pol.effective_date || new Date().toISOString().slice(0, 10))
+        setEffectiveDate(pol.effective_date || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }))
         setLawTemplate(pol.law_template || "gdpr")
         setEnableGPCMention(pol.enable_gpc_clause !== false)
         setEnableGCMv2Mention(pol.enable_gcm_clause !== false)
@@ -82,7 +127,14 @@ export function PolicyGenerator() {
       const cookiesRes = await fetch(`/api/v1/consent/cookies?domain=${encodeURIComponent(activeDomain)}`)
       if (cookiesRes.ok) {
         const cData = await cookiesRes.json()
-        setCookies(Array.isArray(cData) ? cData : [])
+        const fetchedCookies = Array.isArray(cData) ? cData : cData?.cookies || []
+        if (Array.isArray(fetchedCookies) && fetchedCookies.length > 0) {
+          setCookies(fetchedCookies)
+        } else {
+          setCookies(DEFAULT_BASELINE_COOKIES)
+        }
+      } else {
+        setCookies(DEFAULT_BASELINE_COOKIES)
       }
 
       // Fetch active law template from Banner Studio CMP config
@@ -95,6 +147,7 @@ export function PolicyGenerator() {
       }
     } catch (e) {
       console.error("Failed to load policy data:", e)
+      setCookies(DEFAULT_BASELINE_COOKIES)
     } finally {
       setLoading(false)
     }
@@ -103,6 +156,10 @@ export function PolicyGenerator() {
   useEffect(() => {
     loadPolicyAndInventory()
   }, [loadPolicyAndInventory])
+
+  const displayCookies = useMemo(() => {
+    return cookies.length > 0 ? cookies : DEFAULT_BASELINE_COOKIES
+  }, [cookies])
 
   // 2. Save Working Draft to DB
   const handleSaveDraft = async () => {
@@ -169,131 +226,122 @@ export function PolicyGenerator() {
     }
   }
 
-  // 4. Multi-Framework Localized Document Content
-  const isLGPD = lawTemplate === "lgpd"
-  const isDPDP = lawTemplate === "dpdp"
-  const isCCPA = lawTemplate === "ccpa"
-  const isNoticeOnly = lawTemplate === "notice_only"
+  // Exact standard texts
+  const aboutHeading = "What are cookies?"
+  const aboutDescription = `This Cookie Policy explains what cookies are, how we use them, the types of cookies we use (i.e., the information we collect using cookies and how that information is used), and how to manage your cookie settings.\n\nCookies are small text files used to store small pieces of information. They are stored on your device when a website loads in your browser. These cookies help ensure that the website functions properly, enhance security, provide a better user experience, and analyse performance to identify what works and where improvements are needed.`
 
-  const policyTitle = isLGPD
-    ? `Política de Cookies de ${activeDomain || "nosso site"}`
-    : `Cookie Policy for ${activeDomain || "example.com"}`
+  const useHeading = "How do we use cookies?"
+  const useDescription = `Like most online services, our website uses both first-party and third-party cookies for various purposes. First-party cookies are primarily necessary for the website to function properly and do not collect any personally identifiable data.\n\nThe third-party cookies used on our website primarily help us understand how the website performs, track how you interact with it, keep our services secure, deliver relevant advertisements, and enhance your overall user experience while improving the speed of your future interactions with our website.`
+
+  const typesHeading = "Types of cookies we use"
+
+  const prefHeading = "Manage cookie preferences"
+  const prefDescription = `You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.\n\nAdditionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:\n\nChrome: https://support.google.com/accounts/answer/32050\nSafari: https://support.apple.com/en-in/guide/safari/sfri11471/mac\nFirefox: https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox\nMicrosoft Edge: https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09\n\nIf you are using a different web browser, please refer to its official support documentation.`
 
   const generatedEmbedCode = `<!-- UpFront CMP Dynamic Cookie Declaration -->
 <div id="usrly-cookie-declaration" data-domain="${activeDomain || "yourdomain.com"}"></div>
 <script defer src="https://syftanalytics.com/script.js" data-domain="${activeDomain || "yourdomain.com"}"></script>`
 
-  const generatedHtml = isLGPD
-    ? `<!-- Política de Cookies (LGPD Brasil) -->
-<div class="cookie-policy-container" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 800px; margin: 0 auto; padding: 24px;">
-  <h1 style="font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Política de Cookies</h1>
-  <p style="font-size: 13px; color: #64748b; margin-bottom: 24px;">Data de Vigência: <strong>${effectiveDate}</strong> | Versão: <strong>${policyVersion}</strong></p>
+  const generatedHtml = useMemo(() => {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Cookie Policy - ${activeDomain || "example.com"}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 840px; margin: 0 auto; padding: 32px 16px; }
+    h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+    h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px; margin-bottom: 8px; }
+    p, li { font-size: 14px; color: #334155; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
+    th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; }
+    th { background-color: #f8fafc; font-weight: 600; color: #0f172a; }
+    .btn-revisit { display: inline-block; padding: 8px 16px; background: #1868db; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; margin: 12px 0; }
+    ul { padding-left: 20px; margin-bottom: 16px; }
+    a { color: #1868db; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <h1>Cookie Policy for ${activeDomain || "example.com"}</h1>
+  <p><em>Last updated: ${effectiveDate}</em></p>
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">1. Introdução</h2>
-  <p style="font-size: 14px; margin-bottom: 16px;">
-    Esta Política de Cookies explica como a <strong>${companyName}</strong> utiliza cookies e tecnologias semelhantes no site <strong>${websiteUrl}</strong>, em estrita conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).
-  </p>
+  <h2>${aboutHeading}</h2>
+  ${aboutDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("\n  ")}
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">2. O Que São Cookies?</h2>
-  <p style="font-size: 14px; margin-bottom: 16px;">
-    Cookies são pequenos arquivos de texto armazenados no seu computador ou dispositivo móvel para assegurar a operação correta do site, memorizar preferências e fornecer relatórios agregados de desempenho.
-  </p>
+  <h2>${useHeading}</h2>
+  ${useDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("\n  ")}
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">3. Inventário e Declaração de Cookies</h2>
-  <p style="font-size: 14px; margin-bottom: 16px;">
-    Abaixo encontra-se a auditoria em tempo real das categorias e cookies ativos detectados em nosso website:
-  </p>
-  
-  <div id="usrly-cookie-declaration" style="margin: 20px 0;"></div>
+  <h2>${typesHeading}</h2>
+  <p><strong>Live Cookie Table</strong><br />
+  <em>${displayCookies.length} active cookies</em><br />
+  Automatically rendered and synchronized from your website scans.</p>
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">4. Gerenciamento e Revogação do Consentimento</h2>
-  <p style="font-size: 14px; margin-bottom: 16px;">
-    Você pode revisar, modificar ou revogar seu consentimento a qualquer momento clicando no botão flutuante <strong>"🍪 Preferências"</strong> no canto inferior da página. Cookies essenciais não podem ser desativados por serem estritamente necessários ao funcionamento básico.
-  </p>
-  ${
-    enableGPCMention
-      ? `<p style="font-size: 14px; margin-bottom: 16px;">
-    <strong>Controle Global de Privacidade (GPC):</strong> Nosso site respeita automaticamente o sinal GPC transmitido pelo seu navegador, desativando o rastreamento opcional por padrão.
-  </p>`
-      : ""
-  }
+  <table>
+    <thead>
+      <tr>
+        <th>Cookie Name</th>
+        <th>Category</th>
+        <th>Provider</th>
+        <th>Duration</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${displayCookies
+        .map(
+          (c) => `<tr>
+        <td><code>${c.name}</code></td>
+        <td>${c.category}</td>
+        <td>${c.service_name || activeDomain || "First Party"}</td>
+        <td>${c.duration || "Session"}</td>
+      </tr>`
+        )
+        .join("\n      ")}
+    </tbody>
+  </table>
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">5. Contato e Encarregado (DPO)</h2>
-  <p style="font-size: 14px;">
-    Em caso de dúvidas sobre esta política ou o tratamento de dados pessoais, entre em contato com nosso Encarregado de Proteção de Dados: <a href="mailto:${contactEmail}" style="color: #1868db; text-decoration: underline;">${contactEmail}</a>.
-  </p>
-</div>`
-    : `<!-- Cookie Policy -->
-<div class="cookie-policy-container" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 800px; margin: 0 auto; padding: 24px;">
-  <h1 style="font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">Cookie Policy</h1>
-  <p style="font-size: 13px; color: #64748b; margin-bottom: 24px;">Effective Date: <strong>${effectiveDate}</strong> | Version: <strong>${policyVersion}</strong></p>
+  <h2>${prefHeading}</h2>
+  <p><a href="javascript:void(0)" class="btn-revisit">Consent Preferences</a></p>
+  <p>You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.</p>
+  <p>Additionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:</p>
+  <ul>
+    <li><strong>Chrome:</strong> <a href="https://support.google.com/accounts/answer/32050" target="_blank" rel="noopener noreferrer">https://support.google.com/accounts/answer/32050</a></li>
+    <li><strong>Safari:</strong> <a href="https://support.apple.com/en-in/guide/safari/sfri11471/mac" target="_blank" rel="noopener noreferrer">https://support.apple.com/en-in/guide/safari/sfri11471/mac</a></li>
+    <li><strong>Firefox:</strong> <a href="https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox" target="_blank" rel="noopener noreferrer">https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox</a></li>
+    <li><strong>Microsoft Edge:</strong> <a href="https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener noreferrer">https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09</a></li>
+  </ul>
+  <p>If you are using a different web browser, please refer to its official support documentation.</p>
+</body>
+</html>`
+  }, [activeDomain, effectiveDate, displayCookies])
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">1. Introduction</h2>
-  <p style="font-size: 14px; margin-bottom: 16px;">
-    This Cookie Policy explains how <strong>${companyName}</strong> ("we", "us", or "our") uses cookies and similar tracking technologies on <strong>${websiteUrl}</strong>. ${
-      isDPDP
-        ? "In accordance with the Digital Personal Data Protection (DPDP) Act, we process personal data strictly for specified lawful purposes."
-        : isCCPA
-        ? "In compliance with CCPA/CPRA, this notice provides transparency regarding data collection and Do Not Sell/Share rights."
-        : "It describes what these technologies are, why we use them, and your rights to control our use of them."
-    }
-  </p>
+  const generatedMarkdown = useMemo(() => {
+    let md = `# Cookie Policy for ${activeDomain || "example.com"}\n`
+    md += `*Last updated: ${effectiveDate}*\n\n`
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">2. What Are Cookies?</h2>
-  <p style="font-size: 14px; margin-bottom: 16px;">
-    Cookies are small data files placed on your computer or mobile device when you visit a website to maintain session integrity, remember visitor preferences, and provide analytical measurements.
-  </p>
+    md += `## ${aboutHeading}\n`
+    md += `${aboutDescription}\n\n`
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">3. Cookies Used on Our Website</h2>
-  <p style="font-size: 14px; margin-bottom: 16px;">
-    Below is a live, automated audit of the cookies and purpose categories currently active on our website:
-  </p>
-  
-  <!-- Live Dynamic Cookie Table -->
-  <div id="usrly-cookie-declaration" style="margin: 20px 0;"></div>
+    md += `## ${useHeading}\n`
+    md += `${useDescription}\n\n`
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">4. Managing Your Consent Preferences</h2>
-  <p style="font-size: 14px; margin-bottom: 16px;">
-    You can customize or withdraw your cookie consent preferences at any time by clicking the floating <strong>"🍪 Consent"</strong> button located at the bottom of our website. Essential cookies cannot be disabled as they are strictly necessary to deliver core services.
-  </p>
-  ${
-    enableGPCMention
-      ? `<p style="font-size: 14px; margin-bottom: 16px;">
-    <strong>Global Privacy Control (GPC):</strong> Our website automatically honors Global Privacy Control signals broadcast by your browser, opting you out of non-essential tracking by default.
-  </p>`
-      : ""
-  }
-  ${
-    enableGCMv2Mention
-      ? `<p style="font-size: 14px; margin-bottom: 16px;">
-    <strong>Google Consent Mode v2:</strong> Google services dynamically adjust data collection parameters based on your granular category choices.
-  </p>`
-      : ""
-  }
+    md += `## ${typesHeading}\n`
+    md += `**Live Cookie Table**  \n`
+    md += `*${displayCookies.length} active cookies*  \n`
+    md += `*Automatically rendered and synchronized from your website scans.*\n\n`
 
-  <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px;">5. Contact Us</h2>
-  <p style="font-size: 14px;">
-    If you have questions regarding this Cookie Policy or our privacy practices, please contact our Data Protection Officer at: <a href="mailto:${contactEmail}" style="color: #1868db; text-decoration: underline;">${contactEmail}</a>.
-  </p>
-</div>`
+    md += `| Cookie Name | Category | Provider | Duration |\n`
+    md += `| :--- | :--- | :--- | :--- |\n`
+    displayCookies.forEach((c) => {
+      md += `| \`${c.name}\` | ${c.category} | ${c.service_name || activeDomain || "First Party"} | ${c.duration || "Session"} |\n`
+    })
+    md += `\n`
 
-  const generatedMarkdown = `# ${policyTitle}
-*Effective Date: ${effectiveDate} | Version: ${policyVersion}*
+    md += `## ${prefHeading}\n`
+    md += `[Consent Preferences](javascript:void(0))\n\n`
+    md += `${prefDescription}\n`
 
-## 1. Introduction
-This Cookie Policy explains how **${companyName}** uses cookies and tracking technologies on [${websiteUrl}](${websiteUrl}).
-
-## 2. What Are Cookies?
-Cookies are small data files placed on your computer or mobile device when you visit a website.
-
-## 3. Cookie Inventory
-*Audit inventory embedded dynamically via UpFront CMP tag.*
-
-## 4. Managing Preferences
-You can review, modify, or withdraw consent at any time via the floating cookie preferences badge.
-
-## 5. Contact Information
-Contact our Data Protection Officer: [${contactEmail}](mailto:${contactEmail})`
+    return md
+  }, [activeDomain, effectiveDate, displayCookies])
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
@@ -303,6 +351,17 @@ Contact our Data Protection Officer: [${contactEmail}](mailto:${contactEmail})`
 
   return (
     <div className="space-y-6 max-w-6xl pb-16">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors uppercase tracking-wider cursor-pointer"
+        >
+          <ArrowLeft className="size-4" />
+          <span>BACK TO DASHBOARD</span>
+        </button>
+      )}
+
       {/* Top Header & Publication Status Bar */}
       <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-2xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -429,7 +488,7 @@ Contact our Data Protection Officer: [${contactEmail}](mailto:${contactEmail})`
             <div>
               <label className="font-bold text-slate-700 block mb-1">Effective Date</label>
               <input
-                type="date"
+                type="text"
                 value={effectiveDate}
                 onChange={(e) => {
                   setEffectiveDate(e.target.value)
@@ -612,7 +671,7 @@ Contact our Data Protection Officer: [${contactEmail}](mailto:${contactEmail})`
             </p>
           </div>
 
-          {/* Realistic Live Policy Preview */}
+          {/* Realistic Live Policy Preview (Exact Match to User Requirement) */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
             <div className="px-5 py-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -620,86 +679,140 @@ Contact our Data Protection Officer: [${contactEmail}](mailto:${contactEmail})`
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Live Policy Preview</h3>
               </div>
               <span className="text-[11px] text-slate-500 font-mono">
-                {cookies.length} Discovered Cookies in Database
+                {displayCookies.length} Discovered Cookies in Database
               </span>
             </div>
 
-            <div className="p-8 space-y-6 bg-white text-slate-800 max-w-4xl mx-auto">
+            <div className="p-8 space-y-6 bg-white text-slate-800 max-w-4xl mx-auto text-xs leading-relaxed">
               <div>
-                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{policyTitle}</h1>
+                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  Cookie Policy for {activeDomain || "example.com"}
+                </h1>
                 <p className="text-xs text-slate-500 mt-1">
-                  Effective Date: <strong>{effectiveDate}</strong> | Policy Version: <strong>{policyVersion}</strong>
+                  <em>Last updated: {effectiveDate}</em>
                 </p>
               </div>
 
+              {/* Section 1: What are cookies? */}
               <div className="space-y-2">
-                <h3 className="text-sm font-bold text-slate-900">1. Introduction</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  This Cookie Policy explains how <strong>{companyName}</strong> uses cookies and similar tracking technologies on <strong>{websiteUrl}</strong>.
-                </p>
+                <h2 className="text-sm font-bold text-slate-900">{aboutHeading}</h2>
+                {aboutDescription.split("\n\n").map((p, i) => (
+                  <p key={i} className="text-slate-600">{p}</p>
+                ))}
               </div>
 
+              {/* Section 2: How do we use cookies? */}
               <div className="space-y-2">
-                <h3 className="text-sm font-bold text-slate-900">2. What Are Cookies?</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Cookies are small data files placed on your computer or mobile device when you visit a website. They ensure site security, remember preferences, and provide analytical measurements.
-                </p>
+                <h2 className="text-sm font-bold text-slate-900">{useHeading}</h2>
+                {useDescription.split("\n\n").map((p, i) => (
+                  <p key={i} className="text-slate-600">{p}</p>
+                ))}
               </div>
 
+              {/* Section 3: Types of cookies we use (Live Cookie Table) */}
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-slate-900">3. Live Cookie Audit Inventory</h3>
-                <div className="overflow-x-auto rounded border border-slate-200">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-                      <tr>
-                        <th className="py-2.5 px-3.5">Cookie</th>
-                        <th className="py-2.5 px-3.5">Category</th>
-                        <th className="py-2.5 px-3.5">Provider</th>
-                        <th className="py-2.5 px-3.5">Duration</th>
-                        <th className="py-2.5 px-3.5">Purpose</th>
-                        <th className="py-2.5 px-3.5">Live Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {cookies.length > 0 ? (
-                        cookies.map((c, idx) => (
-                          <tr key={idx}>
-                            <td className="py-2.5 px-3.5 font-mono font-bold text-slate-900">{c.name}</td>
-                            <td className="py-2.5 px-3.5 capitalize text-slate-700">{c.category}</td>
-                            <td className="py-2.5 px-3.5 text-slate-600">{c.service_name || "First Party"}</td>
-                            <td className="py-2.5 px-3.5 text-slate-500">{c.duration || "Session"}</td>
-                            <td className="py-2.5 px-3.5 text-slate-600">{c.description || "Maintains site operation."}</td>
-                            <td className="py-2.5 px-3.5 font-bold text-emerald-600">
-                              {c.category === "necessary" ? "Always Active" : "Gated by Consent"}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
+                <h2 className="text-sm font-bold text-slate-900">{typesHeading}</h2>
+                <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-md space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 text-xs">Live Cookie Table</span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-50 text-[#1868db] border border-blue-200">
+                      {displayCookies.length} active cookies
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Automatically rendered and synchronized from your website scans.
+                  </p>
+
+                  <div className="mt-3 rounded border border-slate-200 overflow-hidden bg-white">
+                    <table className="w-full text-left text-[11px] border-collapse">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
                         <tr>
-                          <td colSpan={6} className="py-4 px-3.5 text-center text-slate-400 italic">
-                            No custom cookies discovered yet. Canonical baseline categories active.
-                          </td>
+                          <th className="p-2.5">Cookie Name</th>
+                          <th className="p-2.5">Category</th>
+                          <th className="p-2.5">Provider</th>
+                          <th className="p-2.5">Duration</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {displayCookies.map((c, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/60">
+                            <td className="p-2.5 font-mono font-semibold text-[#1868db]">{c.name}</td>
+                            <td className="p-2.5 capitalize text-slate-700">{c.category}</td>
+                            <td className="p-2.5 text-slate-600">{c.service_name || activeDomain || "First Party"}</td>
+                            <td className="p-2.5 text-slate-500">{c.duration || "Session"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h3 className="text-sm font-bold text-slate-900">4. Managing & Withdrawing Consent</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Visitors can modify or revoke their cookie consent preferences at any time by clicking the floating cookie badge at the bottom of the page.
+              {/* Section 4: Manage cookie preferences */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <h2 className="text-sm font-bold text-slate-900">{prefHeading}</h2>
+                <div>
+                  <button
+                    type="button"
+                    className="px-4 py-1.5 rounded-md bg-[#1868db] text-white font-bold text-xs shadow-2xs cursor-pointer hover:bg-blue-700 transition-colors"
+                  >
+                    Consent Preferences
+                  </button>
+                </div>
+                <p className="text-slate-600">
+                  You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.
                 </p>
-              </div>
-
-              <div className="space-y-2 pt-2 border-t border-slate-200">
-                <h3 className="text-sm font-bold text-slate-900">5. Contact Information</h3>
-                <p className="text-xs text-slate-600">
-                  Contact our Data Protection Officer:{" "}
-                  <a href={`mailto:${contactEmail}`} className="text-[#1868db] font-semibold underline">
-                    {contactEmail}
-                  </a>
+                <p className="text-slate-600">
+                  Additionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-slate-600">
+                  <li>
+                    <strong>Chrome:</strong>{" "}
+                    <a
+                      href="https://support.google.com/accounts/answer/32050"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#1868db] hover:underline"
+                    >
+                      https://support.google.com/accounts/answer/32050
+                    </a>
+                  </li>
+                  <li>
+                    <strong>Safari:</strong>{" "}
+                    <a
+                      href="https://support.apple.com/en-in/guide/safari/sfri11471/mac"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#1868db] hover:underline"
+                    >
+                      https://support.apple.com/en-in/guide/safari/sfri11471/mac
+                    </a>
+                  </li>
+                  <li>
+                    <strong>Firefox:</strong>{" "}
+                    <a
+                      href="https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#1868db] hover:underline"
+                    >
+                      https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox
+                    </a>
+                  </li>
+                  <li>
+                    <strong>Microsoft Edge:</strong>{" "}
+                    <a
+                      href="https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#1868db] hover:underline"
+                    >
+                      https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09
+                    </a>
+                  </li>
+                </ul>
+                <p className="text-slate-600">
+                  If you are using a different web browser, please refer to its official support documentation.
                 </p>
               </div>
             </div>

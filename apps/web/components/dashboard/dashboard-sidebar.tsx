@@ -70,7 +70,7 @@ export function DashboardSidebar({
       icon: Cookie,
     },
     {
-      title: "Cookie Policy",
+      title: "Legal Policies",
       href: "/consent/policy",
       icon: FileText,
     },

@@ -1,6 +1,6 @@
 "use client"
 
-import { BarChart3, ShieldCheck, Check, ChevronsUpDown } from "lucide-react"
+import { BarChart3, ShieldCheck, FileText, Check, ChevronsUpDown } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -25,9 +25,9 @@ export const tools = [
   {
     id: "consent" as const,
     name: "Consent Manager",
-    shortName: "Consent",
+    shortName: "Consent & Legal",
     icon: ShieldCheck,
-    description: "Cookie Banner & Script Gating",
+    description: "Cookie Banner, CMP & Legal Policies",
     badge: "CMP",
     badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
   },

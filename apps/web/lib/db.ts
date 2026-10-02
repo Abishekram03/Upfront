@@ -482,6 +482,25 @@ export async function ensureTables() {
           processed_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS ix_billing_events_event_id ON billing_events(event_id);
+
+        -- Generated Policies (Privacy Policy, Terms of Service, etc.)
+        CREATE TABLE IF NOT EXISTS generated_policies (
+          id VARCHAR(36) PRIMARY KEY,
+          domain VARCHAR(255) NOT NULL,
+          policy_id VARCHAR(50) NOT NULL,
+          status VARCHAR(20) NOT NULL DEFAULT 'draft',
+          version VARCHAR(20) DEFAULT '1.0',
+          custom_title VARCHAR(255),
+          config JSONB NOT NULL DEFAULT '{}'::jsonb,
+          content_markdown TEXT,
+          content_html TEXT,
+          published_at TIMESTAMP WITHOUT TIME ZONE,
+          created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          CONSTRAINT uq_domain_policy UNIQUE(domain, policy_id)
+        );
+        CREATE INDEX IF NOT EXISTS ix_generated_policies_domain ON generated_policies(domain);
+        CREATE INDEX IF NOT EXISTS ix_generated_policies_domain_policy ON generated_policies(domain, policy_id);
       `)
       tablesInitialized = true
     } finally {

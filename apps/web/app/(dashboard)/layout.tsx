@@ -27,13 +27,13 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
   const { isPaid, plan } = useEntitlements()
 
   // Infer active tool from current path or state
-  const isConsentPath = pathname.startsWith("/consent")
+  const isConsentOrPolicyPath = pathname.startsWith("/consent") || pathname.startsWith("/policy")
   const [activeTool, setActiveTool] = useState<ToolType>(
-    isConsentPath ? "consent" : "analytics"
+    isConsentOrPolicyPath ? "consent" : "analytics"
   )
 
   useEffect(() => {
-    if (pathname.startsWith("/consent")) {
+    if (pathname.startsWith("/consent") || pathname.startsWith("/policy")) {
       setActiveTool("consent")
     } else if (pathname.startsWith("/analytics") || pathname.startsWith("/settings")) {
       setActiveTool("analytics")
@@ -134,8 +134,8 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content Area */}
-      <main className={isFullBleedStudio ? "flex-1 w-full min-h-0 overflow-hidden flex flex-col" : "flex-1 py-6"}>
-        {isFullBleedStudio ? (
+      <main className={isFullBleedStudio || pathname.startsWith("/policy") ? "flex-1 w-full min-h-0 flex flex-col" : "flex-1 py-6"}>
+        {isFullBleedStudio || pathname.startsWith("/policy") ? (
           children
         ) : (
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
