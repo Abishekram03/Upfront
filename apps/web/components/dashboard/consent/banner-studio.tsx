@@ -216,6 +216,8 @@ export const DEFAULT_BANNER_CONFIG: Omit<StudioConfig, "domain"> = {
   enable_gpc: false,
   consent_version: "1.0",
   custom_css: "",
+  show_branding: true,
+  hide_branding: false,
 }
 
 const COLOR_PRESETS = [
@@ -1527,6 +1529,32 @@ export function BannerStudio() {
                             className="w-full px-2.5 py-1 text-xs rounded-[4px] border border-slate-200 focus:outline-hidden focus:border-[#1868db]"
                           />
                         </div>
+
+                        <div className="pt-2 border-t border-slate-100">
+                          <UpgradeGate capability="cmp.whitelabel" featureName="Remove Upfront Branding">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <div>
+                                  <span className="text-[11px] font-bold text-slate-700 block">Upfront Branding</span>
+                                  <span className="text-[10px] text-slate-500">Display "Powered by Upfront" logo watermark</span>
+                                </div>
+                                <UpgradeBadge capability="cmp.whitelabel" size="sm" />
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={config.show_branding !== false && !config.hide_branding}
+                                onChange={(e) => {
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    show_branding: e.target.checked,
+                                    hide_branding: !e.target.checked,
+                                  }))
+                                }}
+                                className="size-3.5 rounded text-[#1868db] focus:ring-[#1868db]"
+                              />
+                            </div>
+                          </UpgradeGate>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2074,6 +2102,28 @@ export function BannerStudio() {
               }}
             />
 
+            {/* Top Canvas Bar with Preview Lang Switcher */}
+            <div className="h-9 bg-slate-100/90 border-b border-slate-200 px-4 flex items-center justify-between shrink-0 select-none z-10">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <Globe className="size-3.5 text-slate-400" />
+                <span className="font-semibold text-slate-700">Preview Lang:</span>
+                <select
+                  value={previewLanguage}
+                  onChange={(e) => setPreviewLanguage(e.target.value)}
+                  className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs"
+                >
+                  {SUPPORTED_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.flag} {l.name} ({l.code.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-[11px] text-slate-400 font-mono">
+                {activeDomain || "Simulated Canvas"}
+              </div>
+            </div>
+
             {/* REAL CONNECTED WEBSITE LIVE PREVIEW */}
             <div className="relative w-full h-full flex-1 overflow-hidden bg-slate-50 flex flex-col select-none">
               {activeDomain ? (
@@ -2149,6 +2199,31 @@ export function BannerStudio() {
                             {getText("accept_all_label")}
                           </button>
                         </div>
+
+                        {/* Watermark */}
+                        {config.show_branding !== false && !config.hide_branding && (
+                          <div className={cn(
+                            "pt-2 border-t flex items-center justify-end gap-1.5 text-[10px] shrink-0",
+                            config.theme === "dark" ? "border-slate-800 text-slate-400" : "border-slate-100 text-slate-500"
+                          )}>
+                            <span>Powered by</span>
+                            <a
+                              href="https://upfront.io"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center hover:opacity-80 transition-opacity"
+                            >
+                              <img
+                                src="/UpFront-Logo-Blue-500.svg"
+                                alt="Upfront"
+                                className={cn(
+                                  "h-3.5 w-auto object-contain",
+                                  config.theme === "dark" && "brightness-0 invert"
+                                )}
+                              />
+                            </a>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : isBannerLayout(config.layout) ? (
@@ -2221,6 +2296,31 @@ export function BannerStudio() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Watermark */}
+                      {config.show_branding !== false && !config.hide_branding && (
+                        <div className={cn(
+                          "mt-2 pt-1.5 border-t flex items-center justify-end gap-1.5 text-[10px] shrink-0",
+                          config.theme === "dark" ? "border-slate-800/80 text-slate-400" : "border-slate-200/80 text-slate-500"
+                        )}>
+                          <span>Powered by</span>
+                          <a
+                            href="https://upfront.io"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center hover:opacity-80 transition-opacity"
+                          >
+                            <img
+                              src="/UpFront-Logo-Blue-500.svg"
+                              alt="Upfront"
+                              className={cn(
+                                "h-3.5 w-auto object-contain",
+                                config.theme === "dark" && "brightness-0 invert"
+                              )}
+                            />
+                          </a>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     /* BOX POSITIONING: 4 CORNERS */
@@ -2295,6 +2395,31 @@ export function BannerStudio() {
                           {getText("accept_all_label")}
                         </button>
                       </div>
+
+                      {/* Watermark */}
+                      {config.show_branding !== false && !config.hide_branding && (
+                        <div className={cn(
+                          "pt-2 border-t flex items-center justify-end gap-1.5 text-[10px] shrink-0",
+                          config.theme === "dark" ? "border-slate-800 text-slate-400" : "border-slate-100 text-slate-500"
+                        )}>
+                          <span>Powered by</span>
+                          <a
+                            href="https://upfront.io"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center hover:opacity-80 transition-opacity"
+                          >
+                            <img
+                              src="/UpFront-Logo-Blue-500.svg"
+                              alt="Upfront"
+                              className={cn(
+                                "h-3.5 w-auto object-contain",
+                                config.theme === "dark" && "brightness-0 invert"
+                              )}
+                            />
+                          </a>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -2631,12 +2756,29 @@ export function BannerStudio() {
                     </div>
 
                     {/* Watermark */}
-                    <div className={cn(
-                      "px-4 py-1.5 border-t text-right text-[10px] shrink-0",
-                      config.theme === "dark" ? "bg-slate-950 border-slate-800 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500"
-                    )}>
-                      Powered by <strong className={config.theme === "dark" ? "text-white" : "text-slate-900"}>Upfront</strong>
-                    </div>
+                    {config.show_branding !== false && !config.hide_branding && (
+                      <div className={cn(
+                        "px-4 py-2 border-t flex items-center justify-end gap-1.5 text-[10px] shrink-0",
+                        config.theme === "dark" ? "bg-slate-950 border-slate-800 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500"
+                      )}>
+                        <span>Powered by</span>
+                        <a
+                          href="https://upfront.io"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center hover:opacity-80 transition-opacity"
+                        >
+                          <img
+                            src="/UpFront-Logo-Blue-500.svg"
+                            alt="Upfront"
+                            className={cn(
+                              "h-3.5 w-auto object-contain",
+                              config.theme === "dark" && "brightness-0 invert"
+                            )}
+                          />
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

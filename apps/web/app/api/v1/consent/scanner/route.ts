@@ -8,10 +8,12 @@ export async function GET(req: Request) {
   try {
     await ensureTables()
 
-    // Non-blocking self-trigger check for any due scheduled scans
-    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err) => {
+    // Check and process any due scheduled scans before responding
+    try {
+      await ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true })
+    } catch (err) {
       console.warn("[Auto-Trigger] Overdue scan check warning:", err)
-    })
+    }
     const { searchParams } = new URL(req.url)
     const domain = sanitizeDomain(searchParams.get("domain"))
     const scanId = searchParams.get("scan_id")
@@ -36,6 +38,11 @@ export async function GET(req: Request) {
       [domain]
     )
 
+    const latestSuccessfulScanRes = await pool.query(
+      `SELECT * FROM scans WHERE domain = $1 AND status = 'completed' ORDER BY created_at DESC LIMIT 1`,
+      [domain]
+    )
+
     const allScansRes = await pool.query(
       `SELECT * FROM scans WHERE domain = $1 ORDER BY created_at DESC LIMIT 20`,
       [domain]
@@ -47,6 +54,7 @@ export async function GET(req: Request) {
     )
 
     const latestScan = latestScanRes.rows[0] || null
+    const latestSuccessfulScan = latestSuccessfulScanRes.rows[0] || null
     let findingsList: any[] = []
     if (latestScan && latestScan.findings) {
       try {
@@ -59,6 +67,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       latest_scan: latestScan,
+      latest_successful_scan: latestSuccessfulScan,
       scan_history: allScansRes.rows || [],
       cookies: cookiesRes.rows || [],
       pre_consent_leaks: leaks,
@@ -100,6 +109,11 @@ export async function POST(req: Request) {
       [domain]
     )
 
+    const latestSuccessfulScanRes = await pool.query(
+      `SELECT * FROM scans WHERE domain = $1 AND status = 'completed' ORDER BY created_at DESC LIMIT 1`,
+      [domain]
+    )
+
     const leaks = (completedJob.findings || []).filter((f: any) => f.type === "leak")
 
     return NextResponse.json({
@@ -107,6 +121,7 @@ export async function POST(req: Request) {
       scan_id: completedJob.id,
       status: completedJob.status,
       latest_scan: completedJob,
+      latest_successful_scan: latestSuccessfulScanRes.rows[0] || (completedJob.status === "completed" ? completedJob : null),
       cookies: updatedCookies.rows || [],
       pre_consent_leaks: leaks,
       error_message: completedJob.error_message || null,

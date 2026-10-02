@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 
 Write-Host '=== UpFront CMP Consent Gate Static & Invariant Verification ===' -ForegroundColor Cyan
 
-$routeContent = Get-Content -Raw 'apps/web/app/userly.js/route.ts'
+$routeContent = Get-Content -Raw 'apps/web/app/script.js/route.ts'
 $apiContent = Get-Content -Raw 'apps/api/tracker/userly.js'
 
 # Check 1: isAnalyticsPermitted gate definition in apps/web

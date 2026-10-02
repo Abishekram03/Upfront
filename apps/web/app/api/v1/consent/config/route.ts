@@ -112,8 +112,15 @@ export async function GET(req: Request) {
       isInGeoZone = true
     }
 
+    const cookiesRes = await pool.query(
+      `SELECT name, category, service_name, duration, description, script_pattern_regex FROM discovered_cookies WHERE domain = $1 ORDER BY category ASC, name ASC`,
+      [domain]
+    ).catch(() => ({ rows: [] }))
+    const siteCookies = cookiesRes.rows || []
+
     return NextResponse.json({
       ...config,
+      cookies: siteCookies,
       visitor_country: detectedCountry,
       visitor_region: region || null,
       is_in_geo_zone: isInGeoZone,

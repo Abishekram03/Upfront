@@ -201,6 +201,8 @@ export interface ConsentConfig {
   geo_targeting: "all" | "eu_only" | "eu_uk_only" | "custom" | string
   target_countries?: string[]
   enable_gpc?: boolean
+  show_branding?: boolean
+  hide_branding?: boolean
   consent_version?: string
   created_at?: string
   updated_at?: string

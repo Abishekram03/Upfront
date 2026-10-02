@@ -43,8 +43,8 @@ Write-Host "`n[2/4] Auditing POST /api/v1/consent/config Column & Expression Cou
 Test-Assertion "POST query includes all 5 category flags in column list" (
     $configRouteContent -match 'enable_necessary_category,\s*enable_functional_category,\s*enable_analytics_category,\s*enable_performance_category,\s*enable_advertisement_category'
 )
-Test-Assertion "POST query has exact 40 target columns and 40 values" (
-    $configRouteContent -match '\$35,\s*\$36,\s*\$37,\s*\$38,\s*NOW\(\),\s*NOW\(\)'
+Test-Assertion "POST query has exact 41 target columns and 41 values" (
+    $configRouteContent -match '\$35,\s*\$36,\s*\$37,\s*\$38,\s*\$39,\s*NOW\(\),\s*NOW\(\)'
 )
 
 # [3/4] Auditing Database Schema Migrations in db.ts

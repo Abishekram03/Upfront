@@ -51,9 +51,9 @@ foreach ($k in $requiredKeys) {
 Assert-Condition "Implements resolveCMPText helper function" ($transContent -match "function resolveCMPText")
 Assert-Condition "Implements detectVisitorLanguage helper function" ($transContent -match "function detectVisitorLanguage")
 
-# [2/7] Auditing userly.js Runtime Script
+# [2/7] Auditing script.js / userly.js Runtime Script
 Write-Host "`n[2/7] Auditing userly.js Runtime Script..." -ForegroundColor Yellow
-$userlyFile = "$PSScriptRoot/../../app/userly.js/route.ts"
+$userlyFile = "$PSScriptRoot/../../app/script.js/route.ts"
 $userlyContent = Get-Content $userlyFile -Raw
 
 Assert-Condition "userly.js bundles TRANSLATIONS dictionary" ($userlyContent -match "var TRANSLATIONS = \{")

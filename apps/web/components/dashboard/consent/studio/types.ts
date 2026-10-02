@@ -15,6 +15,8 @@ export interface StudioConfig extends ConsentConfig {
   show_cookie_list_on_banner?: boolean
   blocked_content_alt_text?: string
   custom_css?: string
+  show_branding?: boolean
+  hide_branding?: boolean
 
   // Preference Centre Customizations
   preference_title?: string

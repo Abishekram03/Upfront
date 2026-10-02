@@ -21,9 +21,9 @@ Write-Host "`n================================================================="
 Write-Host " UpFront CMP IAB TCF v2.3 Integration Layer Verification"
 Write-Host "=================================================================`n"
 
-# [1/6] Auditing userly.js Runtime TCF Signaling Engine
+# [1/6] Auditing userly.js / script.js Runtime TCF Signaling Engine
 Write-Host "[1/6] Auditing userly.js for IAB TCF v2.3 Engine..." -ForegroundColor Yellow
-$userlyFile = "$PSScriptRoot/../../app/userly.js/route.ts"
+$userlyFile = "$PSScriptRoot/../../app/script.js/route.ts"
 $userlyContent = Get-Content $userlyFile -Raw
 
 Assert-Condition "userly.js/route.ts exists and is non-empty" ($userlyContent.Length -gt 10000)

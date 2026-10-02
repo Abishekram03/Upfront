@@ -38,6 +38,7 @@ export type EntitlementKey =
   | "cmp.tcf_v23"
   | "cmp.custom_css"
   | "cmp.version_history"
+  | "cmp.whitelabel"
   | "scan.pages_per_scan"
   | "consent.history_days"
 
@@ -125,6 +126,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       "cmp.tcf_v23": false,
       "cmp.custom_css": false,
       "cmp.version_history": false,
+      "cmp.whitelabel": false,
       "scan.pages_per_scan": 100,
       "consent.history_days": 30,
     },
@@ -165,6 +167,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
         "Full Multi-language (Auto-detect & 8+ languages)",
         "Monthly Scheduled Scans",
         "Version History & Rollback",
+        "Remove Upfront Branding",
       ],
       unavailable: [
         "IAB TCF v2.3 Framework",
@@ -193,6 +196,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       "cmp.tcf_v23": false,
       "cmp.custom_css": false,
       "cmp.version_history": true,
+      "cmp.whitelabel": true,
       "scan.pages_per_scan": 1_000,
       "consent.history_days": 365,
     },
@@ -224,6 +228,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
         "24-month Consent Audit Vault",
         "IAB Transparency and Consent Framework (TCF v2.3)",
         "Custom CSS Editor & Style Overrides",
+        "White-labeling & Branding Controls",
       ],
       unavailable: [],
     },
@@ -249,6 +254,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       "cmp.tcf_v23": true,
       "cmp.custom_css": true,
       "cmp.version_history": true,
+      "cmp.whitelabel": true,
       "scan.pages_per_scan": 5_000,
       "consent.history_days": 730,
     },
@@ -280,7 +286,8 @@ export function getRequiredPlanForCapability(key: EntitlementKey): PlanId {
     key === "cmp.google_consent_mode_v2" ||
     key === "cmp.multilingual" ||
     key === "cmp.scheduled_scans" ||
-    key === "cmp.version_history"
+    key === "cmp.version_history" ||
+    key === "cmp.whitelabel"
   ) {
     return "growth"
   }

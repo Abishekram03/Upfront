@@ -64,6 +64,7 @@ interface ScanRecord {
   trigger_source?: "manual" | "scheduled"
   schedule_id?: string
   created_at: string
+  completed_at?: string
   findings?: any
   error_message?: string
 }
@@ -242,6 +243,7 @@ export function CookieManager() {
   // Data states
   const [cookies, setCookies] = useState<CookieRecord[]>([])
   const [latestScan, setLatestScan] = useState<ScanRecord | null>(null)
+  const [latestSuccessfulScan, setLatestSuccessfulScan] = useState<ScanRecord | null>(null)
   const [scanHistory, setScanHistory] = useState<ScanRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -332,6 +334,10 @@ export function CookieManager() {
       if (scanRes.ok) {
         const scanData = await scanRes.json()
         setLatestScan(scanData.latest_scan || null)
+        setLatestSuccessfulScan(
+          scanData.latest_successful_scan ||
+          (scanData.latest_scan?.status === "completed" ? scanData.latest_scan : null)
+        )
         setScanHistory(scanData.scan_history || [])
       }
 
@@ -440,7 +446,13 @@ export function CookieManager() {
 
       if (res.ok) {
         const data = await res.json()
-        setLatestScan(data.latest_scan || data.scan || null)
+        const currentLatest = data.latest_scan || data.scan || null
+        setLatestScan(currentLatest)
+        if (data.latest_successful_scan) {
+          setLatestSuccessfulScan(data.latest_successful_scan)
+        } else if (currentLatest?.status === "completed") {
+          setLatestSuccessfulScan(currentLatest)
+        }
         if (data.cookies) {
           setCookies(data.cookies)
         }
@@ -697,44 +709,116 @@ export function CookieManager() {
       {/* 2. Top Two Status Cards (Last successful scan & Next scan) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Card 1: Last Successful Scan */}
-        <div className="bg-white rounded-[6px] border border-slate-200 p-5 shadow-2xs flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2">
-              <div className="size-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                <CheckCircle2 className="size-3.5" />
-              </div>
-              <span className="text-xs font-bold text-slate-900">Last successful scan</span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleTriggerScan}
-              disabled={isScanning}
-              className="text-xs font-semibold text-[#1868db] border-[#1868db]/30 hover:bg-blue-50/60 h-8 px-3.5 rounded-[4px] cursor-pointer"
-            >
-              {isScanning ? (
-                <>
-                  <RefreshCw className="size-3 mr-1.5 animate-spin" />
-                  Scanning...
-                </>
-              ) : (
-                "Scan now"
-              )}
-            </Button>
-          </div>
+        {(() => {
+          const successfulScanTime =
+            latestSuccessfulScan?.completed_at ||
+            latestSuccessfulScan?.created_at ||
+            (schedule?.last_run_status === "completed" ? schedule.last_run_at : null)
 
-          <div className="mt-3">
-            <p className="text-xs text-slate-500 font-medium">
-              {latestScan?.created_at ? formatDate(latestScan.created_at) : "No scan recorded yet"}
-            </p>
-            {isScanning && (
-              <p className="text-[11px] text-[#1868db] font-semibold mt-1 animate-pulse">
-                {scanProgress || "Crawler in progress..."}
-              </p>
-            )}
-          </div>
-        </div>
+          const successfulScanTrigger =
+            latestSuccessfulScan?.trigger_source ||
+            (latestSuccessfulScan?.schedule_id
+              ? "scheduled"
+              : schedule?.last_run_status === "completed" && !latestSuccessfulScan
+              ? "scheduled"
+              : "manual")
+
+          const successfulCookiesCount =
+            latestSuccessfulScan?.cookies_found ?? (cookies.length > 0 ? cookies.length : undefined)
+
+          return (
+            <div className="bg-white rounded-[6px] border border-slate-200 p-5 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="size-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <CheckCircle2 className="size-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-900">Last successful scan</span>
+                  {successfulScanTime && (
+                    <span
+                      className={cn(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded border inline-flex items-center gap-1",
+                        successfulScanTrigger === "scheduled"
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : "bg-slate-100 text-slate-700 border-slate-200"
+                      )}
+                    >
+                      {successfulScanTrigger === "scheduled" ? (
+                        <>
+                          <Calendar className="size-2.5" />
+                          Scheduled
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="size-2.5" />
+                          Manual
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTriggerScan}
+                  disabled={isScanning}
+                  className="text-xs font-semibold text-[#1868db] border-[#1868db]/30 hover:bg-blue-50/60 h-8 px-3.5 rounded-[4px] cursor-pointer"
+                >
+                  {isScanning ? (
+                    <>
+                      <RefreshCw className="size-3 mr-1.5 animate-spin" />
+                      Scanning...
+                    </>
+                  ) : (
+                    "Scan now"
+                  )}
+                </Button>
+              </div>
+
+              <div className="mt-3">
+                {successfulScanTime ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-700 font-semibold">
+                      {formatDate(successfulScanTime)}
+                    </p>
+                    <p className="text-[11px] text-slate-500 flex items-center gap-2">
+                      <span>
+                        {successfulCookiesCount !== undefined
+                          ? `${successfulCookiesCount} ${successfulCookiesCount === 1 ? "cookie" : "cookies"} discovered`
+                          : `${cookies.length} cookies in catalog`}
+                      </span>
+                      {latestSuccessfulScan?.scripts_found !== undefined && latestSuccessfulScan.scripts_found > 0 && (
+                        <>
+                          <span>•</span>
+                          <span>{latestSuccessfulScan.scripts_found} scripts</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 font-medium">
+                    No successful scan recorded yet
+                  </p>
+                )}
+
+                {isScanning && (
+                  <p className="text-[11px] text-[#1868db] font-semibold mt-1 animate-pulse flex items-center gap-1">
+                    <RefreshCw className="size-3 animate-spin" />
+                    {scanProgress || "Crawler in progress..."}
+                  </p>
+                )}
+
+                {!isScanning && latestScan && latestScan.status === "failed" && (
+                  <p className="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
+                    <AlertTriangle className="size-3 shrink-0" />
+                    <span>Latest scan failed ({formatDate(latestScan.created_at)}): {latestScan.error_message || "Scan error"}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Card 2: Next Scan */}
         <div className="bg-white rounded-[6px] border border-slate-200 p-5 shadow-2xs flex flex-col justify-between">

@@ -210,8 +210,16 @@ export function NotificationBell() {
 
     loadRealNotificationData()
 
+    // Auto-poll every 30 seconds so notifications arrive live without manual page refresh
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadRealNotificationData()
+      }
+    }, 30000)
+
     return () => {
       isMounted = false
+      clearInterval(pollInterval)
     }
   }, [domain])
 

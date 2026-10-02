@@ -1625,16 +1625,92 @@ const TRACKER_SCRIPT = `(function () {
         padding: 11px;
         font-size: 13.5px;
       }
+      .usrly-google-policy-notice {
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 11px;
+        margin-bottom: 14px;
+        border: 1px solid \${borderCard};
+        background: \${isDark ? "rgba(30, 41, 59, 0.6)" : "#f8fafc"};
+        color: \${textMuted};
+        line-height: 1.45;
+      }
+      .usrly-cookie-table-wrap {
+        margin-top: 8px;
+        border: 1px solid \${borderCard};
+        border-radius: 4px;
+        background: \${isDark ? "rgba(30, 41, 59, 0.5)" : "#f8fafc"};
+        padding: 8px 10px;
+        font-size: 11px;
+        overflow-x: auto;
+      }
+      .usrly-cookie-table-header {
+        display: grid;
+        grid-template-columns: 35% 25% 40%;
+        font-weight: 700;
+        font-size: 10px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid \${borderCard};
+        color: \${textPrimary};
+        min-width: 280px;
+      }
+      .usrly-cookie-table-row {
+        display: grid;
+        grid-template-columns: 35% 25% 40%;
+        padding: 5px 0 3px 0;
+        align-items: center;
+        min-width: 280px;
+        font-size: 10px;
+        color: \${textMuted};
+      }
+      .usrly-cookie-table-row:not(:last-child) {
+        border-bottom: 1px dashed \${isDark ? "rgba(51, 65, 85, 0.5)" : "#e2e8f0"};
+      }
+      .usrly-cookie-name {
+        font-weight: 700;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: \${textPrimary};
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding-right: 6px;
+      }
+      .usrly-cookie-duration {
+        color: \${textMuted};
+        padding-right: 6px;
+      }
+      .usrly-cookie-desc {
+        color: \${textMuted};
+        font-size: 9.5px;
+        line-height: 1.35;
+      }
+      .usrly-no-cookies-box {
+        margin-top: 8px;
+        border: 1px dashed \${borderCard};
+        border-radius: 4px;
+        padding: 8px 12px;
+        text-align: center;
+        font-size: 10.5px;
+        font-style: italic;
+        color: \${textMuted};
+        background: \${isDark ? "rgba(30, 41, 59, 0.3)" : "rgba(248, 250, 252, 0.7)"};
+      }
       .usrly-powered-bar {
         background: \${isDark ? "#0b1120" : "#f8fafc"};
         padding: 8px 24px;
         border-top: 1px solid \${borderCard};
-        text-align: right;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
         font-size: 11px;
         color: \${textMuted};
       }
-      .usrly-powered-bar strong {
-        color: \${textPrimary};
+      .usrly-powered-bar img {
+        height: 14px;
+        width: auto;
+        display: inline-block;
+        vertical-align: middle;
       }
     \`;
     shadow.appendChild(style);
@@ -1715,6 +1791,72 @@ const TRACKER_SCRIPT = `(function () {
       var existingBanner = shadow.querySelector(".usrly-banner-wrapper");
       if (existingBanner) existingBanner.style.display = "none";
 
+      function renderCategoryCookieTable(catName) {
+        if (config.show_cookie_list_on_banner === false) return "";
+
+        var allCookies = (config && config.cookies && config.cookies.length > 0)
+          ? config.cookies
+          : (cachedPolicyCookies && cachedPolicyCookies.length > 0 ? cachedPolicyCookies : null);
+
+        var catCookies = [];
+        if (allCookies && allCookies.length > 0) {
+          catCookies = allCookies.filter(function(c) {
+            return (c.category || "").toLowerCase() === catName.toLowerCase();
+          });
+        } else {
+          // Default standard cookies matching banner studio
+          if (catName === "necessary") {
+            catCookies = [
+              { name: "usrly_consent", duration: "1 year", description: "Consent preferences state" },
+              { name: "cf_clearance", duration: "30 days", description: "Cloudflare bot clearance" }
+            ];
+          } else if (catName === "functional") {
+            catCookies = [
+              { name: "i18n_lang", duration: "Session", description: "User language choice" }
+            ];
+          } else if (catName === "analytics") {
+            catCookies = [
+              { name: "_ga", duration: "2 years", description: "Google Analytics visitor ID" },
+              { name: "_gid", duration: "24 hours", description: "Google Analytics session ID" }
+            ];
+          } else if (catName === "performance") {
+            catCookies = [];
+          } else if (catName === "advertisement") {
+            catCookies = [
+              { name: "_fbp", duration: "3 months", description: "Meta advertising pixel tracking" }
+            ];
+          }
+        }
+
+        if (!catCookies || catCookies.length === 0) {
+          return '<div class="usrly-no-cookies-box">' +
+            resolveText("no_cookies_to_display_label", config) +
+            '</div>';
+        }
+
+        var colCookie = resolveText("cookie_column_label", config) || "Cookie";
+        var colDuration = resolveText("duration_column_label", config) || "Duration";
+        var colDesc = resolveText("description_column_label", config) || "Description";
+
+        var html = '<div class="usrly-cookie-table-wrap">';
+        html += '<div class="usrly-cookie-table-header">';
+        html += '<span>' + colCookie + '</span>';
+        html += '<span>' + colDuration + '</span>';
+        html += '<span>' + colDesc + '</span>';
+        html += '</div>';
+
+        for (var i = 0; i < catCookies.length; i++) {
+          var ck = catCookies[i];
+          html += '<div class="usrly-cookie-table-row">';
+          html += '<span class="usrly-cookie-name">' + (ck.name || "") + '</span>';
+          html += '<span class="usrly-cookie-duration">' + (ck.duration || "Session") + '</span>';
+          html += '<span class="usrly-cookie-desc">' + (ck.description || "-") + '</span>';
+          html += '</div>';
+        }
+        html += '</div>';
+        return html;
+      }
+
       var overlay = document.createElement("div");
       overlay.className = "usrly-modal-overlay upfront-modal-overlay";
 
@@ -1729,6 +1871,15 @@ const TRACKER_SCRIPT = `(function () {
               \${resolveText("preferences_description", config)}
             </p>
 
+            \${config.show_google_privacy_policy ? \`
+            <div class="usrly-google-policy-notice">
+              \${config.google_policy_message || "For more information on how Google's third-party cookies operate, see"}{" "}
+              <a href="\${config.google_policy_url || "https://business.safety.google/privacy"}" target="_blank" rel="noreferrer" style="color:\${primaryColor};font-weight:700;text-decoration:underline;">
+                \${config.google_policy_link_text || "Google Privacy Policy"}
+              </a>.
+            </div>
+            \` : ""}
+
             <div class="usrly-category-item">
               <div class="usrly-cat-header" data-target="desc-nec">
                 <div class="usrly-cat-left">
@@ -1738,7 +1889,8 @@ const TRACKER_SCRIPT = `(function () {
                 <span class="usrly-cat-always-active">\${resolveText("always_active_label", config)}</span>
               </div>
               <div class="usrly-cat-desc visible" id="desc-nec">
-                \${resolveText("necessary_description", config)}
+                <p style="margin-bottom:6px;">\${resolveText("necessary_description", config)}</p>
+                \${renderCategoryCookieTable("necessary")}
               </div>
             </div>
 
@@ -1755,7 +1907,8 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-func">
-                \${resolveText("functional_description", config)}
+                <p style="margin-bottom:6px;">\${resolveText("functional_description", config)}</p>
+                \${renderCategoryCookieTable("functional")}
               </div>
             </div>
             \` : ""}
@@ -1773,7 +1926,8 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-ana">
-                \${resolveText("analytics_description", config)}
+                <p style="margin-bottom:6px;">\${resolveText("analytics_description", config)}</p>
+                \${renderCategoryCookieTable("analytics")}
               </div>
             </div>
             \` : ""}
@@ -1791,7 +1945,8 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-perf">
-                \${resolveText("performance_description", config)}
+                <p style="margin-bottom:6px;">\${resolveText("performance_description", config)}</p>
+                \${renderCategoryCookieTable("performance")}
               </div>
             </div>
             \` : ""}
@@ -1809,7 +1964,8 @@ const TRACKER_SCRIPT = `(function () {
                 </label>
               </div>
               <div class="usrly-cat-desc visible" id="desc-ad">
-                \${resolveText("advertisement_description", config)}
+                <p style="margin-bottom:6px;">\${resolveText("advertisement_description", config)}</p>
+                \${renderCategoryCookieTable("advertisement")}
               </div>
             </div>
             \` : ""}
@@ -1821,9 +1977,14 @@ const TRACKER_SCRIPT = `(function () {
             <button class="usrly-btn usrly-btn-primary" id="usrly-modal-accept">\${resolveText("pref_accept_all_label", config)}</button>
           </div>
 
+          \${config.show_branding !== false && !config.hide_branding ? \`
           <div class="usrly-powered-bar">
-            Powered by <strong>Upfront CMP</strong>
+            <span>Powered by</span>
+            <a href="https://upfront.io" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;">
+              <img src="\${apiHost}/UpFront-Logo-Blue-500.svg" alt="Upfront" />
+            </a>
           </div>
+          \` : ""}
         </div>
       \`;
 
