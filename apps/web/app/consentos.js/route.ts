@@ -1103,15 +1103,27 @@ export async function GET(req: Request) {
             var html = data.contentHtml || data.content_html || "";
             if (!html && (data.contentMarkdown || data.content_markdown)) {
               var rawMd = data.contentMarkdown || data.content_markdown;
-              html = "<div style='font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#475569;max-width:820px;margin:0 auto;padding:24px 16px;'>" +
-                rawMd.replace(/### (.*?)\n/g, "<h3 style='font-size:13px;font-weight:600;color:#1e293b;margin:16px 0 6px;'>$1</h3>")
-                     .replace(/## (.*?)\n/g, "<h2 style='font-size:16px;font-weight:700;color:#0f172a;margin:24px 0 8px;'>$1</h2>")
-                     .replace(/# (.*?)\n/g, "<h1 style='font-size:24px;font-weight:700;color:#0f172a;margin-bottom:12px;'>$1</h1>")
-                     .replace(/---/g, "<hr style='border:0;border-top:1px solid #e2e8f0;margin:24px 0;'/>")
-                     .replace(/\*\*(.*?)\*\*/g, "<strong style='font-weight:600;color:#0f172a;'>$1</strong>")
-                     .replace(/\*(.*?)\*/g, "<em>$1</em>")
-                     .replace(/\n\n/g, "<br/><br/>") +
-                "</div>";
+              var lines = rawMd.split("\n");
+              var out = [];
+              for (var j = 0; j < lines.length; j++) {
+                var line = lines[j].trim();
+                if (!line) {
+                  out.push("<div style='height:12px;'></div>");
+                } else if (line.indexOf("### ") === 0) {
+                  out.push("<h3 style='font-size:14px;font-weight:600;color:#1e293b;margin:20px 0 6px;'>" + line.substring(4) + "</h3>");
+                } else if (line.indexOf("## ") === 0) {
+                  out.push("<h2 style='font-size:16px;font-weight:700;color:#0f172a;margin:28px 0 8px;'>" + line.substring(3) + "</h2>");
+                } else if (line.indexOf("# ") === 0) {
+                  out.push("<h1 style='font-size:24px;font-weight:700;color:#0f172a;margin-bottom:12px;'>" + line.substring(2) + "</h1>");
+                } else if (line === "---") {
+                  out.push("<hr style='border:0;border-top:1px solid #e2e8f0;margin:24px 0;'/>");
+                } else {
+                  var formatted = line.replace(/\*\*(.*?)\*\*/g, "<strong style='font-weight:600;color:#0f172a;'>$1</strong>")
+                                      .replace(/\*(.*?)\*/g, "<em>$1</em>");
+                  out.push("<p style='margin:0 0 12px;color:#475569;font-size:14px;line-height:1.65;font-weight:400;'>" + formatted + "</p>");
+                }
+              }
+              html = "<div style='font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#475569;max-width:820px;margin:0 auto;padding:24px 16px;'>" + out.join("") + "</div>";
             }
             if (html) {
               container.innerHTML = html;
