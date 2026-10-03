@@ -32,10 +32,15 @@ import {
   FileText,
   Save,
 } from "lucide-react"
+import {
+  generatePrivacyPolicyMarkdown,
+  generatePrivacyPolicyHtml,
+  generateTermsOfServiceMarkdown,
+  generateTermsOfServiceHtml,
+} from "./policy-generator-template"
+import { useCMPCookiePolicy, CMPCookieItem } from "./use-cmp-cookie-policy"
 import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/sonner"
-import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
-import { generatePrivacyPolicyMarkdown, generatePrivacyPolicyHtml } from "./policy-generator-template"
 
 interface StagedPolicyEditorProps {
   policy: PolicyDefinition
@@ -58,9 +63,10 @@ export function StagedPolicyEditor({
   const isCookies = policy.id === "cookies"
   const isTerms = !isPrivacy && !isCookies
 
-  const totalSteps = isCookies ? 6 : 8
+  const totalSteps = isPrivacy ? 8 : isCookies ? 6 : 7
   const [activeStep, setActiveStep] = useState<number>(1)
-  const [step8SubStep, setStep8SubStep] = useState<number>(1) // 1: Coverage 83%, 2: Company 90%, 3: Address 93%, 4: Title 96%, 5: Date 100%
+  const [step8SubStep, setStep8SubStep] = useState<number>(1) // Privacy Step 8 sub-steps
+  const [termsStep7SubStep, setTermsStep7SubStep] = useState<number>(1) // Terms Step 7 sub-steps (1: Governing Law, 2: Contact, 3: Address, 4: Updates, 5: Title, 6: Version Date)
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [copiedType, setCopiedType] = useState<string | null>(null)
@@ -338,7 +344,7 @@ export function StagedPolicyEditor({
       md += `## ${useHeading}\n${useDescription}\n\n`
       md += `## ${typesHeading}\n**Live Cookie Table**  \n*${displayCookies.length} active cookies*\n\n`
       md += `| Cookie Name | Category | Provider | Duration |\n| :--- | :--- | :--- | :--- |\n`
-      displayCookies.forEach((c) => {
+      displayCookies.forEach((c: CMPCookieItem) => {
         md += `| \`${c.name}\` | ${c.category} | ${c.service_name || domain || "First Party"} | ${c.duration || "Session"} |\n`
       })
       md += `\n## ${prefHeading}\n[Consent Preferences](javascript:void(0))\n\n${prefDescription}\n`
