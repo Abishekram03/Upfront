@@ -10,9 +10,28 @@ function sanitizeDomain(input?: string | null): string {
 
 function mapPolicyRow(row: any) {
   const config = typeof row.config === "string" ? JSON.parse(row.config) : row.config || {}
-  const contentHtml = row.content_html || (row.policy_id === "privacy" ? generatePrivacyPolicyHtml(config, row.domain) : "")
-  const contentMarkdown = row.content_markdown || (row.policy_id === "privacy" ? generatePrivacyPolicyMarkdown(config, row.domain) : "")
-  
+  const cleanId = (row.policy_id || "").replace(/-(policy|declaration)$/i, "").toLowerCase()
+
+  let contentHtml = row.content_html || ""
+  let contentMarkdown = row.content_markdown || ""
+
+  // Always use modern, clean legal generator for privacy policy to avoid legacy bold / Termly footers
+  if (cleanId === "privacy" || !contentHtml || contentHtml.includes("Termly") || contentMarkdown.includes("Termly")) {
+    contentHtml = generatePrivacyPolicyHtml(config, row.domain)
+    contentMarkdown = generatePrivacyPolicyMarkdown(config, row.domain)
+  }
+
+  // Strip any stray third-party attribution footers
+  contentHtml = contentHtml
+    .replace(/<p[^>]*><em>\s*This Privacy Policy was created using.*?\s*<\/em><\/p>/gi, "")
+    .replace(/This Privacy Policy was created using.*?(<\/p>|\n|$)/gi, "")
+    .trim()
+
+  contentMarkdown = contentMarkdown
+    .replace(/\*This Privacy Policy was created using.*?\*/gi, "")
+    .replace(/This Privacy Policy was created using.*(\n|$)/gi, "")
+    .trim()
+
   return {
     id: row.id,
     domain: row.domain,
