@@ -1103,7 +1103,7 @@ export async function GET(req: Request) {
             var html = data.contentHtml || data.content_html || "";
             if (!html && (data.contentMarkdown || data.content_markdown)) {
               var rawMd = data.contentMarkdown || data.content_markdown;
-              html = "<div style='font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif;line-height:1.65;color:#475569;max-width:820px;margin:0 auto;padding:24px 16px;'>" +
+              html = "<div style='font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#475569;max-width:820px;margin:0 auto;padding:24px 16px;'>" +
                 rawMd.replace(/### (.*?)\n/g, "<h3 style='font-size:13px;font-weight:600;color:#1e293b;margin:16px 0 6px;'>$1</h3>")
                      .replace(/## (.*?)\n/g, "<h2 style='font-size:16px;font-weight:700;color:#0f172a;margin:24px 0 8px;'>$1</h2>")
                      .replace(/# (.*?)\n/g, "<h1 style='font-size:24px;font-weight:700;color:#0f172a;margin-bottom:12px;'>$1</h1>")
