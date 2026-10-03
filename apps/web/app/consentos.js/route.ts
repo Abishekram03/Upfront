@@ -1063,6 +1063,7 @@ export async function GET(req: Request) {
 
     for (var i = 0; i < policyContainers.length; i++) {
       (function (container) {
+        if (container.getAttribute("data-usrly-loaded") === "true") return;
         var id = container.id || "";
         var explicitPolicy = container.getAttribute("data-usrly-policy") || container.getAttribute("data-policy-id") || container.getAttribute("data-policy");
         var containerDomain = container.getAttribute("data-domain") || domain;
@@ -1091,6 +1092,7 @@ export async function GET(req: Request) {
         }
 
         if (!policyId) return;
+        container.setAttribute("data-usrly-loaded", "pending");
 
         var endpoint = apiHost + "/api/v1/policies/" + encodeURIComponent(policyId) + "?domain=" + encodeURIComponent(containerDomain);
 
@@ -1134,18 +1136,52 @@ export async function GET(req: Request) {
             }
             if (html) {
               container.innerHTML = html;
+              container.setAttribute("data-usrly-loaded", "true");
             }
           })
           .catch(function (err) {
+            container.removeAttribute("data-usrly-loaded");
             console.warn("[ConsentOS CMP] Failed to load policy embed for " + policyId + ":", err);
           });
       })(policyContainers[i]);
     }
   }
 
+  function observePolicyContainers() {
+    if (typeof MutationObserver !== "undefined") {
+      var observer = new MutationObserver(function () {
+        initPolicyEmbeds();
+      });
+      if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+      } else if (document.documentElement) {
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      }
+    }
+
+    var origPush = history.pushState;
+    if (origPush) {
+      history.pushState = function () {
+        origPush.apply(this, arguments);
+        setTimeout(initPolicyEmbeds, 50);
+      };
+    }
+    var origReplace = history.replaceState;
+    if (origReplace) {
+      history.replaceState = function () {
+        origReplace.apply(this, arguments);
+        setTimeout(initPolicyEmbeds, 50);
+      };
+    }
+    window.addEventListener("popstate", function () {
+      setTimeout(initPolicyEmbeds, 50);
+    });
+  }
+
   function onReady() {
     initCMP();
     initPolicyEmbeds();
+    observePolicyContainers();
   }
 
   if (document.readyState === "loading") {
@@ -1153,7 +1189,10 @@ export async function GET(req: Request) {
   } else {
     onReady();
   }
-  window.addEventListener("load", initPolicyEmbeds);
+  window.addEventListener("load", function () {
+    initPolicyEmbeds();
+    observePolicyContainers();
+  });
 })();
 `
 
