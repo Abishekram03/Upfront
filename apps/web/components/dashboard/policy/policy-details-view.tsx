@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/sonner"
 import { PolicyDefinition, DomainPolicyRecord } from "./policy-types"
 import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
-import { generatePrivacyPolicyMarkdown } from "./policy-generator-template"
+import { generatePrivacyPolicyMarkdown, generateTermsOfServiceMarkdown } from "./policy-generator-template"
 
 function renderGenericMarkdown(md: string) {
   const normalized = md
@@ -345,42 +345,10 @@ export function PolicyDetailsView({
           </div>
         )}
 
-        {/* TERMS OF SERVICE PREVIEW */}
+        {/* TERMS OF SERVICE PREVIEW (Full 21 Sections) */}
         {isTermsPolicy && (
-          <div className="space-y-6 text-xs leading-relaxed text-slate-700">
-            <div className="border-b border-slate-100 pb-3">
-              <h1 className="text-xl font-medium text-slate-900 tracking-tight">{policyTitle}</h1>
-              <p className="text-xs text-slate-400 italic mt-1">Last updated: {lastUpdated}</p>
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-sm font-bold text-slate-900">1. Agreement to Terms</h2>
-              <p className="text-slate-600">
-                By accessing or using {domain}, you agree to comply with and be bound by these Terms of Service. If you disagree, do not use the service.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-sm font-bold text-slate-900">2. User Accounts & Responsibilities</h2>
-              <p className="text-slate-600">
-                Users are responsible for maintaining account confidentiality and all activities conducted under their credentials.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-sm font-bold text-slate-900">3. Prohibited Activities</h2>
-              <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1">
-                <li>Attempting to decompile, reverse engineer, or exploit the platform.</li>
-                <li>Using unauthorized automated scrapers, bots, or crawlers.</li>
-                <li>Transmitting malicious code or violating applicable regulations.</li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="text-sm font-bold text-slate-900">4. Disclaimers & Limitation of Liability</h2>
-              <p className="text-slate-600">
-                The service is provided on an 'AS IS' basis without express or implied warranties. Our liability is limited to the fullest extent permitted by law.
-              </p>
-            </div>
+          <div className="space-y-4 text-xs leading-relaxed text-slate-700">
+            {renderGenericMarkdown(generateTermsOfServiceMarkdown(record?.config || {}, domain))}
           </div>
         )}
 

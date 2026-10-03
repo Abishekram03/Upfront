@@ -160,43 +160,65 @@ export function StagedPolicyEditor({
   const [customPolicyTitle, setCustomPolicyTitle] = useState(cfg.customPolicyTitle || "")
 
   // -------------------------------------------------------------
-  // TERMS OF SERVICE QUESTIONNAIRE STATE
+  // TERMS OF SERVICE (LEGAL TERMS) 7-STEP QUESTIONNAIRE STATE
   // -------------------------------------------------------------
-  const [tosPlatforms, setTosPlatforms] = useState<string[]>(
-    cfg.tosPlatforms || ["Website", "Mobile application"]
-  )
-  const [tosUserAge, setTosUserAge] = useState(cfg.tosUserAge || "18")
-  const [accountRequired, setAccountRequired] = useState(cfg.accountRequired !== undefined ? cfg.accountRequired : true)
-  const [allowUgc, setAllowUgc] = useState(cfg.allowUgc !== undefined ? cfg.allowUgc : true)
-  const [ugcModeration, setUgcModeration] = useState(cfg.ugcModeration !== undefined ? cfg.ugcModeration : true)
-  const [prohibitedList, setProhibitedList] = useState<string[]>(
-    cfg.prohibitedList || [
-      "Automated scraping, crawling, or extracting data without authorization",
-      "Reverse engineering, decompiling, or attempting to discover source code",
-      "Transmitting viruses, malware, or attempting denial-of-service attacks",
-      "Impersonating other users or misrepresenting entity affiliations",
-      "Harassing, defaming, or abusing other members or staff",
-      "Commercial reselling or exploiting services without permission",
-    ]
-  )
-  const [customProhibitedInput, setCustomProhibitedInput] = useState("")
-  const [dmcaEmail, setDmcaEmail] = useState(cfg.dmcaEmail || "")
-  const [monetizationType, setMonetizationType] = useState<string>(cfg.monetizationType || "paid_subscriptions")
-  const [billingCycle, setBillingCycle] = useState(cfg.billingCycle || "monthly_annual")
-  const [autoRenewalNotice, setAutoRenewalNotice] = useState(cfg.autoRenewalNotice !== undefined ? cfg.autoRenewalNotice : true)
-  const [refundPolicySummary, setRefundPolicySummary] = useState(
-    cfg.refundPolicySummary || "30-day refund policy upon written request."
-  )
-  const [warrantyDisclaimer, setWarrantyDisclaimer] = useState(cfg.warrantyDisclaimer !== undefined ? cfg.warrantyDisclaimer : true)
-  const [liabilityLimit, setLiabilityLimit] = useState(
-    cfg.liabilityLimit || "Amount paid by user in preceding 12 months"
-  )
-  const [arbitrationClause, setArbitrationClause] = useState(
-    cfg.arbitrationClause !== undefined ? cfg.arbitrationClause : true
-  )
-  const [classActionWaiver, setClassActionWaiver] = useState(
-    cfg.classActionWaiver !== undefined ? cfg.classActionWaiver : true
-  )
+  // Step 1: General (Platform Type - 4%)
+  const [isWebsite, setIsWebsite] = useState<boolean>(cfg.isWebsite !== undefined ? cfg.isWebsite : true)
+  const [isMobileApp, setIsMobileApp] = useState<boolean>(cfg.isMobileApp !== undefined ? cfg.isMobileApp : false)
+  const [platformType, setPlatformType] = useState<"ecommerce" | "saas" | "other">(cfg.platformType || "ecommerce")
+  const [otherPlatformType, setOtherPlatformType] = useState<string>(cfg.otherPlatformType || "")
+
+  // Step 2: Platform Information (Hosting - 16%)
+  const [hostingCountry, setHostingCountry] = useState<string>(cfg.hostingCountry || "United States")
+  const [hostedOtherCountries, setHostedOtherCountries] = useState<boolean>(cfg.hostedOtherCountries !== undefined ? cfg.hostedOtherCountries : false)
+  const [otherHostingCountries, setOtherHostingCountries] = useState<string[]>(cfg.otherHostingCountries || [])
+  const [customHostingInput, setCustomHostingInput] = useState<string>("")
+
+  // Step 3: Purchases and Payments (Subscription - 30%)
+  const [hasSubscription, setHasSubscription] = useState<boolean>(cfg.hasSubscription !== undefined ? cfg.hasSubscription : false)
+  const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState<boolean>(cfg.subscriptionAutoRenew !== undefined ? cfg.subscriptionAutoRenew : true)
+  const [renewalFrequency, setRenewalFrequency] = useState<"monthly" | "annually" | "customer_chooses" | "custom">(cfg.renewalFrequency || "monthly")
+  const [customRenewalFrequency, setCustomRenewalFrequency] = useState<string>(cfg.customRenewalFrequency || "")
+
+  // Step 4: Platform Content (Prohibited Activities - 42%)
+  const [prohibitCommercialAds, setProhibitCommercialAds] = useState<boolean>(cfg.prohibitCommercialAds !== undefined ? cfg.prohibitCommercialAds : false)
+  const [prohibitTransferProfile, setProhibitTransferProfile] = useState<boolean>(cfg.prohibitTransferProfile !== undefined ? cfg.prohibitTransferProfile : false)
+  const [customProhibitedActivities, setCustomProhibitedActivities] = useState<string[]>(cfg.customProhibitedActivities || [])
+  const [customProhibitedInput, setCustomProhibitedInput] = useState<string>("")
+
+  // Step 5: Disputes (Dispute Resolution - 61%)
+  const [disputeResolution, setDisputeResolution] = useState<"litigation" | "arbitration" | "informal_then_arbitration">(cfg.disputeResolution || "informal_then_arbitration")
+  const [disputeCountry, setDisputeCountry] = useState<string>(cfg.disputeCountry || "United States")
+  const [disputeState, setDisputeState] = useState<string>(cfg.disputeState || "")
+  const [mediationDays, setMediationDays] = useState<number>(cfg.mediationDays || 30)
+
+  // Step 6: Other Considerations (Marketing & Promotional Communications - 69%)
+  const [sendSms, setSendSms] = useState<boolean>(cfg.sendSms !== undefined ? cfg.sendSms : false)
+  const [smsProgramName, setSmsProgramName] = useState<string>(cfg.smsProgramName || "")
+  const [smsMessageTypes, setSmsMessageTypes] = useState<string>(cfg.smsMessageTypes || "Transactional updates and promotional alerts")
+  const [smsOptOut, setSmsOptOut] = useState<"stop" | "other">(cfg.smsOptOut || "stop")
+  const [customSmsOptOut, setCustomSmsOptOut] = useState<string>(cfg.customSmsOptOut || "")
+  const [specifySmsFrequency, setSpecifySmsFrequency] = useState<boolean>(cfg.specifySmsFrequency !== undefined ? cfg.specifySmsFrequency : false)
+  const [smsFrequencyDetails, setSmsFrequencyDetails] = useState<string>(cfg.smsFrequencyDetails || "")
+
+  // Step 7: Final Details (Sub-steps 1-6)
+  const [governingCountry, setGoverningCountry] = useState<string>(cfg.governingCountry || "United States")
+  const [governingState, setGoverningState] = useState<string>(cfg.governingState || "")
+  const [contactFax, setContactFax] = useState<string>(cfg.contactFax || "")
+  const [hasRegisteredAddress, setHasRegisteredAddress] = useState<boolean>(cfg.hasRegisteredAddress !== undefined ? cfg.hasRegisteredAddress : false)
+  const [registeredCountry, setRegisteredCountry] = useState<string>(cfg.registeredCountry || "")
+  const [registeredAddressLine1, setRegisteredAddressLine1] = useState<string>(cfg.registeredAddressLine1 || "")
+  const [registeredAddressLine2, setRegisteredAddressLine2] = useState<string>(cfg.registeredAddressLine2 || "")
+  const [registeredCity, setRegisteredCity] = useState<string>(cfg.registeredCity || "")
+  const [registeredZipCode, setRegisteredZipCode] = useState<string>(cfg.registeredZipCode || "")
+  const [notifyUpdates, setNotifyUpdates] = useState<boolean>(cfg.notifyUpdates !== undefined ? cfg.notifyUpdates : false)
+  const [updateNotificationMethod, setUpdateNotificationMethod] = useState<"email" | "before_effective" | "other">(cfg.updateNotificationMethod || "email")
+  const [updateNotificationEmail, setUpdateNotificationEmail] = useState<string>(cfg.updateNotificationEmail || "")
+  const [updateNotificationDaysAdvance, setUpdateNotificationDaysAdvance] = useState<number>(cfg.updateNotificationDaysAdvance || 30)
+  const [updateImmediateTriggers, setUpdateImmediateTriggers] = useState<string[]>(cfg.updateImmediateTriggers || [])
+  const [customUpdateDetails, setCustomUpdateDetails] = useState<string>(cfg.customUpdateDetails || "")
+  const [termsTitleChoice, setTermsTitleChoice] = useState<"Terms of Use" | "Terms of Service" | "Terms and Conditions" | "custom">(cfg.termsTitleChoice || "Terms of Use")
+  const [customTermsTitle, setCustomTermsTitle] = useState<string>(cfg.customTermsTitle || "")
 
   // -------------------------------------------------------------
   // COOKIE POLICY STATE
@@ -250,14 +272,13 @@ export function StagedPolicyEditor({
   ]
 
   const termsSteps = [
-    { step: 1, label: "1. Agreement & Platform Scope" },
-    { step: 2, label: "2. User Accounts & Eligibility" },
-    { step: 3, label: "3. User-Generated Content" },
-    { step: 4, label: "4. Prohibited Activities" },
-    { step: 5, label: "5. Intellectual Property & DMCA" },
-    { step: 6, label: "6. Subscriptions & Billing" },
-    { step: 7, label: "7. Liability & Dispute Resolution" },
-    { step: 8, label: "8. Final Details" },
+    { step: 1, label: "1. General" },
+    { step: 2, label: "2. Platform Information" },
+    { step: 3, label: "3. Purchases and Payments" },
+    { step: 4, label: "4. Platform Content" },
+    { step: 5, label: "5. Disputes" },
+    { step: 6, label: "6. Other Considerations" },
+    { step: 7, label: "7. Final Details" },
   ]
 
   const cookieSteps = [
@@ -273,25 +294,42 @@ export function StagedPolicyEditor({
 
   // Exact Progress Percentages based on screenshots
   const progressPct = useMemo(() => {
-    if (!isPrivacy) {
-      return Math.round((activeStep / totalSteps) * 100)
-    }
-    if (activeStep === 1) return 3
-    if (activeStep === 2) return 12
-    if (activeStep === 3) return 22
-    if (activeStep === 4) return 41
-    if (activeStep === 5) return 45
-    if (activeStep === 6) return 70
-    if (activeStep === 7) return 77
-    if (activeStep === 8) {
-      if (step8SubStep === 1) return 83
-      if (step8SubStep === 2) return 90
-      if (step8SubStep === 3) return 93
-      if (step8SubStep === 4) return 96
+    if (isPrivacy) {
+      if (activeStep === 1) return 3
+      if (activeStep === 2) return 12
+      if (activeStep === 3) return 22
+      if (activeStep === 4) return 41
+      if (activeStep === 5) return 45
+      if (activeStep === 6) return 70
+      if (activeStep === 7) return 77
+      if (activeStep === 8) {
+        if (step8SubStep === 1) return 83
+        if (step8SubStep === 2) return 90
+        if (step8SubStep === 3) return 93
+        if (step8SubStep === 4) return 96
+        return 100
+      }
       return 100
     }
-    return 100
-  }, [isPrivacy, activeStep, step8SubStep, totalSteps])
+    if (isTerms) {
+      if (activeStep === 1) return 4
+      if (activeStep === 2) return 16
+      if (activeStep === 3) return 30
+      if (activeStep === 4) return 42
+      if (activeStep === 5) return 61
+      if (activeStep === 6) return 69
+      if (activeStep === 7) {
+        if (termsStep7SubStep === 1) return 80
+        if (termsStep7SubStep === 2) return 88
+        if (termsStep7SubStep === 3) return 92
+        if (termsStep7SubStep === 4) return 94
+        if (termsStep7SubStep === 5) return 96
+        return 100
+      }
+      return 100
+    }
+    return Math.round((activeStep / totalSteps) * 100)
+  }, [isPrivacy, isTerms, activeStep, step8SubStep, termsStep7SubStep, totalSteps])
 
   // Custom addition handlers
   const handleAddCustomData = () => {
@@ -302,8 +340,32 @@ export function StagedPolicyEditor({
     setCustomDataInput("")
   }
 
+  const handleAddOtherHostingCountry = () => {
+    if (!customHostingInput.trim()) return
+    if (!otherHostingCountries.includes(customHostingInput.trim())) {
+      setOtherHostingCountries([...otherHostingCountries, customHostingInput.trim()])
+    }
+    setCustomHostingInput("")
+  }
+
+  const handleRemoveOtherHostingCountry = (item: string) => {
+    setOtherHostingCountries(otherHostingCountries.filter((c) => c !== item))
+  }
+
+  const handleAddCustomProhibited = () => {
+    if (!customProhibitedInput.trim()) return
+    if (!customProhibitedActivities.includes(customProhibitedInput.trim())) {
+      setCustomProhibitedActivities([...customProhibitedActivities, customProhibitedInput.trim()])
+    }
+    setCustomProhibitedInput("")
+  }
+
+  const handleRemoveCustomProhibited = (item: string) => {
+    setCustomProhibitedActivities(customProhibitedActivities.filter((c) => c !== item))
+  }
+
   // -------------------------------------------------------------
-  // Markdown & HTML Compilers (Exact Standard 13-Section Template)
+  // Markdown & HTML Compilers (Exact Standard Templates)
   // -------------------------------------------------------------
   const generateMarkdown = (): string => {
     if (isPrivacy) {
@@ -337,6 +399,66 @@ export function StagedPolicyEditor({
         },
         domain
       )
+    } else if (isTerms) {
+      return generateTermsOfServiceMarkdown(
+        {
+          companyName,
+          isDba,
+          dbaName,
+          websiteUrl,
+          isWebsite,
+          isMobileApp,
+          platformType,
+          otherPlatformType,
+          hostingCountry,
+          hostedOtherCountries,
+          otherHostingCountries,
+          hasSubscription,
+          subscriptionAutoRenew,
+          renewalFrequency,
+          customRenewalFrequency,
+          prohibitCommercialAds,
+          prohibitTransferProfile,
+          customProhibitedActivities,
+          disputeResolution,
+          disputeCountry,
+          disputeState,
+          mediationDays,
+          sendSms,
+          smsProgramName,
+          smsMessageTypes,
+          smsOptOut,
+          customSmsOptOut,
+          specifySmsFrequency,
+          smsFrequencyDetails,
+          governingCountry,
+          governingState,
+          contactEmail: supportEmail,
+          contactPhone: phone,
+          contactFax,
+          country,
+          addressLine1,
+          addressLine2,
+          city,
+          zipCode,
+          hasRegisteredAddress,
+          registeredCountry,
+          registeredAddressLine1,
+          registeredAddressLine2,
+          registeredCity,
+          registeredZipCode,
+          notifyUpdates,
+          updateNotificationMethod,
+          updateNotificationEmail,
+          updateNotificationDaysAdvance,
+          updateImmediateTriggers,
+          customUpdateDetails,
+          policyTitleChoice: termsTitleChoice,
+          customPolicyTitle: customTermsTitle,
+          effectiveDate,
+        },
+        domain
+      )
     } else if (isCookies) {
       let md = `# Cookie Policy for ${domain}\n`
       md += `*Last updated: ${effectiveDate}*\n\n`
@@ -350,30 +472,7 @@ export function StagedPolicyEditor({
       md += `\n## ${prefHeading}\n[Consent Preferences](javascript:void(0))\n\n${prefDescription}\n`
       return md
     } else {
-      return `# Terms and Conditions for ${domain}
-
-**Effective Date:** ${effectiveDate}  
-**Website:** [${websiteUrl}](${websiteUrl})  
-**Entity:** ${companyName || domain}  
-**Contact:** ${supportEmail || "support@" + domain}
-
----
-
-## 1. Agreement to Terms
-These Terms and Conditions constitute a legally binding agreement between you and **${companyName || domain}**. By accessing or using \`${websiteUrl}\` across **${tosPlatforms.join(", ")}**, you agree that you are at least **${tosUserAge}** years of age.
-
-## 2. User Accounts & Registration
-${accountRequired ? "You are required to register an account to access core platform features." : "Access to our public website does not require account registration."}
-
-## 3. Prohibited Activities
-${prohibitedList.map((p) => `- ${p}`).join("\n")}
-
-## 4. Subscriptions & Billing
-${monetizationType === "paid_subscriptions" ? `Services are billed on a ${billingCycle.replace("_", " & ")} basis.` : "Services are provided on a complimentary or per-purchase basis."} ${refundPolicySummary}
-
-## 5. Limitation of Liability
-Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${supportEmail || "legal@" + domain}**.
-`
+      return ""
     }
   }
 
@@ -406,6 +505,66 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
           extraRegions,
           policyTitleChoice,
           customPolicyTitle,
+        },
+        domain
+      )
+    } else if (isTerms) {
+      return generateTermsOfServiceHtml(
+        {
+          companyName,
+          isDba,
+          dbaName,
+          websiteUrl,
+          isWebsite,
+          isMobileApp,
+          platformType,
+          otherPlatformType,
+          hostingCountry,
+          hostedOtherCountries,
+          otherHostingCountries,
+          hasSubscription,
+          subscriptionAutoRenew,
+          renewalFrequency,
+          customRenewalFrequency,
+          prohibitCommercialAds,
+          prohibitTransferProfile,
+          customProhibitedActivities,
+          disputeResolution,
+          disputeCountry,
+          disputeState,
+          mediationDays,
+          sendSms,
+          smsProgramName,
+          smsMessageTypes,
+          smsOptOut,
+          customSmsOptOut,
+          specifySmsFrequency,
+          smsFrequencyDetails,
+          governingCountry,
+          governingState,
+          contactEmail: supportEmail,
+          contactPhone: phone,
+          contactFax,
+          country,
+          addressLine1,
+          addressLine2,
+          city,
+          zipCode,
+          hasRegisteredAddress,
+          registeredCountry,
+          registeredAddressLine1,
+          registeredAddressLine2,
+          registeredCity,
+          registeredZipCode,
+          notifyUpdates,
+          updateNotificationMethod,
+          updateNotificationEmail,
+          updateNotificationDaysAdvance,
+          updateImmediateTriggers,
+          customUpdateDetails,
+          policyTitleChoice: termsTitleChoice,
+          customPolicyTitle: customTermsTitle,
+          effectiveDate,
         },
         domain
       )
@@ -482,7 +641,49 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
         effectiveDate ||
         new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
       cookiePlatforms,
-      tosPlatforms,
+      // Terms of Service configurations
+      isWebsite,
+      isMobileApp,
+      platformType,
+      otherPlatformType,
+      hostingCountry,
+      hostedOtherCountries,
+      otherHostingCountries,
+      hasSubscription,
+      subscriptionAutoRenew,
+      renewalFrequency,
+      customRenewalFrequency,
+      prohibitCommercialAds,
+      prohibitTransferProfile,
+      customProhibitedActivities,
+      disputeResolution,
+      disputeCountry,
+      disputeState,
+      mediationDays,
+      sendSms,
+      smsProgramName,
+      smsMessageTypes,
+      smsOptOut,
+      customSmsOptOut,
+      specifySmsFrequency,
+      smsFrequencyDetails,
+      governingCountry,
+      governingState,
+      contactFax,
+      hasRegisteredAddress,
+      registeredCountry,
+      registeredAddressLine1,
+      registeredAddressLine2,
+      registeredCity,
+      registeredZipCode,
+      notifyUpdates,
+      updateNotificationMethod,
+      updateNotificationEmail,
+      updateNotificationDaysAdvance,
+      updateImmediateTriggers,
+      customUpdateDetails,
+      termsTitleChoice,
+      customTermsTitle,
     }
   }
 
@@ -589,6 +790,20 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
           handlePublishAction()
         }
       }
+    } else if (isTerms) {
+      if (activeStep < 7) {
+        setActiveStep(activeStep + 1)
+        if (activeStep + 1 === 7) {
+          setTermsStep7SubStep(1)
+        }
+      } else {
+        // Step 7 sub-steps (1 to 6)
+        if (termsStep7SubStep < 6) {
+          setTermsStep7SubStep(termsStep7SubStep + 1)
+        } else {
+          handlePublishAction()
+        }
+      }
     } else {
       if (activeStep < totalSteps) {
         setActiveStep(activeStep + 1)
@@ -607,6 +822,14 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
       } else {
         onBack()
       }
+    } else if (isTerms) {
+      if (activeStep === 7 && termsStep7SubStep > 1) {
+        setTermsStep7SubStep(termsStep7SubStep - 1)
+      } else if (activeStep > 1) {
+        setActiveStep(activeStep - 1)
+      } else {
+        onBack()
+      }
     } else {
       if (activeStep > 1) {
         setActiveStep(activeStep - 1)
@@ -616,7 +839,11 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
     }
   }
 
-  const isFinalScreen = isPrivacy ? activeStep === 8 && step8SubStep === 5 : activeStep === totalSteps
+  const isFinalScreen = isPrivacy
+    ? activeStep === 8 && step8SubStep === 5
+    : isTerms
+    ? activeStep === 7 && termsStep7SubStep === 6
+    : activeStep === totalSteps
 
   return (
     <div className="w-full bg-[#fcfcfd] min-h-[calc(100vh-140px)] flex flex-col pb-12 font-sans">
@@ -1434,16 +1661,952 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
             {/* ------------------------------------------------------- */}
             {/* COOKIE & TERMS POLICIES (FALLBACK / PRESERVED) */}
             {/* ------------------------------------------------------- */}
+            {/* ------------------------------------------------------- */}
+            {/* TERMS OF SERVICE (LEGAL TERMS) 7-STEP QUESTIONNAIRE */}
+            {/* ------------------------------------------------------- */}
+            {isTerms && (
+              <>
+                {/* STEP 1: General (Platform Type - 4%) */}
+                {activeStep === 1 && (
+                  <div className="space-y-6 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Platform Type
+                    </h2>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-slate-800">
+                          What will this Legal Terms be used for?
+                        </p>
+                        <div className="space-y-2.5">
+                          <label className="flex items-center gap-3 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={isWebsite}
+                              onChange={(e) => setIsWebsite(e.target.checked)}
+                              className="rounded border-slate-300 text-[#2563eb] size-4 focus:ring-blue-500"
+                            />
+                            <span className="text-xs text-slate-800">Website</span>
+                          </label>
+
+                          <label className="flex items-center gap-3 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={isMobileApp}
+                              onChange={(e) => setIsMobileApp(e.target.checked)}
+                              className="rounded border-slate-300 text-[#2563eb] size-4 focus:ring-blue-500"
+                            />
+                            <span className="text-xs text-slate-800">Mobile application</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <p className="text-xs font-semibold text-slate-800">
+                          What type of platform are you creating this Legal Terms for?
+                        </p>
+                        <div className="space-y-2.5">
+                          {[
+                            { id: "ecommerce", label: "E-commerce" },
+                            { id: "saas", label: "Software as a Service (SaaS)" },
+                            { id: "other", label: "Other" },
+                          ].map((opt) => (
+                            <label key={opt.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                              <input
+                                type="radio"
+                                name="platformType"
+                                checked={platformType === opt.id}
+                                onChange={() => setPlatformType(opt.id as any)}
+                                className="size-3.5 text-[#2563eb]"
+                              />
+                              <span className="text-xs text-slate-800">{opt.label}</span>
+                            </label>
+                          ))}
+
+                          {platformType === "other" && (
+                            <input
+                              type="text"
+                              value={otherPlatformType}
+                              onChange={(e) => setOtherPlatformType(e.target.value)}
+                              placeholder="Please specify your platform type"
+                              className="w-full max-w-sm ml-6 px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 2: Platform Information (Hosting - 16%) */}
+                {activeStep === 2 && (
+                  <div className="space-y-6 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Hosting
+                    </h2>
+
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-800 block">
+                          Where is your platform hosted?
+                        </label>
+                        <select
+                          value={hostingCountry}
+                          onChange={(e) => setHostingCountry(e.target.value)}
+                          className="w-full max-w-md px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb] bg-white"
+                        >
+                          <option value="United States">United States</option>
+                          <option value="United Kingdom">United Kingdom</option>
+                          <option value="Canada">Canada</option>
+                          <option value="Germany">Germany</option>
+                          <option value="France">France</option>
+                          <option value="Ireland">Ireland</option>
+                          <option value="Netherlands">Netherlands</option>
+                          <option value="Singapore">Singapore</option>
+                          <option value="Australia">Australia</option>
+                          <option value="India">India</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-3 pt-2 border-t border-slate-100">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Is your platform hosted in other countries as well?
+                        </p>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="hostedOtherCountries"
+                              checked={!hostedOtherCountries}
+                              onChange={() => setHostedOtherCountries(false)}
+                              className="size-3.5 text-[#2563eb]"
+                            />
+                            <span className="text-xs text-slate-800">No</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="hostedOtherCountries"
+                              checked={hostedOtherCountries}
+                              onChange={() => setHostedOtherCountries(true)}
+                              className="size-3.5 text-[#2563eb]"
+                            />
+                            <span className="text-xs text-slate-800">Yes</span>
+                          </label>
+                        </div>
+
+                        {hostedOtherCountries && (
+                          <div className="space-y-3 pt-2">
+                            <div className="flex gap-2 max-w-md">
+                              <input
+                                type="text"
+                                value={customHostingInput}
+                                onChange={(e) => setCustomHostingInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault()
+                                    handleAddOtherHostingCountry()
+                                  }
+                                }}
+                                placeholder="Add another hosting country"
+                                className="flex-1 px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAddOtherHostingCountry}
+                                className="px-3.5 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold rounded cursor-pointer transition-colors"
+                              >
+                                + ADD
+                              </button>
+                            </div>
+
+                            {otherHostingCountries.length > 0 && (
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                {otherHostingCountries.map((c) => (
+                                  <span
+                                    key={c}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium border border-slate-200"
+                                  >
+                                    {c}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveOtherHostingCountry(c)}
+                                      className="text-slate-400 hover:text-red-500 cursor-pointer ml-1"
+                                    >
+                                      ✕
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3: Purchases and Payments (Subscription - 30%) */}
+                {activeStep === 3 && (
+                  <div className="space-y-6 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Subscription
+                    </h2>
+
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Do you offer subscriptions?
+                        </p>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="hasSubscription"
+                              checked={hasSubscription}
+                              onChange={() => setHasSubscription(true)}
+                              className="size-3.5 text-[#2563eb]"
+                            />
+                            <span className="text-xs text-slate-800">Yes</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="hasSubscription"
+                              checked={!hasSubscription}
+                              onChange={() => setHasSubscription(false)}
+                              className="size-3.5 text-[#2563eb]"
+                            />
+                            <span className="text-xs text-slate-800">No</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {hasSubscription && (
+                        <div className="space-y-4 pt-3 border-t border-slate-100">
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-slate-800">
+                              Do subscriptions automatically renew?
+                            </p>
+                            <div className="flex items-center gap-6">
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="subscriptionAutoRenew"
+                                  checked={subscriptionAutoRenew}
+                                  onChange={() => setSubscriptionAutoRenew(true)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">Yes</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="subscriptionAutoRenew"
+                                  checked={!subscriptionAutoRenew}
+                                  onChange={() => setSubscriptionAutoRenew(false)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">No</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 pt-2">
+                            <p className="text-xs font-semibold text-slate-800">
+                              How frequently do subscriptions renew?
+                            </p>
+                            <div className="space-y-2.5">
+                              {[
+                                { id: "monthly", label: "Monthly" },
+                                { id: "annually", label: "Annually" },
+                                { id: "customer_chooses", label: "The customer chooses their renewal schedule" },
+                                { id: "custom", label: "Other" },
+                              ].map((opt) => (
+                                <label key={opt.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                  <input
+                                    type="radio"
+                                    name="renewalFrequency"
+                                    checked={renewalFrequency === opt.id}
+                                    onChange={() => setRenewalFrequency(opt.id as any)}
+                                    className="size-3.5 text-[#2563eb]"
+                                  />
+                                  <span className="text-xs text-slate-800">{opt.label}</span>
+                                </label>
+                              ))}
+
+                              {renewalFrequency === "custom" && (
+                                <input
+                                  type="text"
+                                  value={customRenewalFrequency}
+                                  onChange={(e) => setCustomRenewalFrequency(e.target.value)}
+                                  placeholder="Specify custom renewal frequency (e.g. Quarterly)"
+                                  className="w-full max-w-sm ml-6 px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 4: Platform Content (Prohibited Activities - 42%) */}
+                {activeStep === 4 && (
+                  <div className="space-y-6 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Prohibited Activities
+                    </h2>
+
+                    <div className="space-y-4">
+                      <p className="text-xs font-semibold text-slate-800">
+                        Do you want to explicitly prohibit any of the following activities on your platform?
+                      </p>
+
+                      <div className="space-y-3">
+                        <label className="flex items-start gap-3 cursor-pointer select-none p-3 border border-slate-200 rounded-lg hover:bg-slate-50/50">
+                          <input
+                            type="checkbox"
+                            checked={prohibitCommercialAds}
+                            onChange={(e) => setProhibitCommercialAds(e.target.checked)}
+                            className="rounded border-slate-300 text-[#2563eb] size-4 focus:ring-blue-500 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-semibold text-slate-900 block">Prohibit Unauthorized Commercial Use</span>
+                            <span className="text-[11px] text-slate-500">Use the Services for any revenue-generating endeavor or commercial enterprise not authorized by us.</span>
+                          </div>
+                        </label>
+
+                        <label className="flex items-start gap-3 cursor-pointer select-none p-3 border border-slate-200 rounded-lg hover:bg-slate-50/50">
+                          <input
+                            type="checkbox"
+                            checked={prohibitTransferProfile}
+                            onChange={(e) => setProhibitTransferProfile(e.target.checked)}
+                            className="rounded border-slate-300 text-[#2563eb] size-4 focus:ring-blue-500 mt-0.5"
+                          />
+                          <div>
+                            <span className="text-xs font-semibold text-slate-900 block">Prohibit Profile & Account Transfer</span>
+                            <span className="text-[11px] text-slate-500">Sell, rent, license, or otherwise transfer your profile or registered account to any third party.</span>
+                          </div>
+                        </label>
+                      </div>
+
+                      <div className="space-y-2 pt-3 border-t border-slate-100">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Do you want to prohibit any other specific activities?
+                        </p>
+                        <div className="flex gap-2 max-w-md">
+                          <input
+                            type="text"
+                            value={customProhibitedInput}
+                            onChange={(e) => setCustomProhibitedInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                handleAddCustomProhibited()
+                              }
+                            }}
+                            placeholder="Add custom prohibited activity"
+                            className="flex-1 px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddCustomProhibited}
+                            className="px-3.5 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold rounded cursor-pointer transition-colors"
+                          >
+                            + ADD
+                          </button>
+                        </div>
+
+                        {customProhibitedActivities.length > 0 && (
+                          <div className="space-y-1.5 pt-2">
+                            {customProhibitedActivities.map((act) => (
+                              <div
+                                key={act}
+                                className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-700"
+                              >
+                                <span>{act}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveCustomProhibited(act)}
+                                  className="text-slate-400 hover:text-red-500 cursor-pointer ml-2"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 5: Disputes (Dispute Resolution - 61%) */}
+                {activeStep === 5 && (
+                  <div className="space-y-6 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Dispute Resolution
+                    </h2>
+
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-slate-800">
+                          How do you want to resolve disputes?
+                        </p>
+                        <div className="space-y-2.5">
+                          {[
+                            { id: "informal_then_arbitration", label: "Informal negotiations, then binding arbitration" },
+                            { id: "arbitration", label: "Binding arbitration directly" },
+                            { id: "litigation", label: "Court litigation" },
+                          ].map((opt) => (
+                            <label key={opt.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                              <input
+                                type="radio"
+                                name="disputeResolution"
+                                checked={disputeResolution === opt.id}
+                                onChange={() => setDisputeResolution(opt.id as any)}
+                                className="size-3.5 text-[#2563eb]"
+                              />
+                              <span className="text-xs text-slate-800">{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 pt-3 border-t border-slate-100">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-800 block mb-1">
+                            Dispute Country / Forum
+                          </label>
+                          <input
+                            type="text"
+                            value={disputeCountry}
+                            onChange={(e) => setDisputeCountry(e.target.value)}
+                            placeholder="e.g. United States"
+                            className="w-full max-w-md px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                          />
+                        </div>
+
+                        {disputeCountry.toLowerCase().includes("united states") && (
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">
+                              Dispute State / County
+                            </label>
+                            <input
+                              type="text"
+                              value={disputeState}
+                              onChange={(e) => setDisputeState(e.target.value)}
+                              placeholder="e.g. California / Delaware"
+                              className="w-full max-w-md px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+                        )}
+
+                        {disputeResolution === "informal_then_arbitration" && (
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">
+                              Informal Negotiation Duration (Days)
+                            </label>
+                            <input
+                              type="number"
+                              value={mediationDays}
+                              onChange={(e) => setMediationDays(Number(e.target.value) || 30)}
+                              className="w-32 px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 6: Other Considerations (Marketing & Promotional Communications - 69%) */}
+                {activeStep === 6 && (
+                  <div className="space-y-6 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Marketing and Promotional Communications
+                    </h2>
+
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Do you send marketing or promotional SMS text messages to users?
+                        </p>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="sendSms"
+                              checked={sendSms}
+                              onChange={() => setSendSms(true)}
+                              className="size-3.5 text-[#2563eb]"
+                            />
+                            <span className="text-xs text-slate-800">Yes</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="sendSms"
+                              checked={!sendSms}
+                              onChange={() => setSendSms(false)}
+                              className="size-3.5 text-[#2563eb]"
+                            />
+                            <span className="text-xs text-slate-800">No</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {sendSms && (
+                        <div className="space-y-4 pt-3 border-t border-slate-100">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">SMS Program Name</label>
+                            <input
+                              type="text"
+                              value={smsProgramName}
+                              onChange={(e) => setSmsProgramName(e.target.value)}
+                              placeholder="e.g. Syft Alerts"
+                              className="w-full max-w-md px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Types of SMS Messages</label>
+                            <input
+                              type="text"
+                              value={smsMessageTypes}
+                              onChange={(e) => setSmsMessageTypes(e.target.value)}
+                              placeholder="e.g. Transactional alerts, 2FA codes, order tracking, and promotional offers"
+                              className="w-full max-w-md px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-slate-800">How can users opt out of SMS messages?</p>
+                            <div className="space-y-2">
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="smsOptOut"
+                                  checked={smsOptOut === "stop"}
+                                  onChange={() => setSmsOptOut("stop")}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">Reply to any message with &quot;STOP&quot;</span>
+                              </label>
+
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="smsOptOut"
+                                  checked={smsOptOut === "other"}
+                                  onChange={() => setSmsOptOut("other")}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">Other</span>
+                              </label>
+
+                              {smsOptOut === "other" && (
+                                <input
+                                  type="text"
+                                  value={customSmsOptOut}
+                                  onChange={(e) => setCustomSmsOptOut(e.target.value)}
+                                  placeholder="Specify custom opt-out procedure"
+                                  className="w-full max-w-md ml-6 px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 7: Final Details (Sub-steps 1 to 6 - 80% to 100%) */}
+                {activeStep === 7 && (
+                  <div className="space-y-6 animate-in fade-in duration-150">
+                    {/* Sub-step 1: Governing Law (80%) */}
+                    {termsStep7SubStep === 1 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Governing Law
+                        </h2>
+
+                        <div className="space-y-4 max-w-md">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">
+                              Which jurisdiction&apos;s laws will govern these Legal Terms?
+                            </label>
+                            <select
+                              value={governingCountry}
+                              onChange={(e) => setGoverningCountry(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb] bg-white"
+                            >
+                              <option value="United States">United States</option>
+                              <option value="United Kingdom">United Kingdom</option>
+                              <option value="Canada">Canada</option>
+                              <option value="Germany">Germany</option>
+                              <option value="France">France</option>
+                              <option value="Ireland">Ireland</option>
+                              <option value="Australia">Australia</option>
+                              <option value="India">India</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+
+                          {governingCountry.toLowerCase().includes("united states") && (
+                            <div>
+                              <label className="text-xs font-semibold text-slate-800 block mb-1">
+                                Governing State
+                              </label>
+                              <input
+                                type="text"
+                                value={governingState}
+                                onChange={(e) => setGoverningState(e.target.value)}
+                                placeholder="e.g. California / Delaware / New York"
+                                className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-step 2: Contact Information (88%) */}
+                    {termsStep7SubStep === 2 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Contact Information
+                        </h2>
+
+                        <div className="space-y-4 max-w-md">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Company / Entity Legal Name</label>
+                            <input
+                              type="text"
+                              value={companyName}
+                              onChange={(e) => setCompanyName(e.target.value)}
+                              placeholder="e.g. Acme Corp LLC"
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-slate-800">Do you operate under a DBA (Doing Business As) name?</p>
+                            <div className="flex items-center gap-6">
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="isDbaTerms"
+                                  checked={isDba}
+                                  onChange={() => setIsDba(true)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">Yes</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="isDbaTerms"
+                                  checked={!isDba}
+                                  onChange={() => setIsDba(false)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">No</span>
+                              </label>
+                            </div>
+                            {isDba && (
+                              <input
+                                type="text"
+                                value={dbaName}
+                                onChange={(e) => setDbaName(e.target.value)}
+                                placeholder="Enter DBA trade name"
+                                className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                              />
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Contact Email</label>
+                            <input
+                              type="email"
+                              value={supportEmail}
+                              onChange={(e) => setSupportEmail(e.target.value)}
+                              placeholder="legal@example.com"
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Phone Number (Optional)</label>
+                            <input
+                              type="tel"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              placeholder="+1 (555) 000-0000"
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Fax Number (Optional)</label>
+                            <input
+                              type="text"
+                              value={contactFax}
+                              onChange={(e) => setContactFax(e.target.value)}
+                              placeholder="+1 (555) 000-0001"
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-step 3: Business Address (92%) */}
+                    {termsStep7SubStep === 3 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Business Address
+                        </h2>
+
+                        <div className="space-y-3.5 max-w-md">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Country</label>
+                            <select
+                              value={country}
+                              onChange={(e) => setCountry(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb] bg-white"
+                            >
+                              <option value="United States">United States</option>
+                              <option value="United Kingdom">United Kingdom</option>
+                              <option value="Canada">Canada</option>
+                              <option value="Australia">Australia</option>
+                              <option value="Germany">Germany</option>
+                              <option value="France">France</option>
+                              <option value="Ireland">Ireland</option>
+                              <option value="India">India</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Address Line 1</label>
+                            <input
+                              type="text"
+                              value={addressLine1}
+                              onChange={(e) => setAddressLine1(e.target.value)}
+                              placeholder="Street address"
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Address Line 2 (Optional)</label>
+                            <input
+                              type="text"
+                              value={addressLine2}
+                              onChange={(e) => setAddressLine2(e.target.value)}
+                              placeholder="Suite, unit, building"
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">City / Town</label>
+                            <input
+                              type="text"
+                              value={city}
+                              onChange={(e) => setCity(e.target.value)}
+                              placeholder="City"
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">ZIP / Postal Code</label>
+                            <input
+                              type="text"
+                              value={zipCode}
+                              onChange={(e) => setZipCode(e.target.value)}
+                              placeholder="ZIP code"
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-step 4: Updates to Your Legal Terms (94%) */}
+                    {termsStep7SubStep === 4 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Updates to Your Legal Terms
+                        </h2>
+
+                        <div className="space-y-4 max-w-md">
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-slate-800">
+                              Will you notify users when you update these Legal Terms?
+                            </p>
+                            <div className="flex items-center gap-6">
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="notifyUpdates"
+                                  checked={notifyUpdates}
+                                  onChange={() => setNotifyUpdates(true)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">Yes</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="notifyUpdates"
+                                  checked={!notifyUpdates}
+                                  onChange={() => setNotifyUpdates(false)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">No</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          {notifyUpdates && (
+                            <div className="space-y-3 pt-3 border-t border-slate-100">
+                              <p className="text-xs font-semibold text-slate-800">Notification Method:</p>
+                              <div className="space-y-2">
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                  <input
+                                    type="radio"
+                                    name="updateNotificationMethod"
+                                    checked={updateNotificationMethod === "email"}
+                                    onChange={() => setUpdateNotificationMethod("email")}
+                                    className="size-3.5 text-[#2563eb]"
+                                  />
+                                  <span className="text-xs text-slate-800">Via email notice</span>
+                                </label>
+
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                  <input
+                                    type="radio"
+                                    name="updateNotificationMethod"
+                                    checked={updateNotificationMethod === "before_effective"}
+                                    onChange={() => setUpdateNotificationMethod("before_effective")}
+                                    className="size-3.5 text-[#2563eb]"
+                                  />
+                                  <span className="text-xs text-slate-800">Notice posted before changes take effect</span>
+                                </label>
+                              </div>
+
+                              {updateNotificationMethod === "before_effective" && (
+                                <div className="ml-6 flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    value={updateNotificationDaysAdvance}
+                                    onChange={(e) => setUpdateNotificationDaysAdvance(Number(e.target.value) || 30)}
+                                    className="w-20 px-2 py-1 text-xs rounded border border-slate-300"
+                                  />
+                                  <span className="text-xs text-slate-600">days advance notice</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-step 5: Name Your Legal Terms (96%) */}
+                    {termsStep7SubStep === 5 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Name Your Legal Terms
+                        </h2>
+
+                        <div className="space-y-3 max-w-md">
+                          <p className="text-xs font-semibold text-slate-800">
+                            What do you want to call your legal terms?
+                          </p>
+
+                          <div className="space-y-2.5">
+                            {[
+                              { id: "Terms of Use", label: "Terms of Use" },
+                              { id: "Terms of Service", label: "Terms of Service" },
+                              { id: "Terms and Conditions", label: "Terms and Conditions" },
+                            ].map((opt) => (
+                              <label key={opt.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="termsTitleChoice"
+                                  checked={termsTitleChoice === opt.id}
+                                  onChange={() => setTermsTitleChoice(opt.id as any)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">{opt.label}</span>
+                              </label>
+                            ))}
+
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none pt-1">
+                              <input
+                                type="radio"
+                                name="termsTitleChoice"
+                                checked={termsTitleChoice === "custom"}
+                                onChange={() => setTermsTitleChoice("custom")}
+                                className="size-3.5 text-[#2563eb]"
+                              />
+                              <input
+                                type="text"
+                                value={customTermsTitle}
+                                onChange={(e) => {
+                                  setCustomTermsTitle(e.target.value)
+                                  setTermsTitleChoice("custom")
+                                }}
+                                placeholder="Add custom title (e.g. Master Services Agreement)"
+                                className="flex-1 px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-step 6: Version Date (100%) */}
+                    {termsStep7SubStep === 6 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Version Date
+                        </h2>
+
+                        <div className="space-y-2 max-w-xs">
+                          <p className="text-xs font-semibold text-slate-800">
+                            What is the effective date for these Legal Terms?
+                          </p>
+                          <div className="relative">
+                            <Calendar className="size-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={effectiveDate}
+                              onChange={(e) => setEffectiveDate(e.target.value)}
+                              placeholder={new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}
+                              className="w-full pl-9 pr-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* COOKIE POLICY CONFIG */}
             {isCookies && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold text-slate-900">Cookie Policy Configuration</h2>
                 <p className="text-xs text-slate-600">Configures dynamic cookie categorization table synchronized with live website scans.</p>
-              </div>
-            )}
-            {isTerms && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-bold text-slate-900">Terms of Service Configuration</h2>
-                <p className="text-xs text-slate-600">Configures platform rules, user agreements, IP, and liability clauses.</p>
               </div>
             )}
           </div>
@@ -1491,16 +2654,42 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
               onClick={() => setIsPreviewModalOpen(true)}
               className="border border-slate-200 rounded-lg p-5 bg-slate-50/50 shadow-2xs hover:shadow-xs transition-shadow cursor-pointer relative group"
             >
-              <div className="bg-white border border-slate-200 rounded shadow-2xs p-3 space-y-2 h-44 overflow-hidden pointer-events-none select-none text-[8px] text-slate-400 font-serif leading-tight">
-                <div className="text-[10px] font-bold text-slate-900 font-sans border-b border-slate-100 pb-1 uppercase">
-                  {policyTitleChoice === "none" ? "Privacy Notice" : policyTitleChoice === "custom" && customPolicyTitle ? customPolicyTitle : policyTitleChoice}
+              {isPrivacy && (
+                <div className="bg-white border border-slate-200 rounded shadow-2xs p-3 space-y-2 h-44 overflow-hidden pointer-events-none select-none text-[8px] text-slate-400 font-serif leading-tight">
+                  <div className="text-[10px] font-bold text-slate-900 font-sans border-b border-slate-100 pb-1 uppercase">
+                    {policyTitleChoice === "none" ? "Privacy Notice" : policyTitleChoice === "custom" && customPolicyTitle ? customPolicyTitle : policyTitleChoice}
+                  </div>
+                  <p className="line-clamp-2">This Privacy Notice for {companyName || domain} describes how and why we access, collect, store, use personal information.</p>
+                  <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">1. WHAT INFORMATION DO WE COLLECT?</div>
+                  <p className="line-clamp-2">We collect personal information voluntarily provided when you register: {directData.slice(0, 3).join(", ")}.</p>
+                  <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">2. HOW DO WE PROCESS YOUR INFORMATION?</div>
+                  <p className="line-clamp-2">We process your information to provide, improve, and administer our Services, communicate with you.</p>
                 </div>
-                <p className="line-clamp-2">This Privacy Notice for {companyName || domain} describes how and why we access, collect, store, use personal information.</p>
-                <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">1. WHAT INFORMATION DO WE COLLECT?</div>
-                <p className="line-clamp-2">We collect personal information voluntarily provided when you register: {directData.slice(0, 3).join(", ")}.</p>
-                <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">2. HOW DO WE PROCESS YOUR INFORMATION?</div>
-                <p className="line-clamp-2">We process your information to provide, improve, and administer our Services, communicate with you.</p>
-              </div>
+              )}
+
+              {isTerms && (
+                <div className="bg-white border border-slate-200 rounded shadow-2xs p-3 space-y-2 h-44 overflow-hidden pointer-events-none select-none text-[8px] text-slate-400 font-serif leading-tight">
+                  <div className="text-[10px] font-bold text-slate-900 font-sans border-b border-slate-100 pb-1 uppercase">
+                    {termsTitleChoice === "custom" && customTermsTitle ? customTermsTitle : termsTitleChoice}
+                  </div>
+                  <p className="line-clamp-2">We are {companyName || domain}{isDba && dbaName ? ` (dba ${dbaName})` : ""}, operating the Services across {isWebsite ? "Website" : ""}{isMobileApp ? " and Mobile App" : ""}.</p>
+                  <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">1. OUR SERVICES</div>
+                  <p className="line-clamp-2">The information provided when using the Services is not intended for distribution to or use by any person in any jurisdiction where prohibited.</p>
+                  <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">2. INTELLECTUAL PROPERTY RIGHTS</div>
+                  <p className="line-clamp-2">We are the owner or licensee of all intellectual property rights in our Services.</p>
+                </div>
+              )}
+
+              {isCookies && (
+                <div className="bg-white border border-slate-200 rounded shadow-2xs p-3 space-y-2 h-44 overflow-hidden pointer-events-none select-none text-[8px] text-slate-400 font-serif leading-tight">
+                  <div className="text-[10px] font-bold text-slate-900 font-sans border-b border-slate-100 pb-1 uppercase">
+                    Cookie Policy
+                  </div>
+                  <p className="line-clamp-2">This Cookie Policy explains what cookies are, how we use them, and how you can manage your preferences on {domain}.</p>
+                  <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">LIVE COOKIE TABLE</div>
+                  <p className="line-clamp-2">{displayCookies.length} synchronized cookie entries recorded from your active website scanner.</p>
+                </div>
+              )}
             </div>
 
             {/* PREVIEW BUTTON */}
@@ -1521,82 +2710,165 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
               <span>Tips:</span>
             </div>
 
-            {activeStep === 1 && (
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-slate-800">What is a privacy policy?</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  A privacy policy (also referred to as a privacy notice) is a legal document that informs your users about how your website or app collects, uses, and discloses their personal information.
-                </p>
-              </div>
+            {/* Privacy Tips */}
+            {isPrivacy && (
+              <>
+                {activeStep === 1 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">What is a privacy policy?</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      A privacy policy (also referred to as a privacy notice) is a legal document that informs your users about how your website or app collects, uses, and discloses their personal information.
+                    </p>
+                  </div>
+                )}
+
+                {activeStep === 2 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">What are users?</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Users are individuals that visit your website or app. Indicating whether you target users in the US, EU, UK, and Canada activates corresponding GDPR, CCPA, and statutory privacy disclosures.
+                    </p>
+                  </div>
+                )}
+
+                {activeStep === 3 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">What is personal information?</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Personal information is information that is linked or reasonably linked, directly or indirectly, to an identified or identifiable natural person. Personal identifiers include names, addresses, emails, and payment details.
+                    </p>
+                  </div>
+                )}
+
+                {activeStep === 4 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">Marketing and Promotional Communications</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Disclosing marketing outreach keeps you compliant with global anti-spam regulations (CAN-SPAM, CASL, GDPR) and provides users with explicit opt-out mechanisms.
+                    </p>
+                  </div>
+                )}
+
+                {activeStep === 5 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">Artificial Intelligence (AI)</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Disclose whether your services utilize automated decision-making, machine learning, or third-party AI models to process user interactions or generate content.
+                    </p>
+                  </div>
+                )}
+
+                {activeStep === 6 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">What are cookies, web beacons, and APIs?</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Cookies and web beacons are tracking technologies stored on a user&apos;s browser or device that allow your website to remember preferences. If you use analytics services or Google Maps APIs, this must be disclosed.
+                    </p>
+                  </div>
+                )}
+
+                {activeStep === 7 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">Data Protection Officer (DPO)</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      A Data Protection Officer (DPO) oversees the company&apos;s compliance with US, EU, and UK privacy laws. Appointing a DPO or privacy contact point is required for large-scale data controllers.
+                    </p>
+                  </div>
+                )}
+
+                {activeStep === 8 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">
+                      {step8SubStep === 2 || step8SubStep === 3
+                        ? "Why should I include my business address?"
+                        : "Are you making substantive or material changes to your Privacy Policy?"}
+                    </h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      {step8SubStep === 2 || step8SubStep === 3
+                        ? "It's best practice to include your business address in your privacy policy, so users and customers can send you legal communication related to your privacy policy (such as requests to delete their personal information) by mail."
+                        : "The effective date informs users of when your Privacy Policy was originally published or last updated. When making updates, make sure the effective date matches your notice communications."}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
-            {activeStep === 2 && (
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-slate-800">What are users?</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Users are individuals that visit your website or app. Indicating whether you target users in the US, EU, UK, and Canada activates corresponding GDPR, CCPA, and statutory privacy disclosures.
-                </p>
-              </div>
-            )}
+            {/* Terms of Service Tips */}
+            {isTerms && (
+              <>
+                {activeStep === 1 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">What are Legal Terms?</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Legal Terms (also referred to as Terms of Service or Terms of Use) define the binding contractual rules, conditions, and standards between you and your users when interacting with your website or applications.
+                    </p>
+                  </div>
+                )}
 
-            {activeStep === 3 && (
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-slate-800">What is personal information?</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Personal information is information that is linked or reasonably linked, directly or indirectly, to an identified or identifiable natural person. Personal identifiers include names, addresses, emails, and payment details.
-                </p>
-              </div>
-            )}
+                {activeStep === 2 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">Why does hosting location matter?</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Disclosing hosting regions clarifies data storage locations, server jurisdiction, and cross-border regulatory considerations for global platform visitors.
+                    </p>
+                  </div>
+                )}
 
-            {activeStep === 4 && (
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-slate-800">Marketing and Promotional Communications</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Disclosing marketing outreach keeps you compliant with global anti-spam regulations (CAN-SPAM, CASL, GDPR) and provides users with explicit opt-out mechanisms.
-                </p>
-              </div>
-            )}
+                {activeStep === 3 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">Subscription & Auto-Renewal Laws</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Statutory renewal mandates (e.g., California ARL, EU Consumer Directives) require explicit disclosure of renewal cycles, cancellation methods, and advance notices prior to recurring charges.
+                    </p>
+                  </div>
+                )}
 
-            {activeStep === 5 && (
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-slate-800">Artificial Intelligence (AI)</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Disclose whether your services utilize automated decision-making, machine learning, or third-party AI models to process user interactions or generate content.
-                </p>
-              </div>
-            )}
+                {activeStep === 4 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">Prohibited Activities & Account Safety</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Explicitly listing forbidden behaviors gives you the legal authority to immediately terminate offending accounts and protect your platform against abuse, scraping, and reverse-engineering.
+                    </p>
+                  </div>
+                )}
 
-            {activeStep === 6 && (
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-slate-800">What are cookies, web beacons, and APIs?</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Cookies and web beacons are tracking technologies stored on a user&apos;s browser or device that allow your website to remember preferences. If you use analytics services or Google Maps APIs, this must be disclosed.
-                </p>
-              </div>
-            )}
+                {activeStep === 5 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">Arbitration vs. Litigation</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Binding arbitration combined with informal negotiation windows keeps dispute resolution private, expedited, and significantly less expensive than lengthy court litigation.
+                    </p>
+                  </div>
+                )}
 
-            {activeStep === 7 && (
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-slate-800">Data Protection Officer (DPO)</h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  A Data Protection Officer (DPO) oversees the company&apos;s compliance with US, EU, and UK privacy laws. Appointing a DPO or privacy contact point is required for large-scale data controllers.
-                </p>
-              </div>
-            )}
+                {activeStep === 6 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">TCPA & SMS Compliance</h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      TCPA and cellular carrier guidelines mandate clear disclosures regarding text messaging opt-out commands (e.g. replying STOP), message frequencies, and standard carrier rates.
+                    </p>
+                  </div>
+                )}
 
-            {activeStep === 8 && (
-              <div className="space-y-1.5">
-                <h4 className="text-xs font-bold text-slate-800">
-                  {step8SubStep === 2 || step8SubStep === 3
-                    ? "Why should I include my business address?"
-                    : "Are you making substantive or material changes to your Privacy Policy?"}
-                </h4>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  {step8SubStep === 2 || step8SubStep === 3
-                    ? "It's best practice to include your business address in your privacy policy, so users and customers can send you legal communication related to your privacy policy (such as requests to delete their personal information) by mail."
-                    : "The effective date informs users of when your Privacy Policy was originally published or last updated. When making updates, make sure the effective date matches your notice communications."}
-                </p>
-              </div>
+                {activeStep === 7 && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-slate-800">
+                      {termsStep7SubStep === 1
+                        ? "Governing Law & Jurisdiction"
+                        : termsStep7SubStep === 4
+                        ? "Notification of Material Changes"
+                        : "Final Legal Formalities"}
+                    </h4>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      {termsStep7SubStep === 1
+                        ? "Governing law determines which state or country's statutory laws and precedent courts will apply in case of disputes."
+                        : termsStep7SubStep === 4
+                        ? "Establishing a structured update procedure ensures that revisions to your Terms remain legally enforceable across all existing and new accounts."
+                        : "Ensuring full business entity details and an accurate effective date makes your Legal Terms fully binding and enforceable."}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -1615,10 +2887,24 @@ Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${s
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">
-                    {policyTitleChoice === "none" ? "Privacy Notice Preview" : policyTitleChoice === "custom" && customPolicyTitle ? customPolicyTitle : policyTitleChoice}
+                    {isPrivacy
+                      ? policyTitleChoice === "none"
+                        ? "Privacy Notice Preview"
+                        : policyTitleChoice === "custom" && customPolicyTitle
+                        ? customPolicyTitle
+                        : policyTitleChoice
+                      : isTerms
+                      ? termsTitleChoice === "custom" && customTermsTitle
+                        ? customTermsTitle
+                        : termsTitleChoice
+                      : "Cookie Policy Preview"}
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Complete standardized 13-section legal document preview
+                    {isPrivacy
+                      ? "Complete standardized 13-section legal document preview"
+                      : isTerms
+                      ? "Complete standardized 21-section legal terms preview"
+                      : "Live synchronized cookie consent declaration"}
                   </p>
                 </div>
               </div>

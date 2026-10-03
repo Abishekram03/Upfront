@@ -11,7 +11,12 @@ import {
 } from "lucide-react"
 import { PolicyDefinition, DomainPolicyRecord } from "./policy-types"
 import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
-import { generatePrivacyPolicyMarkdown, generatePrivacyPolicyHtml } from "./policy-generator-template"
+import {
+  generatePrivacyPolicyMarkdown,
+  generatePrivacyPolicyHtml,
+  generateTermsOfServiceMarkdown,
+  generateTermsOfServiceHtml,
+} from "./policy-generator-template"
 import { cn } from "@/lib/utils"
 
 interface PolicyPreviewModalProps {
@@ -114,6 +119,8 @@ export function PolicyPreviewModal({
       ? cmpData.generatedMarkdown
       : policy.id === "privacy"
       ? generatePrivacyPolicyMarkdown(cfg, domain)
+      : policy.id === "terms"
+      ? generateTermsOfServiceMarkdown(cfg, domain)
       : record?.contentMarkdown ||
         `# ${policyTitle} for ${domain}
 **Effective Date:** ${effectiveDate}  
@@ -129,6 +136,8 @@ This ${policyTitle} sets forth the legal policies and guidelines for **${domain 
       ? cmpData.generatedHtml
       : policy.id === "privacy"
       ? generatePrivacyPolicyHtml(cfg, domain)
+      : policy.id === "terms"
+      ? generateTermsOfServiceHtml(cfg, domain)
       : record?.contentHtml ||
         `<div class="legal-policy-container" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 800px; margin: 0 auto; padding: 20px;">
   <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">${policyTitle} for ${domain}</h1>

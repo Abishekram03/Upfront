@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
-import { generatePrivacyPolicyMarkdown, generatePrivacyPolicyHtml } from "@/components/dashboard/policy/policy-generator-template"
+import {
+  generatePrivacyPolicyMarkdown,
+  generatePrivacyPolicyHtml,
+  generateTermsOfServiceMarkdown,
+  generateTermsOfServiceHtml,
+} from "@/components/dashboard/policy/policy-generator-template"
 
 function sanitizeDomain(input?: string | null): string {
   if (!input) return ""
@@ -15,21 +20,24 @@ function mapPolicyRow(row: any) {
   let contentHtml = row.content_html || ""
   let contentMarkdown = row.content_markdown || ""
 
-  // Always use modern, clean legal generator for privacy policy to avoid legacy bold / Termly footers
-  if (cleanId === "privacy" || !contentHtml || contentHtml.includes("Termly") || contentMarkdown.includes("Termly")) {
+  // Always use modern, clean legal generator for privacy & terms policies to avoid legacy bold / Termly footers
+  if (cleanId === "privacy" || (!contentHtml && cleanId === "privacy") || contentHtml.includes("Termly") || contentMarkdown.includes("Termly")) {
     contentHtml = generatePrivacyPolicyHtml(config, row.domain)
     contentMarkdown = generatePrivacyPolicyMarkdown(config, row.domain)
+  } else if (cleanId === "terms" || cleanId === "terms_of_service" || cleanId === "terms_of_use" || (!contentHtml && (cleanId.includes("terms")))) {
+    contentHtml = generateTermsOfServiceHtml(config, row.domain)
+    contentMarkdown = generateTermsOfServiceMarkdown(config, row.domain)
   }
 
   // Strip any stray third-party attribution footers
   contentHtml = contentHtml
-    .replace(/<p[^>]*><em>\s*This Privacy Policy was created using.*?\s*<\/em><\/p>/gi, "")
-    .replace(/This Privacy Policy was created using.*?(<\/p>|\n|$)/gi, "")
+    .replace(/<p[^>]*><em>\s*This (Privacy Policy|Terms of Service|Terms of Use) was created using.*?\s*<\/em><\/p>/gi, "")
+    .replace(/This (Privacy Policy|Terms of Service|Terms of Use) was created using.*?(<\/p>|\n|$)/gi, "")
     .trim()
 
   contentMarkdown = contentMarkdown
-    .replace(/\*This Privacy Policy was created using.*?\*/gi, "")
-    .replace(/This Privacy Policy was created using.*(\n|$)/gi, "")
+    .replace(/\*This (Privacy Policy|Terms of Service|Terms of Use) was created using.*?\*/gi, "")
+    .replace(/This (Privacy Policy|Terms of Service|Terms of Use) was created using.*(\n|$)/gi, "")
     .trim()
 
   return {
@@ -92,6 +100,21 @@ export async function GET(
           id: `default-privacy-${domain}`,
           domain,
           policyId: "privacy",
+          status: "published",
+          version: "v1.0",
+          contentHtml: defaultHtml,
+          content_html: defaultHtml,
+          contentMarkdown: defaultMd,
+          content_markdown: defaultMd,
+          publishedAt: new Date().toISOString(),
+        }, { headers: corsHeaders })
+      } else if (cleanId === "terms" || cleanId === "terms_of_service" || cleanId === "terms_of_use") {
+        const defaultHtml = generateTermsOfServiceHtml({ websiteUrl: `https://${domain}` }, domain)
+        const defaultMd = generateTermsOfServiceMarkdown({ websiteUrl: `https://${domain}` }, domain)
+        return NextResponse.json({
+          id: `default-terms-${domain}`,
+          domain,
+          policyId: "terms",
           status: "published",
           version: "v1.0",
           contentHtml: defaultHtml,
