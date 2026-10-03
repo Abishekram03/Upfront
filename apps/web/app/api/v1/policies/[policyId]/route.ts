@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
+import { generatePrivacyPolicyMarkdown, generatePrivacyPolicyHtml } from "@/components/dashboard/policy/policy-generator-template"
 
 function sanitizeDomain(input?: string | null): string {
   if (!input) return ""
@@ -8,6 +9,10 @@ function sanitizeDomain(input?: string | null): string {
 }
 
 function mapPolicyRow(row: any) {
+  const config = typeof row.config === "string" ? JSON.parse(row.config) : row.config || {}
+  const contentHtml = row.content_html || (row.policy_id === "privacy" ? generatePrivacyPolicyHtml(config, row.domain) : "")
+  const contentMarkdown = row.content_markdown || (row.policy_id === "privacy" ? generatePrivacyPolicyMarkdown(config, row.domain) : "")
+  
   return {
     id: row.id,
     domain: row.domain,
@@ -17,11 +22,11 @@ function mapPolicyRow(row: any) {
     version: row.version,
     customTitle: row.custom_title,
     custom_title: row.custom_title,
-    config: typeof row.config === "string" ? JSON.parse(row.config) : row.config || {},
-    contentMarkdown: row.content_markdown,
-    content_markdown: row.content_markdown,
-    contentHtml: row.content_html,
-    content_html: row.content_html,
+    config,
+    contentMarkdown,
+    content_markdown: contentMarkdown,
+    contentHtml,
+    content_html: contentHtml,
     publishedAt: row.published_at ? new Date(row.published_at).toISOString() : null,
     published_at: row.published_at,
     createdAt: row.created_at,
@@ -53,12 +58,30 @@ export async function GET(
       return NextResponse.json({ detail: "Domain and policyId are required" }, { status: 400, headers: corsHeaders })
     }
 
+    const cleanId = policyId.replace(/-(policy|declaration)$/i, "").toLowerCase()
+
     const res = await pool.query(
-      `SELECT * FROM generated_policies WHERE domain = $1 AND policy_id = $2`,
-      [domain, policyId]
+      `SELECT * FROM generated_policies WHERE domain = $1 AND (policy_id = $2 OR policy_id = $3)`,
+      [domain, policyId, cleanId]
     )
 
     if (res.rows.length === 0) {
+      if (cleanId === "privacy") {
+        const defaultHtml = generatePrivacyPolicyHtml({ websiteUrl: `https://${domain}` }, domain)
+        const defaultMd = generatePrivacyPolicyMarkdown({ websiteUrl: `https://${domain}` }, domain)
+        return NextResponse.json({
+          id: `default-privacy-${domain}`,
+          domain,
+          policyId: "privacy",
+          status: "published",
+          version: "v1.0",
+          contentHtml: defaultHtml,
+          content_html: defaultHtml,
+          contentMarkdown: defaultMd,
+          content_markdown: defaultMd,
+          publishedAt: new Date().toISOString(),
+        }, { headers: corsHeaders })
+      }
       return NextResponse.json({ detail: "Policy not found" }, { status: 404, headers: corsHeaders })
     }
 
@@ -69,3 +92,4 @@ export async function GET(
     return NextResponse.json({ detail: err.message || "Failed to fetch policy" }, { status: 500, headers: corsHeaders })
   }
 }
+

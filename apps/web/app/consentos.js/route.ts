@@ -1055,11 +1055,86 @@ export async function GET(req: Request) {
     version: "2.3.0"
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initCMP);
-  } else {
-    initCMP();
+  function initPolicyEmbeds() {
+    var policyContainers = document.querySelectorAll(
+      "[id^='usrly-'], [id^='userly-'], [id^='upfront-'], [id^='consentos-'], [data-usrly-policy], [data-policy-id], [data-policy]"
+    );
+    if (!policyContainers || policyContainers.length === 0) return;
+
+    for (var i = 0; i < policyContainers.length; i++) {
+      (function (container) {
+        var id = container.id || "";
+        var explicitPolicy = container.getAttribute("data-usrly-policy") || container.getAttribute("data-policy-id") || container.getAttribute("data-policy");
+        var containerDomain = container.getAttribute("data-domain") || domain;
+        var policyId = "";
+
+        if (explicitPolicy) {
+          policyId = explicitPolicy.trim().toLowerCase();
+        } else if (id) {
+          if (id.indexOf("cookie-declaration") !== -1 || id.indexOf("cookies-policy") !== -1 || id.indexOf("cookie-policy") !== -1) {
+            policyId = "cookies";
+          } else if (id.indexOf("privacy") !== -1) {
+            policyId = "privacy";
+          } else if (id.indexOf("terms") !== -1) {
+            policyId = "terms";
+          } else if (id.indexOf("eula") !== -1) {
+            policyId = "eula";
+          } else if (id.indexOf("return") !== -1) {
+            policyId = "return";
+          } else if (id.indexOf("disclaimer") !== -1) {
+            policyId = "disclaimer";
+          } else if (id.indexOf("shipping") !== -1) {
+            policyId = "shipping";
+          } else if (id.indexOf("acceptable_use") !== -1 || id.indexOf("acceptable-use") !== -1) {
+            policyId = "acceptable_use";
+          }
+        }
+
+        if (!policyId) return;
+
+        var endpoint = apiHost + "/api/v1/policies/" + encodeURIComponent(policyId) + "?domain=" + encodeURIComponent(containerDomain);
+
+        fetch(endpoint)
+          .then(function (res) {
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            return res.json();
+          })
+          .then(function (data) {
+            var html = data.contentHtml || data.content_html || "";
+            if (!html && (data.contentMarkdown || data.content_markdown)) {
+              var rawMd = data.contentMarkdown || data.content_markdown;
+              html = "<div style='font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif;line-height:1.65;color:#475569;max-width:820px;margin:0 auto;padding:24px 16px;'>" +
+                rawMd.replace(/### (.*?)\n/g, "<h3 style='font-size:13px;font-weight:600;color:#1e293b;margin:16px 0 6px;'>$1</h3>")
+                     .replace(/## (.*?)\n/g, "<h2 style='font-size:16px;font-weight:700;color:#0f172a;margin:24px 0 8px;'>$1</h2>")
+                     .replace(/# (.*?)\n/g, "<h1 style='font-size:24px;font-weight:700;color:#0f172a;margin-bottom:12px;'>$1</h1>")
+                     .replace(/---/g, "<hr style='border:0;border-top:1px solid #e2e8f0;margin:24px 0;'/>")
+                     .replace(/\*\*(.*?)\*\*/g, "<strong style='font-weight:600;color:#0f172a;'>$1</strong>")
+                     .replace(/\*(.*?)\*/g, "<em>$1</em>")
+                     .replace(/\n\n/g, "<br/><br/>") +
+                "</div>";
+            }
+            if (html) {
+              container.innerHTML = html;
+            }
+          })
+          .catch(function (err) {
+            console.warn("[ConsentOS CMP] Failed to load policy embed for " + policyId + ":", err);
+          });
+      })(policyContainers[i]);
+    }
   }
+
+  function onReady() {
+    initCMP();
+    initPolicyEmbeds();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", onReady);
+  } else {
+    onReady();
+  }
+  window.addEventListener("load", initPolicyEmbeds);
 })();
 `
 
