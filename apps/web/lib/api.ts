@@ -174,6 +174,9 @@ export interface ConsentConfig {
   preferences_label: string
   preferences_title?: string
   preferences_description?: string
+  preference_title?: string
+  preference_description?: string
+  preference_message?: string
   save_preferences_label?: string
   pref_accept_all_label?: string
   pref_reject_all_label?: string

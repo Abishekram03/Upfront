@@ -7,8 +7,6 @@ import { PolicyPreviewModal } from "./policy-preview-modal"
 import { PolicyWizardModal } from "./policy-wizard-modal"
 import { PolicyDetailsView } from "./policy-details-view"
 import { StagedPolicyEditor } from "./staged-policy-editor"
-import { PrivacyPolicyEditor } from "./privacy-policy-editor"
-import { TermsPolicyEditor } from "./terms-policy-editor"
 import { CookiePolicyGenerator } from "@/components/dashboard/consent/cookie-policy-generator"
 import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
 import { useDomain } from "@/lib/domain-context"
@@ -209,52 +207,8 @@ export function PolicyDashboardView() {
       )
     }
 
-    if (stagedEditingPolicy.id === "privacy") {
-      return (
-        <div className="max-w-[1400px] w-full mx-auto px-6 sm:px-10 py-6">
-          <PrivacyPolicyEditor
-            policy={stagedEditingPolicy}
-            domain={cleanDomain}
-            existingRecord={activeRecords[stagedEditingPolicy.id]}
-            onBack={() => {
-              setViewMode("details")
-              fetchPolicies()
-            }}
-            onSaveDraft={(record) => {
-              handleSavePolicy(record)
-            }}
-            onPublish={(record) => {
-              handleSavePolicy(record)
-            }}
-          />
-        </div>
-      )
-    }
-
-    if (stagedEditingPolicy.id === "terms") {
-      return (
-        <div className="max-w-[1400px] w-full mx-auto px-6 sm:px-10 py-6">
-          <TermsPolicyEditor
-            policy={stagedEditingPolicy}
-            domain={cleanDomain}
-            existingRecord={activeRecords[stagedEditingPolicy.id]}
-            onBack={() => {
-              setViewMode("details")
-              fetchPolicies()
-            }}
-            onSaveDraft={(record) => {
-              handleSavePolicy(record)
-            }}
-            onPublish={(record) => {
-              handleSavePolicy(record)
-            }}
-          />
-        </div>
-      )
-    }
-
     return (
-      <div className="max-w-[1400px] w-full mx-auto px-6 sm:px-10 py-6">
+      <div className="w-full">
         <StagedPolicyEditor
           policy={stagedEditingPolicy}
           domain={cleanDomain}
@@ -313,7 +267,7 @@ export function PolicyDashboardView() {
                 key={policy.id}
                 policy={policy}
                 record={record}
-                onGenerate={handleOpenCreate}
+                onGenerate={handleOpenDetails}
                 onPreview={handleOpenDetails}
                 onViewDetails={handleOpenDetails}
               />

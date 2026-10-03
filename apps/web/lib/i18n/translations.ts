@@ -58,7 +58,7 @@ export const CMP_TRANSLATIONS: Record<string, CMPTranslationDictionary> = {
     preferences_label: "Customise",
     preferences_title: "Customise Consent Preferences",
     preferences_description:
-      "We respect your privacy preferences. You can customize which category of cookies or tracking scripts you permit on this website. Essential cookies cannot be turned off.",
+      "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.",
     save_preferences_label: "Save My Preferences",
     pref_accept_all_label: "Accept All",
     pref_reject_all_label: "Reject All",
@@ -359,10 +359,27 @@ export function resolveCMPText(
     }
   }
 
-  const customVal = config ? config[key] : undefined
+  // Resolve direct key or common alias keys from config
+  let customVal = config ? config[key] : undefined
+  if (config && (customVal === undefined || customVal === null || customVal === "")) {
+    if (key === "preferences_description") {
+      customVal = config.preferences_description ?? config.preference_description ?? config.preference_message
+    } else if (key === "preferences_title") {
+      customVal = config.preferences_title ?? config.preference_title
+    } else if (key === "show_more_label") {
+      customVal = config.show_more_label
+    } else if (key === "show_less_label") {
+      customVal = config.show_less_label
+    }
+  }
 
-  // If customer provided custom text that differs from the base English default, manual copy takes precedence
-  if (customVal && typeof customVal === "string" && customVal.trim().length > 0 && customVal !== englishDefault) {
+  // If customer provided custom text that is non-empty, manual copy takes precedence
+  if (customVal && typeof customVal === "string" && customVal.trim().length > 0) {
+    // If previewing non-default language and customVal is the standard English default, return translated dictionary
+    if (lang !== "en" && lang !== (config?.default_language || "en") && customVal === englishDefault) {
+      const dict = CMP_TRANSLATIONS[lang] || CMP_TRANSLATIONS["en"]
+      return dict?.[key] || englishDefault
+    }
     return customVal
   }
 

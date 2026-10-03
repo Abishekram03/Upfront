@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       preferences_label: "Customise",
       preferences_title: "Customise Consent Preferences",
       preferences_description:
-        "We respect your privacy preferences. You can customize which category of cookies or tracking scripts you permit on this website. Essential cookies cannot be turned off.",
+        "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.",
       save_preferences_label: "Save My Preferences",
       always_active_label: "Always Active",
       no_cookies_to_display_label: "No cookies to display",
@@ -101,7 +101,7 @@ export async function GET(req: Request) {
       reject_all_label: "Reject All",
       preferences_label: "Customise",
       preferences_title: "Customise Consent Preferences",
-      preferences_description: "We respect your privacy preferences. You can customize which category of cookies or tracking scripts you permit on this website. Essential cookies cannot be turned off.",
+      preferences_description: "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.",
       save_preferences_label: "Save My Preferences",
       pref_accept_all_label: "Accept All",
       pref_reject_all_label: "Reject All",
@@ -371,8 +371,27 @@ export async function GET(req: Request) {
     var enDefault = (TRANSLATIONS["en"] && TRANSLATIONS["en"][key]) || "";
     var customVal = cfg ? cfg[key] : undefined;
 
+    if (cfg && (customVal === undefined || customVal === null || customVal === "")) {
+      if (key === "preferences_description") {
+        customVal = cfg.preferences_description || cfg.preference_description || cfg.preference_message;
+      } else if (key === "preferences_title") {
+        customVal = cfg.preferences_title || cfg.preference_title;
+      } else if (key === "show_more_label") {
+        customVal = cfg.show_more_label;
+      } else if (key === "show_less_label") {
+        customVal = cfg.show_less_label;
+      }
+    }
+
+    if (customVal && typeof customVal === "string" && customVal.indexOf("We respect your privacy preferences") !== -1) {
+      customVal = enDefault;
+    }
+
     // Customer custom copy always takes precedence over automatic translation
-    if (customVal && typeof customVal === "string" && customVal.trim().length > 0 && customVal !== enDefault) {
+    if (customVal && typeof customVal === "string" && customVal.trim().length > 0) {
+      if (lang !== "en" && lang !== (cfg && cfg.default_language ? cfg.default_language : "en") && customVal === enDefault) {
+        return (dict && dict[key]) || enDefault || "";
+      }
       return customVal;
     }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { PolicyDefinition, DomainPolicyRecord } from "./policy-types"
 import {
   Check,
@@ -21,10 +21,21 @@ import {
   ShieldCheck,
   Info,
   ExternalLink,
+  Eye,
+  Calendar,
+  Building2,
+  MapPin,
+  Mail,
+  Phone,
+  Bot,
+  Layers,
+  FileText,
+  Save,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/sonner"
 import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
+import { generatePrivacyPolicyMarkdown, generatePrivacyPolicyHtml } from "./policy-generator-template"
 
 interface StagedPolicyEditorProps {
   policy: PolicyDefinition
@@ -49,90 +60,106 @@ export function StagedPolicyEditor({
 
   const totalSteps = isCookies ? 6 : 8
   const [activeStep, setActiveStep] = useState<number>(1)
+  const [step8SubStep, setStep8SubStep] = useState<number>(1) // 1: Coverage 83%, 2: Company 90%, 3: Address 93%, 4: Title 96%, 5: Date 100%
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [copiedType, setCopiedType] = useState<string | null>(null)
   const [publishModalTab, setPublishModalTab] = useState<"html" | "script">("html")
+  const [previewModalTab, setPreviewModalTab] = useState<"rendered" | "html" | "markdown">("rendered")
   const [isSaving, setIsSaving] = useState(false)
 
-  // Live CMP scanner sync
+  // Live CMP scanner sync for cookie policies
   const cmpData = useCMPCookiePolicy(domain)
 
   const cfg = existingRecord?.config || {}
 
   // -------------------------------------------------------------
-  // SHARED ENTITY STATE
+  // SHARED ENTITY & PRIVACY POLICY QUESTIONNAIRE STATE
   // -------------------------------------------------------------
-  const [companyName, setCompanyName] = useState(cfg.companyName || "Acme Technologies Inc.")
+  const [companyName, setCompanyName] = useState(cfg.companyName || "")
   const [websiteUrl, setWebsiteUrl] = useState(cfg.websiteUrl || `https://${domain || "example.com"}`)
-  const [supportEmail, setSupportEmail] = useState(cfg.supportEmail || `privacy@${domain || "example.com"}`)
-  const [country, setCountry] = useState(cfg.country || "United States")
-  const [stateRegion, setStateRegion] = useState(cfg.stateRegion || "California")
+  const [supportEmail, setSupportEmail] = useState(cfg.supportEmail || "")
+  const [country, setCountry] = useState(cfg.country || "")
+  const [stateRegion, setStateRegion] = useState(cfg.stateRegion || "")
   const [effectiveDate, setEffectiveDate] = useState(
-    cfg.effectiveDate ||
-      new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })
   )
 
-  // -------------------------------------------------------------
-  // 1. PRIVACY POLICY QUESTIONNAIRE STATE
-  // -------------------------------------------------------------
+  // Step 1: Privacy Policy Uses
   const [platforms, setPlatforms] = useState<string[]>(
-    cfg.platforms || ["Website", "Mobile App (iOS/Android)"]
+    cfg.platforms || ["Website"]
   )
-  const [targetAudience, setTargetAudience] = useState<string>(cfg.targetAudience || "general")
+
+  // Step 2: User Location
+  const [hasUsUsers, setHasUsUsers] = useState<boolean>(
+    cfg.hasUsUsers !== undefined ? cfg.hasUsUsers : true
+  )
+  const [hasEuUsers, setHasEuUsers] = useState<boolean>(
+    cfg.hasEuUsers !== undefined ? cfg.hasEuUsers : true
+  )
+  const [hasCanadaUsers, setHasCanadaUsers] = useState<boolean>(
+    cfg.hasCanadaUsers !== undefined ? cfg.hasCanadaUsers : true
+  )
+
+  // Step 3: Collection of Information
   const [directData, setDirectData] = useState<string[]>(
     cfg.directData || [
       "Names",
       "Email addresses",
       "Phone numbers",
-      "Billing addresses",
       "Usernames",
       "Passwords",
-      "Contact preferences",
+      "Billing addresses",
     ]
   )
   const [customDataInput, setCustomDataInput] = useState("")
-  const [autoData, setAutoData] = useState<string[]>(
-    cfg.autoData || [
-      "IP address and device geolocation",
-      "Browser type, version, and operating system",
-      "Log files, timestamps, and page engagement data",
-    ]
+
+  // Step 4: Marketing Communications
+  const [sendMarketing, setSendMarketing] = useState<boolean>(
+    cfg.sendMarketing !== undefined ? cfg.sendMarketing : true
   )
-  const [purposes, setPurposes] = useState<string[]>(
-    cfg.purposes || [
-      "To facilitate account creation and logon process",
-      "To fulfill and manage orders, payments, and subscriptions",
-      "To deliver administrative, security, and service notices",
-      "To protect our services from malicious activities, spam, and fraud",
-      "To analyze web metrics and improve platform performance",
-    ]
+
+  // Step 5: Artificial Intelligence
+  const [offerAi, setOfferAi] = useState<boolean>(
+    cfg.offerAi !== undefined ? cfg.offerAi : false
   )
-  const [disclosures, setDisclosures] = useState<string[]>(
-    cfg.disclosures || [
-      "Cloud hosting and database infrastructure (AWS, Vercel, Google Cloud)",
-      "Payment processors (Stripe, PayPal, Paddle)",
-      "Web analytics engines (Cookieless Analytics)",
-      "Customer support and live ticketing desks",
-      "Legal authorities and regulators when required by statutory law",
-    ]
+
+  // Step 6: Tracking Technologies
+  const [trackingTech, setTrackingTech] = useState<"both" | "cookies" | "maps" | "neither">(
+    cfg.trackingTech || "both"
   )
-  const [useCookies, setUseCookies] = useState(cfg.useCookies !== undefined ? cfg.useCookies : true)
-  const [useAnalytics, setUseAnalytics] = useState(cfg.useAnalytics !== undefined ? cfg.useAnalytics : true)
-  const [useAds, setUseAds] = useState(cfg.useAds !== undefined ? cfg.useAds : false)
-  const [includeGdpr, setIncludeGdpr] = useState(cfg.includeGdpr !== undefined ? cfg.includeGdpr : true)
-  const [includeCcpa, setIncludeCcpa] = useState(cfg.includeCcpa !== undefined ? cfg.includeCcpa : true)
-  const [includeCoppa, setIncludeCoppa] = useState(cfg.includeCoppa !== undefined ? cfg.includeCoppa : true)
-  const [minAge, setMinAge] = useState(cfg.minAge || "13")
-  const [dpoEmail, setDpoEmail] = useState(cfg.dpoEmail || `dpo@${domain || "example.com"}`)
-  const [retentionPeriod, setRetentionPeriod] = useState(cfg.retentionPeriod || "account_active")
+
+  // Step 7: Data Protection Officer (DPO)
+  const [hasDpo, setHasDpo] = useState<boolean>(
+    cfg.hasDpo !== undefined ? cfg.hasDpo : false
+  )
+  const [dpoEmail, setDpoEmail] = useState(cfg.dpoEmail || "")
+
+  // Step 8: Final Details (Sub-steps)
+  const [extraRegions, setExtraRegions] = useState<string[]>(
+    cfg.extraRegions || []
+  )
+  const [isDba, setIsDba] = useState<boolean>(
+    cfg.isDba !== undefined ? cfg.isDba : false
+  )
+  const [dbaName, setDbaName] = useState(cfg.dbaName || "")
+  const [phone, setPhone] = useState(cfg.phone || "")
+  const [addressLine1, setAddressLine1] = useState(cfg.addressLine1 || "")
+  const [addressLine2, setAddressLine2] = useState(cfg.addressLine2 || "")
+  const [city, setCity] = useState(cfg.city || "")
+  const [zipCode, setZipCode] = useState(cfg.zipCode || "")
+  const [policyTitleChoice, setPolicyTitleChoice] = useState<"Privacy Policy" | "Privacy Notice" | "none" | "custom">(
+    cfg.policyTitleChoice || "Privacy Policy"
+  )
+  const [customPolicyTitle, setCustomPolicyTitle] = useState(cfg.customPolicyTitle || "")
 
   // -------------------------------------------------------------
-  // 2. TERMS OF SERVICE QUESTIONNAIRE STATE
+  // TERMS OF SERVICE QUESTIONNAIRE STATE
   // -------------------------------------------------------------
   const [tosPlatforms, setTosPlatforms] = useState<string[]>(
-    cfg.tosPlatforms || ["Website", "SaaS Web Application", "Mobile App (iOS/Android)"]
+    cfg.tosPlatforms || ["Website", "Mobile application"]
   )
-  const [tosUserAge, setTosUserAge] = useState(cfg.tosUserAge || "13")
+  const [tosUserAge, setTosUserAge] = useState(cfg.tosUserAge || "18")
   const [accountRequired, setAccountRequired] = useState(cfg.accountRequired !== undefined ? cfg.accountRequired : true)
   const [allowUgc, setAllowUgc] = useState(cfg.allowUgc !== undefined ? cfg.allowUgc : true)
   const [ugcModeration, setUgcModeration] = useState(cfg.ugcModeration !== undefined ? cfg.ugcModeration : true)
@@ -147,12 +174,12 @@ export function StagedPolicyEditor({
     ]
   )
   const [customProhibitedInput, setCustomProhibitedInput] = useState("")
-  const [dmcaEmail, setDmcaEmail] = useState(cfg.dmcaEmail || `legal@${domain || "example.com"}`)
+  const [dmcaEmail, setDmcaEmail] = useState(cfg.dmcaEmail || "")
   const [monetizationType, setMonetizationType] = useState<string>(cfg.monetizationType || "paid_subscriptions")
   const [billingCycle, setBillingCycle] = useState(cfg.billingCycle || "monthly_annual")
   const [autoRenewalNotice, setAutoRenewalNotice] = useState(cfg.autoRenewalNotice !== undefined ? cfg.autoRenewalNotice : true)
   const [refundPolicySummary, setRefundPolicySummary] = useState(
-    cfg.refundPolicySummary || "30-day money-back guarantee for subscription fees upon written request."
+    cfg.refundPolicySummary || "30-day refund policy upon written request."
   )
   const [warrantyDisclaimer, setWarrantyDisclaimer] = useState(cfg.warrantyDisclaimer !== undefined ? cfg.warrantyDisclaimer : true)
   const [liabilityLimit, setLiabilityLimit] = useState(
@@ -166,10 +193,10 @@ export function StagedPolicyEditor({
   )
 
   // -------------------------------------------------------------
-  // 3. COOKIE POLICY EXACT QUESTIONNAIRE STATE
+  // COOKIE POLICY STATE
   // -------------------------------------------------------------
   const [cookiePlatforms, setCookiePlatforms] = useState<string[]>(
-    cfg.cookiePlatforms || ["Main Website", "Subdomains", "Web Application Portal"]
+    cfg.cookiePlatforms || ["Main Website", "Subdomains"]
   )
   const [autoSyncScanTable, setAutoSyncScanTable] = useState(
     cfg.autoSyncScanTable !== undefined ? cfg.autoSyncScanTable : true
@@ -178,21 +205,20 @@ export function StagedPolicyEditor({
     cfg.allowConsentRevisit !== undefined ? cfg.allowConsentRevisit : true
   )
   const [cookieBrowserGuides, setCookieBrowserGuides] = useState<string[]>(
-    cfg.cookieBrowserGuides || ["Chrome", "Safari", "Firefox", "Microsoft Edge"]
+    cfg.cookieBrowserGuides || ["Google Chrome", "Apple Safari", "Mozilla Firefox", "Microsoft Edge"]
   )
 
-  // Discovered Cookies for Cookie Policy
   const displayCookies = useMemo(() => {
-    return cmpData.cookies.length > 0 ? cmpData.cookies : [
-      { name: "_ga", category: "analytics", service_name: "Google Analytics", duration: "2 years" },
-      { name: "_gid", category: "analytics", service_name: "Google Analytics", duration: "24 hours" },
-      { name: "upfront_test_functional", category: "functional", service_name: "Uncatalogued Provider", duration: "12 months" },
+    if (cmpData.cookies && cmpData.cookies.length > 0) {
+      return cmpData.cookies
+    }
+    return [
       { name: "consentos_consent", category: "necessary", service_name: "Consent Management", duration: "12 months" },
       { name: "session", category: "necessary", service_name: "Session Management", duration: "Session" },
     ]
   }, [cmpData.cookies])
 
-  // Exact standard texts requested by user
+  // Exact standard texts
   const aboutHeading = "What are cookies?"
   const aboutDescription = `This Cookie Policy explains what cookies are, how we use them, the types of cookies we use (i.e., the information we collect using cookies and how that information is used), and how to manage your cookie settings.\n\nCookies are small text files used to store small pieces of information. They are stored on your device when a website loads in your browser. These cookies help ensure that the website functions properly, enhance security, provide a better user experience, and analyse performance to identify what works and where improvements are needed.`
 
@@ -200,9 +226,8 @@ export function StagedPolicyEditor({
   const useDescription = `Like most online services, our website uses both first-party and third-party cookies for various purposes. First-party cookies are primarily necessary for the website to function properly and do not collect any personally identifiable data.\n\nThe third-party cookies used on our website primarily help us understand how the website performs, track how you interact with it, keep our services secure, deliver relevant advertisements, and enhance your overall user experience while improving the speed of your future interactions with our website.`
 
   const typesHeading = "Types of cookies we use"
-
   const prefHeading = "Manage cookie preferences"
-  const prefDescription = `You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.\n\nAdditionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:\n\nChrome: https://support.google.com/accounts/answer/32050\nSafari: https://support.apple.com/en-in/guide/safari/sfri11471/mac\nFirefox: https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox\nMicrosoft Edge: https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09\n\nIf you are using a different web browser, please refer to its official support documentation.`
+  const prefDescription = `You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.\n\nAdditionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies.`
 
   // -------------------------------------------------------------
   // Steps Configuration
@@ -213,9 +238,9 @@ export function StagedPolicyEditor({
     { step: 3, label: "3. Collection of Information" },
     { step: 4, label: "4. Use of Information" },
     { step: 5, label: "5. Disclosure of Information" },
-    { step: 6, label: "6. Tracking Technologies" },
+    { step: 6, label: "6. Use of Tracking Technologies" },
     { step: 7, label: "7. User Rights" },
-    { step: 8, label: "8. Final Review" },
+    { step: 8, label: "8. Final Details" },
   ]
 
   const termsSteps = [
@@ -226,7 +251,7 @@ export function StagedPolicyEditor({
     { step: 5, label: "5. Intellectual Property & DMCA" },
     { step: 6, label: "6. Subscriptions & Billing" },
     { step: 7, label: "7. Liability & Dispute Resolution" },
-    { step: 8, label: "8. Final Review" },
+    { step: 8, label: "8. Final Details" },
   ]
 
   const cookieSteps = [
@@ -239,9 +264,30 @@ export function StagedPolicyEditor({
   ]
 
   const currentSteps = isPrivacy ? privacySteps : isCookies ? cookieSteps : termsSteps
-  const progressPct = Math.round((activeStep / totalSteps) * 100)
 
-  // Custom handlers
+  // Exact Progress Percentages based on screenshots
+  const progressPct = useMemo(() => {
+    if (!isPrivacy) {
+      return Math.round((activeStep / totalSteps) * 100)
+    }
+    if (activeStep === 1) return 3
+    if (activeStep === 2) return 12
+    if (activeStep === 3) return 22
+    if (activeStep === 4) return 41
+    if (activeStep === 5) return 45
+    if (activeStep === 6) return 70
+    if (activeStep === 7) return 77
+    if (activeStep === 8) {
+      if (step8SubStep === 1) return 83
+      if (step8SubStep === 2) return 90
+      if (step8SubStep === 3) return 93
+      if (step8SubStep === 4) return 96
+      return 100
+    }
+    return 100
+  }, [isPrivacy, activeStep, step8SubStep, totalSteps])
+
+  // Custom addition handlers
   const handleAddCustomData = () => {
     if (!customDataInput.trim()) return
     if (!directData.includes(customDataInput.trim())) {
@@ -250,208 +296,114 @@ export function StagedPolicyEditor({
     setCustomDataInput("")
   }
 
-  const handleAddCustomProhibited = () => {
-    if (!customProhibitedInput.trim()) return
-    if (!prohibitedList.includes(customProhibitedInput.trim())) {
-      setProhibitedList([...prohibitedList, customProhibitedInput.trim()])
-    }
-    setCustomProhibitedInput("")
-  }
-
   // -------------------------------------------------------------
-  // Markdown & HTML Generators
+  // Markdown & HTML Compilers (Exact Standard 13-Section Template)
   // -------------------------------------------------------------
   const generateMarkdown = (): string => {
     if (isPrivacy) {
-      return `# Privacy Policy for ${domain}
-
-**Effective Date:** ${effectiveDate}  
-**Website:** [${websiteUrl}](${websiteUrl})  
-**Entity:** ${companyName} (${country}${stateRegion ? `, ${stateRegion}` : ""})  
-**Support Email:** ${supportEmail}  
-
----
-
-## 1. Scope & Platforms
-This Privacy Policy applies to personal data collected across the following platforms operated by **${companyName}**:
-${platforms.map((p) => `- ${p}`).join("\n")}
-
-## 2. Personal Information Collected Directly
-We collect personal information that you voluntarily provide to us when you register on the website, express an interest in obtaining information about us or our products and services, or otherwise contact us:
-${directData.map((d) => `- **${d}**`).join("\n")}
-
-## 3. Automatically Collected Telemetry
-When you visit our platforms, certain diagnostic metadata is recorded automatically:
-${autoData.map((a) => `- ${a}`).join("\n")}
-
-## 4. Purpose and Lawful Grounds for Processing
-We process your personal information for the following legitimate business purposes:
-${purposes.map((p) => `- ${p}`).join("\n")}
-
-## 5. Third-Party Disclosures & Processors
-We share information with service providers subject to strict confidentiality agreements:
-${disclosures.map((d) => `- ${d}`).join("\n")}
-
-## 6. International Compliance & Privacy Rights
-${includeGdpr ? `### General Data Protection Regulation (GDPR - EEA / UK):
-- **Lawful Basis:** Contractual necessity, legitimate business interests, and user consent.
-- **Your Statutory Rights:** You have the right to request access, rectification, portability, and erasure of your personal data, or submit an inquiry to our DPO at **${dpoEmail}**.` : ""}
-
-${includeCcpa ? `### California Consumer Privacy Act (CCPA / CPRA):
-- We do not sell or share consumer personal data for monetary or other valuable consideration.
-- California residents retain the right to request notice at collection and disclosure of categories of personal info collected in the preceding 12 months.` : ""}
-
-${includeCoppa ? `### Children's Online Privacy Protection (COPPA):
-- Our services are strictly intended for users aged **${minAge}** and above. We do not knowingly collect personal data from minors.` : ""}
-
-## 7. Data Retention & Subject Access Requests
-We retain personal data for as long as your account remains active or as required by law. To request data deletion or account closure, contact our compliance desk at **${supportEmail}**.
-`
+      return generatePrivacyPolicyMarkdown(
+        {
+          companyName,
+          dbaName,
+          isDba,
+          websiteUrl,
+          supportEmail,
+          phone,
+          country,
+          addressLine1,
+          addressLine2,
+          city,
+          zipCode,
+          effectiveDate,
+          platforms,
+          hasUsUsers,
+          hasEuUsers,
+          hasCanadaUsers,
+          directData,
+          sendMarketing,
+          offerAi,
+          trackingTech,
+          hasDpo,
+          dpoEmail,
+          extraRegions,
+          policyTitleChoice,
+          customPolicyTitle,
+        },
+        domain
+      )
     } else if (isCookies) {
       let md = `# Cookie Policy for ${domain}\n`
       md += `*Last updated: ${effectiveDate}*\n\n`
-
-      md += `## ${aboutHeading}\n`
-      md += `${aboutDescription}\n\n`
-
-      md += `## ${useHeading}\n`
-      md += `${useDescription}\n\n`
-
-      md += `## ${typesHeading}\n`
-      md += `**Live Cookie Table**  \n`
-      md += `*${displayCookies.length} active cookies*  \n`
-      md += `*Automatically rendered and synchronized from your website scans.*\n\n`
-
-      md += `| Cookie Name | Category | Provider | Duration |\n`
-      md += `| :--- | :--- | :--- | :--- |\n`
+      md += `## ${aboutHeading}\n${aboutDescription}\n\n`
+      md += `## ${useHeading}\n${useDescription}\n\n`
+      md += `## ${typesHeading}\n**Live Cookie Table**  \n*${displayCookies.length} active cookies*\n\n`
+      md += `| Cookie Name | Category | Provider | Duration |\n| :--- | :--- | :--- | :--- |\n`
       displayCookies.forEach((c) => {
         md += `| \`${c.name}\` | ${c.category} | ${c.service_name || domain || "First Party"} | ${c.duration || "Session"} |\n`
       })
-      md += `\n`
-
-      md += `## ${prefHeading}\n`
-      md += `[Consent Preferences](javascript:void(0))\n\n`
-      md += `${prefDescription}\n`
-
+      md += `\n## ${prefHeading}\n[Consent Preferences](javascript:void(0))\n\n${prefDescription}\n`
       return md
     } else {
       return `# Terms and Conditions for ${domain}
 
 **Effective Date:** ${effectiveDate}  
 **Website:** [${websiteUrl}](${websiteUrl})  
-**Entity:** ${companyName} (${country}${stateRegion ? `, ${stateRegion}` : ""})  
-**Contact:** ${supportEmail}
+**Entity:** ${companyName || domain}  
+**Contact:** ${supportEmail || "support@" + domain}
 
 ---
 
 ## 1. Agreement to Terms
-These Terms and Conditions constitute a legally binding agreement between you and **${companyName}**. By accessing or using \`${websiteUrl}\` across **${tosPlatforms.join(", ")}**, you agree that you are at least **${tosUserAge}** years of age and agree to comply with these terms.
+These Terms and Conditions constitute a legally binding agreement between you and **${companyName || domain}**. By accessing or using \`${websiteUrl}\` across **${tosPlatforms.join(", ")}**, you agree that you are at least **${tosUserAge}** years of age.
 
 ## 2. User Accounts & Registration
-${accountRequired ? "You are required to register an account to access core platform features. You are responsible for maintaining the confidentiality of your login credentials and are fully liable for all activities that occur under your account." : "Access to our public website does not require account registration."}
+${accountRequired ? "You are required to register an account to access core platform features." : "Access to our public website does not require account registration."}
 
-## 3. User-Generated Content & Contributions
-${allowUgc ? `Users may submit, post, or upload content (including comments, reviews, or media). By submitting content, you grant **${companyName}** a worldwide, royalty-free, non-exclusive license to host, display, and distribute such contributions.` : "Users are not permitted to submit or publish user-generated content on the platform."}
-${ugcModeration ? `We reserve the unilateral right to monitor, edit, or remove any content that violates these Terms or applicable statutory law without prior notice.` : ""}
-
-## 4. Prohibited Activities
-You agree not to engage in any of the following unauthorized activities on our platform:
+## 3. Prohibited Activities
 ${prohibitedList.map((p) => `- ${p}`).join("\n")}
 
-## 5. Intellectual Property & DMCA Copyright Notice
-All source code, platform architecture, databases, UI designs, software, trademarks, graphics, and logos are the proprietary intellectual property of **${companyName}**. Users receive a revocable, non-exclusive license solely to access the platform.
-For copyright infringement inquiries under the DMCA, contact our designated agent at **${dmcaEmail}**.
+## 4. Subscriptions & Billing
+${monetizationType === "paid_subscriptions" ? `Services are billed on a ${billingCycle.replace("_", " & ")} basis.` : "Services are provided on a complimentary or per-purchase basis."} ${refundPolicySummary}
 
-## 6. Subscriptions, Billing & Cancellations
-${monetizationType === "paid_subscriptions" ? `We offer recurring subscription plans billed on a ${billingCycle.replace("_", " & ")} basis.` : monetizationType === "one_time" ? "We offer paid one-time products and digital purchases." : "Our services are provided on a complimentary free basis."}
-${autoRenewalNotice ? "Subscriptions automatically renew at the end of each billing cycle unless cancelled prior to renewal." : ""}
-${refundPolicySummary}
-
-## 7. Warranty Disclaimer, Limitation of Liability & Dispute Resolution
-${warrantyDisclaimer ? `Our services are provided strictly on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind.` : ""}
-To the maximum extent permitted by applicable law, our aggregate liability shall not exceed **${liabilityLimit}**.
-${arbitrationClause ? `Any legal controversy or claim shall be resolved through binding arbitration in ${country}${stateRegion ? `, ${stateRegion}` : ""}.` : ""}
-${classActionWaiver ? "You agree to resolve disputes solely on an individual basis and waive any right to participate in a class-action lawsuit." : ""}
+## 5. Limitation of Liability
+Our aggregate liability shall not exceed **${liabilityLimit}**. Inquiries: **${supportEmail || "legal@" + domain}**.
 `
     }
   }
 
   const generateHtml = (): string => {
-    if (isCookies) {
-      return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Cookie Policy - ${domain}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 840px; margin: 0 auto; padding: 32px 16px; }
-    h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
-    h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px; margin-bottom: 8px; }
-    p, li { font-size: 14px; color: #334155; margin-bottom: 12px; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
-    th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; }
-    th { background-color: #f8fafc; font-weight: 600; color: #0f172a; }
-    .btn-revisit { display: inline-block; padding: 8px 16px; background: #1868db; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; margin: 12px 0; }
-    ul { padding-left: 20px; margin-bottom: 16px; }
-    a { color: #1868db; text-decoration: underline; }
-    .meta { font-size: 13px; color: #64748b; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; }
-  </style>
-</head>
-<body>
-  <h1>Cookie Policy for ${domain}</h1>
-  <div class="meta"><strong>Effective Date:</strong> ${effectiveDate} | <strong>Domain:</strong> https://${domain}</div>
-
-  <h2>What are cookies?</h2>
-  <p>This Cookie Policy explains what cookies are, how we use them, the types of cookies we use (i.e., the information we collect using cookies and how that information is used), and how to manage your cookie settings.</p>
-  <p>Cookies are small text files used to store small pieces of information. They are stored on your device when a website loads in your browser. These cookies help ensure that the website functions properly, enhance security, provide a better user experience, and analyse performance to identify what works and where improvements are needed.</p>
-
-  <h2>How do we use cookies?</h2>
-  <p>Like most online services, our website uses both first-party and third-party cookies for various purposes. First-party cookies are primarily necessary for the website to function properly and do not collect any personally identifiable data.</p>
-  <p>The third-party cookies used on our website primarily help us understand how the website performs, track how you interact with it, keep our services secure, deliver relevant advertisements, and enhance your overall user experience while improving the speed of your future interactions with our website.</p>
-
-  <h2>Types of cookies we use</h2>
-  <p><strong>Live Cookie Table</strong><br />
-  <em>${displayCookies.length} active cookies</em><br />
-  Automatically rendered and synchronized from your website scans.</p>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Cookie Name</th>
-        <th>Category</th>
-        <th>Provider</th>
-        <th>Duration</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${displayCookies
-        .map(
-          (c) => `<tr>
-        <td><code>${c.name}</code></td>
-        <td>${c.category}</td>
-        <td>${c.service_name || domain || "First Party"}</td>
-        <td>${c.duration || "Session"}</td>
-      </tr>`
-        )
-        .join("\n      ")}
-    </tbody>
-  </table>
-
-  <h2>Manage cookie preferences</h2>
-  <p><a href="javascript:void(0)" class="btn-revisit">Consent Preferences</a></p>
-  <p>You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.</p>
-  <p>Additionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:</p>
-  <ul>
-    <li><strong>Chrome:</strong> <a href="https://support.google.com/accounts/answer/32050" target="_blank" rel="noopener noreferrer">https://support.google.com/accounts/answer/32050</a></li>
-    <li><strong>Safari:</strong> <a href="https://support.apple.com/en-in/guide/safari/sfri11471/mac" target="_blank" rel="noopener noreferrer">https://support.apple.com/en-in/guide/safari/sfri11471/mac</a></li>
-    <li><strong>Firefox:</strong> <a href="https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox" target="_blank" rel="noopener noreferrer">https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox</a></li>
-    <li><strong>Microsoft Edge:</strong> <a href="https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener noreferrer">https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09</a></li>
-  </ul>
-  <p>If you are using a different web browser, please refer to its official support documentation.</p>
-</body>
-</html>`
+    if (isPrivacy) {
+      return generatePrivacyPolicyHtml(
+        {
+          companyName,
+          dbaName,
+          isDba,
+          websiteUrl,
+          supportEmail,
+          phone,
+          country,
+          addressLine1,
+          addressLine2,
+          city,
+          zipCode,
+          effectiveDate,
+          platforms,
+          hasUsUsers,
+          hasEuUsers,
+          hasCanadaUsers,
+          directData,
+          sendMarketing,
+          offerAi,
+          trackingTech,
+          hasDpo,
+          dpoEmail,
+          extraRegions,
+          policyTitleChoice,
+          customPolicyTitle,
+        },
+        domain
+      )
     }
-
     const md = generateMarkdown()
     return `<!DOCTYPE html>
 <html lang="en">
@@ -459,20 +411,25 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
   <meta charset="utf-8" />
   <title>${policy.name} - ${domain}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 820px; margin: 0 auto; padding: 32px 16px; }
-    h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
-    h2 { font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 24px; margin-bottom: 8px; }
-    p, li { font-size: 14px; color: #334155; margin-bottom: 10px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 300; line-height: 1.65; color: #475569; max-width: 820px; margin: 0 auto; padding: 32px 16px; -webkit-font-smoothing: antialiased; }
+    h1 { font-size: 24px; font-weight: 500; color: #0f172a; margin-bottom: 12px; letter-spacing: -0.01em; }
+    h2 { font-size: 16px; font-weight: 500; color: #0f172a; margin-top: 24px; margin-bottom: 8px; letter-spacing: -0.01em; }
+    h3 { font-size: 13px; font-weight: 500; color: #1e293b; margin-top: 16px; margin-bottom: 6px; }
+    p, li { font-size: 13px; font-weight: 300; color: #475569; margin-bottom: 10px; line-height: 1.65; }
     ul { padding-left: 20px; margin-bottom: 16px; }
-    .meta { font-size: 13px; color: #64748b; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; font-weight: 300; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+    th { background: #f8fafc; font-weight: 500; color: #0f172a; }
+    hr { border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0; }
+    strong { font-weight: 500; color: #0f172a; }
+    .meta { font-size: 12px; font-weight: 300; color: #64748b; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; }
   </style>
 </head>
 <body>
-  <h1>${policy.name} for ${domain}</h1>
-  <div class="meta"><strong>Effective Date:</strong> ${effectiveDate} | <strong>Domain:</strong> https://${domain}</div>
   ${md
     .split("\n\n")
     .map((chunk) => {
+      if (chunk.startsWith("# ")) return `<h1>${chunk.replace("# ", "")}</h1>`
       if (chunk.startsWith("## ")) return `<h2>${chunk.replace("## ", "")}</h2>`
       if (chunk.startsWith("### ")) return `<h3>${chunk.replace("### ", "")}</h3>`
       if (chunk.startsWith("- ")) {
@@ -491,71 +448,39 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
     : `<div id="usrly-${policy.id}-policy" data-domain="${domain}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
 
   const getCurrentConfig = () => {
-    if (isPrivacy) {
-      return {
-        platforms,
-        targetAudience,
-        companyName,
-        websiteUrl,
-        supportEmail,
-        country,
-        stateRegion,
-        effectiveDate,
-        directData,
-        autoData,
-        purposes,
-        disclosures,
-        useCookies,
-        useAnalytics,
-        useAds,
-        includeGdpr,
-        includeCcpa,
-        includeCoppa,
-        minAge,
-        dpoEmail,
-        retentionPeriod,
-      }
-    } else if (isCookies) {
-      return {
-        cookiePlatforms,
-        companyName,
-        websiteUrl,
-        supportEmail,
-        effectiveDate,
-        autoSyncScanTable,
-        allowConsentRevisit,
-        cookieBrowserGuides,
-      }
-    } else {
-      return {
-        tosPlatforms,
-        companyName,
-        websiteUrl,
-        supportEmail,
-        country,
-        stateRegion,
-        effectiveDate,
-        tosUserAge,
-        accountRequired,
-        allowUgc,
-        ugcModeration,
-        prohibitedList,
-        dmcaEmail,
-        monetizationType,
-        billingCycle,
-        autoRenewalNotice,
-        refundPolicySummary,
-        warrantyDisclaimer,
-        liabilityLimit,
-        arbitrationClause,
-        classActionWaiver,
-      }
+    return {
+      platforms,
+      hasUsUsers,
+      hasEuUsers,
+      hasCanadaUsers,
+      directData,
+      sendMarketing,
+      offerAi,
+      trackingTech,
+      hasDpo,
+      dpoEmail,
+      extraRegions,
+      companyName,
+      isDba,
+      dbaName,
+      supportEmail,
+      phone,
+      country,
+      addressLine1,
+      addressLine2,
+      city,
+      zipCode,
+      policyTitleChoice,
+      customPolicyTitle,
+      effectiveDate:
+        effectiveDate ||
+        new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+      cookiePlatforms,
+      tosPlatforms,
     }
   }
 
-  // -------------------------------------------------------------
   // Backend Action Handlers
-  // -------------------------------------------------------------
   const handleSaveDraftAction = async () => {
     try {
       setIsSaving(true)
@@ -622,8 +547,9 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
         throw new Error(err.detail || "Failed to publish policy")
       }
 
-      const savedData: DomainPolicyRecord = await res.json()
-      onPublish(savedData)
+      const publishedData: DomainPolicyRecord = await res.json()
+      onPublish(publishedData)
+      toast.success(`${policy.name} published successfully!`)
       setIsPublishModalOpen(true)
     } catch (err: any) {
       console.error("Publish error:", err)
@@ -640,630 +566,181 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
     setTimeout(() => setCopiedType(null), 2000)
   }
 
-  const isFinalStep = activeStep === totalSteps
+  // Next Step / Publish navigation handler
+  const handleNext = () => {
+    if (isPrivacy) {
+      if (activeStep < 8) {
+        setActiveStep(activeStep + 1)
+        if (activeStep + 1 === 8) {
+          setStep8SubStep(1)
+        }
+      } else {
+        // Step 8 sub-steps
+        if (step8SubStep < 5) {
+          setStep8SubStep(step8SubStep + 1)
+        } else {
+          // Final Publish trigger
+          handlePublishAction()
+        }
+      }
+    } else {
+      if (activeStep < totalSteps) {
+        setActiveStep(activeStep + 1)
+      } else {
+        handlePublishAction()
+      }
+    }
+  }
+
+  const handleBack = () => {
+    if (isPrivacy) {
+      if (activeStep === 8 && step8SubStep > 1) {
+        setStep8SubStep(step8SubStep - 1)
+      } else if (activeStep > 1) {
+        setActiveStep(activeStep - 1)
+      } else {
+        onBack()
+      }
+    } else {
+      if (activeStep > 1) {
+        setActiveStep(activeStep - 1)
+      } else {
+        onBack()
+      }
+    }
+  }
+
+  const isFinalScreen = isPrivacy ? activeStep === 8 && step8SubStep === 5 : activeStep === totalSteps
 
   return (
-    <div className="w-full bg-[#fcfcfd] min-h-[calc(100vh-140px)] flex flex-col pb-16">
-      {/* 2-Column Questionnaire Layout matching Termly */}
-      <div className="w-full flex-1 flex flex-col md:flex-row border border-slate-200/90 rounded-lg bg-white shadow-2xs overflow-hidden min-h-[680px]">
-        {/* ========================================================= */}
-        {/* LEFT RAIL (NAVIGATION STEPS & PROGRESS) */}
-        {/* ========================================================= */}
-        <div className="w-full md:w-[280px] shrink-0 border-r border-slate-200/80 bg-white p-6 flex flex-col justify-between select-none">
-          <div className="space-y-6">
-            {/* Top Back to Dashboard Link */}
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors uppercase tracking-wider cursor-pointer"
-            >
-              <ChevronLeft className="size-4" />
-              <span>BACK TO DASHBOARD</span>
-            </button>
+    <div className="w-full bg-[#fcfcfd] min-h-[calc(100vh-140px)] flex flex-col pb-12 font-sans">
+      {/* Top Header Bar matching screenshot with Back to preview */}
+      <div className="w-full border-b border-slate-200/90 bg-white px-6 sm:px-8 py-3.5 flex items-center justify-between shadow-2xs">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-xs font-bold text-slate-600 hover:text-slate-900 inline-flex items-center gap-1.5 transition-colors cursor-pointer py-1.5 px-2.5 rounded-md hover:bg-slate-100 border border-slate-200/80 bg-slate-50/50"
+          >
+            <ChevronLeft className="size-4" />
+            <span>Back to preview</span>
+          </button>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2 pl-2 border-l border-slate-200">
+            <span>{policy.name}</span>
+          </h1>
+        </div>
 
-            {/* Progress Section */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-slate-500 tracking-wider uppercase text-[11px]">PROGRESS</span>
-                <span className="text-slate-800 font-mono text-xs">{progressPct}%</span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={handleSaveDraftAction}
+            className="text-xs font-bold text-slate-700 hover:text-slate-900 px-3 py-1.5 transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+          >
+            {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+            <span>SAVE</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={handlePublishAction}
+            className="rounded-md bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 shadow-xs cursor-pointer transition-colors disabled:opacity-50 inline-flex items-center gap-1"
+          >
+            <span>PUBLISH...</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3-Column Studio Layout matching screenshots */}
+      <div className="w-full flex-1 flex flex-col lg:flex-row bg-white overflow-hidden min-h-[680px]">
+        {/* ========================================================= */}
+        {/* 1. LEFT RAIL: PROGRESS & 8 STAGES */}
+        {/* ========================================================= */}
+        <div className="w-full lg:w-[240px] shrink-0 border-r border-slate-200/80 bg-white p-5 flex flex-col justify-between select-none">
+          <div className="space-y-5">
+            {/* Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-bold">
+                <span className="text-slate-600 uppercase tracking-wider text-[10px]">PROGRESS</span>
+                <span className="text-slate-800 font-mono text-[11px]">{progressPct}%</span>
               </div>
-              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/60">
+              <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#10b981] rounded-full transition-all duration-300"
-                  style={{ width: `${Math.max(progressPct, 4)}%` }}
+                  style={{ width: `${Math.max(progressPct, 3)}%` }}
                 />
               </div>
             </div>
 
-            {/* Step Items List */}
+            {/* 8 Stage Steps List */}
             <nav className="space-y-1 pt-2">
               {currentSteps.map((item) => {
                 const isActive = activeStep === item.step
-                const isCompleted = activeStep > item.step
                 return (
                   <button
                     key={item.step}
                     type="button"
-                    onClick={() => setActiveStep(item.step)}
+                    onClick={() => {
+                      setActiveStep(item.step)
+                      if (item.step === 8) setStep8SubStep(1)
+                    }}
                     className={cn(
-                      "w-full text-left px-3 py-2 text-xs font-medium rounded-md transition-all flex items-center justify-between cursor-pointer",
+                      "w-full text-left px-2.5 py-2 text-xs transition-all flex items-center justify-between cursor-pointer rounded-md",
                       isActive
-                        ? "text-[#1868db] font-bold bg-blue-50/70 border-l-3 border-[#1868db]"
-                        : isCompleted
-                        ? "text-slate-800 hover:bg-slate-50 font-semibold"
-                        : "text-slate-500 hover:bg-slate-50"
+                        ? "text-slate-900 font-bold bg-blue-50/50 border-l-3 border-[#2563eb]"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                     )}
                   >
                     <span>{item.label}</span>
-                    {isCompleted && <Check className="size-3.5 text-emerald-600 stroke-[2.5]" />}
                   </button>
                 )
               })}
             </nav>
           </div>
-
-          {/* Quick Draft Save on Bottom Left */}
-          <div className="pt-6 border-t border-slate-100">
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={handleSaveDraftAction}
-              className="w-full py-2 px-3 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-            >
-              {isSaving && <Loader2 className="size-3.5 animate-spin" />}
-              <span>Save Progress as Draft</span>
-            </button>
-          </div>
         </div>
 
         {/* ========================================================= */}
-        {/* MAIN QUESTIONNAIRE AREA */}
+        {/* 2. CENTER QUESTIONNAIRE AREA */}
         {/* ========================================================= */}
-        <div className="flex-1 flex flex-col justify-between p-8 sm:p-12 overflow-y-auto bg-white">
-          <div className="max-w-3xl space-y-6">
-            {/* Top Page Title */}
-            <div className="border-b border-slate-100 pb-4">
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-                {isCookies && <Cookie className="size-6 text-amber-600" />}
-                {isPrivacy && <Shield className="size-6 text-blue-600" />}
-                {isTerms && <Scale className="size-6 text-indigo-600" />}
-                <span>{policy.name}</span>
-              </h1>
-            </div>
-
-            {/* TOP ACTIONS BAR ON THE FINAL STEP (SAVE DRAFT | PUBLISH) */}
-            {isFinalStep && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-slate-50/90 border border-slate-200 rounded-lg animate-in fade-in duration-200">
-                <div>
-                  <h3 className="text-xs font-bold text-slate-900">
-                    Ready to save or publish?
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Save your changes as a draft or publish immediately to get embed codes.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={handleSaveDraftAction}
-                    className="px-4 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                  >
-                    {isSaving && <Loader2 className="size-3.5 animate-spin" />}
-                    <span>Save Draft</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={handlePublishAction}
-                    className="inline-flex items-center gap-1.5 px-5 py-1.5 rounded-md bg-[#10b981] hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-                  >
-                    {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-4" />}
-                    <span>Publish Policy</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================= */}
-            {/* 1. COOKIE POLICY 6 STEPS QUESTIONNAIRE */}
-            {/* ========================================================= */}
-            {isCookies && (
-              <>
-                {/* STEP 1: Scope & Website Details */}
-                {activeStep === 1 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Scope & Website Identity
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Identify your website and operating entity for this Cookie Policy:
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700 block mb-1">Company / Organization Legal Name</label>
-                        <input
-                          type="text"
-                          value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
-                          className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Primary Website Domain / URL</label>
-                          <input
-                            type="text"
-                            value={websiteUrl}
-                            onChange={(e) => setWebsiteUrl(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Privacy / DPO Contact Email</label>
-                          <input
-                            type="email"
-                            value={supportEmail}
-                            onChange={(e) => setSupportEmail(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Effective Date</label>
-                          <input
-                            type="text"
-                            value={effectiveDate}
-                            onChange={(e) => setEffectiveDate(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Governing Country</label>
-                          <input
-                            type="text"
-                            value={country}
-                            onChange={(e) => setCountry(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pt-2">
-                        <label className="text-xs font-semibold text-slate-700 block mb-2">Scope of Deployment</label>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                          {[
-                            "Main Website",
-                            "Subdomains (*.yourdomain.com)",
-                            "Web Application Portal",
-                            "E-Commerce Storefront",
-                            "Blog & Documentation",
-                            "Client Dashboard",
-                          ].map((p) => {
-                            const isChecked = cookiePlatforms.includes(p)
-                            return (
-                              <label
-                                key={p}
-                                className={cn(
-                                  "flex items-center gap-2 p-2.5 rounded-md border text-xs cursor-pointer transition-colors select-none",
-                                  isChecked
-                                    ? "border-[#1868db] bg-blue-50/60 font-semibold text-[#1868db]"
-                                    : "border-slate-200 hover:bg-slate-50 text-slate-700"
-                                )}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    if (e.target.checked) setCookiePlatforms([...cookiePlatforms, p])
-                                    else setCookiePlatforms(cookiePlatforms.filter((item) => item !== p))
-                                  }}
-                                  className="rounded border-slate-300 text-[#1868db] size-3.5"
-                                />
-                                <span>{p}</span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 2: What Are Cookies? */}
-                {activeStep === 2 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        {aboutHeading}
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Predefined legal disclosure explaining the mechanism and purpose of browser cookies:
-                      </p>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3 text-xs text-slate-700 leading-relaxed">
-                      <p>
-                        This Cookie Policy explains what cookies are, how we use them, the types of cookies we use (i.e., the information we collect using cookies and how that information is used), and how to manage your cookie settings.
-                      </p>
-                      <p>
-                        Cookies are small text files used to store small pieces of information. They are stored on your device when a website loads in your browser. These cookies help ensure that the website functions properly, enhance security, provide a better user experience, and analyse performance to identify what works and where improvements are needed.
-                      </p>
-                    </div>
-
-                    <div className="space-y-3 pt-2">
-                      <label className="text-xs font-semibold text-slate-700 block">Core Technical Distinctions Disclosed</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div className="p-3 rounded-lg border border-slate-200 bg-white space-y-1">
-                          <span className="font-bold text-slate-900">First-Party vs Third-Party</span>
-                          <p className="text-[11px] text-slate-500">First-party cookies are set by our domain directly; third-party cookies are set by analytics/ad providers.</p>
-                        </div>
-                        <div className="p-3 rounded-lg border border-slate-200 bg-white space-y-1">
-                          <span className="font-bold text-slate-900">Session vs Persistent</span>
-                          <p className="text-[11px] text-slate-500">Session cookies expire when closing the browser; persistent cookies remain until deleted or expiration.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 3: How We Use Cookies */}
-                {activeStep === 3 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        {useHeading}
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Disclosures explaining operational purposes for first-party and third-party cookies:
-                      </p>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3 text-xs text-slate-700 leading-relaxed">
-                      <p>
-                        Like most online services, our website uses both first-party and third-party cookies for various purposes. First-party cookies are primarily necessary for the website to function properly and do not collect any personally identifiable data.
-                      </p>
-                      <p>
-                        The third-party cookies used on our website primarily help us understand how the website performs, track how you interact with it, keep our services secure, deliver relevant advertisements, and enhance your overall user experience while improving the speed of your future interactions with our website.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 pt-2">
-                      <label className="text-xs font-semibold text-slate-700 block">Included Processing Purposes</label>
-                      <div className="space-y-2 text-xs">
-                        {[
-                          "Strictly Necessary operations (proper function, session integrity, no personal tracking)",
-                          "Performance analytics (speed, page load telemetry, error diagnostics)",
-                          "User engagement & interaction measurement (clicks, scrolling, visitor counts)",
-                          "Security safeguards (malicious activity protection, CSRF token validation)",
-                          "Speed optimization for future user interactions",
-                        ].map((purpose, i) => (
-                          <div key={i} className="flex items-center gap-2 p-2.5 rounded border border-slate-200 bg-white font-medium text-slate-700">
-                            <Check className="size-4 text-emerald-600" />
-                            <span>{purpose}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 4: Types of Cookies (Live Table) */}
-                {activeStep === 4 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-bold text-slate-900">
-                          {typesHeading}
-                        </h2>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-                          <CheckCircle2 className="size-3.5" />
-                          <span>Live Synced Table</span>
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Active cookies discovered on your domain will be automatically rendered in the policy:
-                      </p>
-                    </div>
-
-                    {/* Live Cookie Table Card */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-xs font-bold text-slate-900">Live Cookie Table</h3>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Automatically rendered and synchronized from your website scans.
-                          </p>
-                        </div>
-                        <span className="text-xs font-bold px-2.5 py-1 rounded bg-blue-50 text-[#1868db] border border-blue-200 font-mono">
-                          {displayCookies.length} active cookies
-                        </span>
-                      </div>
-
-                      <div className="rounded-md border border-slate-200 overflow-hidden bg-white mt-3">
-                        <table className="w-full text-left text-xs border-collapse">
-                          <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
-                            <tr>
-                              <th className="p-2.5">Cookie Name</th>
-                              <th className="p-2.5">Category</th>
-                              <th className="p-2.5">Provider</th>
-                              <th className="p-2.5">Duration</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {displayCookies.map((c, i) => (
-                              <tr key={i} className="hover:bg-slate-50/60">
-                                <td className="p-2.5 font-mono font-bold text-[#1868db] text-[11px]">
-                                  {c.name}
-                                </td>
-                                <td className="p-2.5">
-                                  <span className={cn(
-                                    "px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-                                    c.category.toLowerCase().includes("nec") ? "bg-slate-100 text-slate-700" :
-                                    c.category.toLowerCase().includes("anal") ? "bg-blue-50 text-blue-700" :
-                                    c.category.toLowerCase().includes("func") ? "bg-amber-50 text-amber-700" :
-                                    "bg-purple-50 text-purple-700"
-                                  )}>
-                                    {c.category}
-                                  </span>
-                                </td>
-                                <td className="p-2.5 text-slate-600 text-[11px]">
-                                  {c.service_name || domain || "First Party"}
-                                </td>
-                                <td className="p-2.5 text-slate-500 text-[11px]">
-                                  {c.duration || "Session"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={autoSyncScanTable}
-                        onChange={(e) => setAutoSyncScanTable(e.target.checked)}
-                        className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                      />
-                      <div>
-                        <p className="text-xs font-bold text-slate-900">
-                          Auto-Synchronize Monthly Scanner Updates
-                        </p>
-                        <p className="text-[11px] text-slate-500">
-                          When new cookies are discovered on your website, update this table dynamically via the CMP script.
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                )}
-
-                {/* STEP 5: Manage Cookie Preferences */}
-                {activeStep === 5 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        {prefHeading}
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Visitor consent re-opening button and browser cookie blocking instructions:
-                      </p>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3 text-xs text-slate-700 leading-relaxed">
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          className="px-4 py-1.5 rounded-md bg-[#1868db] text-white font-bold text-xs shadow-2xs cursor-pointer hover:bg-blue-700 transition-colors"
-                        >
-                          Consent Preferences
-                        </button>
-                        <span className="text-[11px] text-slate-500">
-                          (Interactive button embedded in your policy)
-                        </span>
-                      </div>
-                      <p>
-                        You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.
-                      </p>
-                      <p>
-                        Additionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:
-                      </p>
-                    </div>
-
-                    {/* Official Browser Support Guides */}
-                    <div className="space-y-2 pt-2">
-                      <label className="text-xs font-semibold text-slate-700 block">
-                        Included Official Browser Management Documentation Links
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                        {[
-                          { name: "Chrome", url: "https://support.google.com/accounts/answer/32050" },
-                          { name: "Safari", url: "https://support.apple.com/en-in/guide/safari/sfri11471/mac" },
-                          { name: "Firefox", url: "https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox" },
-                          { name: "Microsoft Edge", url: "https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" },
-                        ].map((b) => (
-                          <div key={b.name} className="p-3 rounded-md border border-slate-200 bg-white space-y-1">
-                            <span className="font-bold text-slate-900 block">{b.name}</span>
-                            <a
-                              href={b.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11px] text-[#1868db] hover:underline truncate block"
-                            >
-                              {b.url}
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 6: Review & Publish */}
-                {activeStep === 6 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Review & Final Assembly
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Review your assembled Cookie Policy before saving as draft or publishing:
-                      </p>
-                    </div>
-
-                    {/* Formatted Legal Document Paper View (Exact Match) */}
-                    <div className="bg-white border border-slate-300 rounded-lg p-6 sm:p-10 shadow-xs text-xs text-slate-700 space-y-6 max-h-[500px] overflow-y-auto leading-relaxed">
-                      <div>
-                        <h1 className="text-xl font-extrabold text-slate-900">
-                          Cookie Policy for {domain}
-                        </h1>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          <em>Last updated: {effectiveDate}</em>
-                        </p>
-                      </div>
-
-                      {/* 1. What are cookies? */}
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">{aboutHeading}</h2>
-                        {aboutDescription.split("\n\n").map((p, i) => (
-                          <p key={i} className="text-slate-600">{p}</p>
-                        ))}
-                      </div>
-
-                      {/* 2. How do we use cookies? */}
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">{useHeading}</h2>
-                        {useDescription.split("\n\n").map((p, i) => (
-                          <p key={i} className="text-slate-600">{p}</p>
-                        ))}
-                      </div>
-
-                      {/* 3. Types of cookies we use */}
-                      <div className="space-y-3">
-                        <h2 className="text-sm font-bold text-slate-900">{typesHeading}</h2>
-                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-md space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-900 text-xs">Live Cookie Table</span>
-                            <span className="text-xs font-bold text-[#1868db]">{displayCookies.length} active cookies</span>
-                          </div>
-                          <p className="text-[11px] text-slate-500">
-                            Automatically rendered and synchronized from your website scans.
-                          </p>
-
-                          <div className="mt-2 rounded border border-slate-200 overflow-hidden bg-white">
-                            <table className="w-full text-left text-[11px] border-collapse">
-                              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
-                                <tr>
-                                  <th className="p-2">Cookie Name</th>
-                                  <th className="p-2">Category</th>
-                                  <th className="p-2">Provider</th>
-                                  <th className="p-2">Duration</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100">
-                                {displayCookies.map((c, i) => (
-                                  <tr key={i} className="hover:bg-slate-50/60">
-                                    <td className="p-2 font-mono font-semibold text-[#1868db]">{c.name}</td>
-                                    <td className="p-2 capitalize">{c.category}</td>
-                                    <td className="p-2 text-slate-600">{c.service_name || domain || "First Party"}</td>
-                                    <td className="p-2 text-slate-500">{c.duration || "Session"}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 4. Manage cookie preferences */}
-                      <div className="space-y-3 pt-2 border-t border-slate-100">
-                        <h2 className="text-sm font-bold text-slate-900">{prefHeading}</h2>
-                        <div>
-                          <button
-                            type="button"
-                            className="px-4 py-1.5 rounded-md bg-[#1868db] text-white font-bold text-xs shadow-2xs"
-                          >
-                            Consent Preferences
-                          </button>
-                        </div>
-                        <p className="text-slate-600">
-                          You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.
-                        </p>
-                        <p className="text-slate-600">
-                          Additionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:
-                        </p>
-                        <ul className="list-disc pl-5 space-y-1 text-slate-600 text-[11px]">
-                          <li><strong>Chrome:</strong> <a href="https://support.google.com/accounts/answer/32050" target="_blank" rel="noopener noreferrer" className="text-[#1868db] underline">https://support.google.com/accounts/answer/32050</a></li>
-                          <li><strong>Safari:</strong> <a href="https://support.apple.com/en-in/guide/safari/sfri11471/mac" target="_blank" rel="noopener noreferrer" className="text-[#1868db] underline">https://support.apple.com/en-in/guide/safari/sfri11471/mac</a></li>
-                          <li><strong>Firefox:</strong> <a href="https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox" target="_blank" rel="noopener noreferrer" className="text-[#1868db] underline">https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox</a></li>
-                          <li><strong>Microsoft Edge:</strong> <a href="https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener noreferrer" className="text-[#1868db] underline">https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09</a></li>
-                        </ul>
-                        <p className="text-slate-600">
-                          If you are using a different web browser, please refer to its official support documentation.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ========================================================= */}
-            {/* 2. PRIVACY POLICY 8 STEPS QUESTIONNAIRE */}
-            {/* ========================================================= */}
+        <div className="flex-1 flex flex-col justify-between p-6 sm:p-10 overflow-y-auto bg-white border-r border-slate-200/80">
+          <div className="max-w-2xl space-y-6">
+            {/* ------------------------------------------------------- */}
+            {/* PRIVACY POLICY STAGE QUESTIONS */}
+            {/* ------------------------------------------------------- */}
             {isPrivacy && (
               <>
-                {/* STEP 1: Privacy Policy Uses */}
+                {/* STEP 1: Privacy Policy Uses (3%) */}
                 {activeStep === 1 && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Privacy Policy Platforms & Deployment
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Where will this privacy policy be displayed and enforced?
-                      </p>
-                    </div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Privacy Policy Uses
+                    </h2>
 
                     <div className="space-y-3">
-                      <label className="text-xs font-semibold text-slate-700 block">Target Platforms</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <p className="text-xs font-semibold text-slate-800">
+                        What will this Privacy Policy be used for?
+                      </p>
+
+                      <div className="space-y-2.5">
                         {[
                           "Website",
-                          "Mobile App (iOS/Android)",
-                          "E-Commerce Storefront",
-                          "SaaS Web Application",
-                          "Browser Extension",
-                          "Facebook / Social App",
-                        ].map((platform) => {
-                          const isChecked = platforms.includes(platform)
+                          "Mobile application",
+                          "Facebook application",
+                        ].map((p) => {
+                          const isChecked = platforms.includes(p)
                           return (
-                            <label
-                              key={platform}
-                              className={cn(
-                                "flex items-center gap-3 p-3.5 rounded-lg border text-xs font-medium cursor-pointer transition-all",
-                                isChecked
-                                  ? "border-[#1868db] bg-blue-50/50 text-[#1868db] font-semibold"
-                                  : "border-slate-200 hover:border-slate-300 text-slate-700"
-                              )}
-                            >
+                            <label key={p} className="flex items-center gap-3 cursor-pointer select-none">
                               <input
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={(e) => {
-                                  if (e.target.checked) setPlatforms([...platforms, platform])
-                                  else setPlatforms(platforms.filter((p) => p !== platform))
+                                  if (e.target.checked) setPlatforms([...platforms, p])
+                                  else setPlatforms(platforms.filter((x) => x !== p))
                                 }}
-                                className="rounded border-slate-300 text-[#1868db] focus:ring-blue-500 size-4"
+                                className="rounded border-slate-300 text-[#2563eb] size-4 focus:ring-blue-500"
                               />
-                              <span>{platform}</span>
+                              <span className="text-xs text-slate-800">{p}</span>
                             </label>
                           )
                         })}
@@ -1272,92 +749,131 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
                   </div>
                 )}
 
-                {/* STEP 2: User Information */}
+                {/* STEP 2: User Location (12%) */}
                 {activeStep === 2 && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Company & Operational Entity
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Who is legally responsible for data processing?
-                      </p>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      User Location
+                    </h2>
+
+                    {/* Question 1 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Do you have users in the United States?
+                        </p>
+                        <HelpCircle className="size-3.5 text-slate-400" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="hasUsUsers"
+                            checked={hasUsUsers === true}
+                            onChange={() => setHasUsUsers(true)}
+                            className="size-3.5 text-[#2563eb]"
+                          />
+                          <span className="text-xs text-slate-800">Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="hasUsUsers"
+                            checked={hasUsUsers === false}
+                            onChange={() => setHasUsUsers(false)}
+                            className="size-3.5 text-[#2563eb]"
+                          />
+                          <span className="text-xs text-slate-800">No</span>
+                        </label>
+                      </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700 block mb-1">Company / Entity Name</label>
-                        <input
-                          type="text"
-                          value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
-                          className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                        />
+                    {/* Question 2 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Do you have users in the EU, UK, Switzerland, Iceland, Liechtenstein, or Norway?
+                        </p>
+                        <HelpCircle className="size-3.5 text-slate-400" />
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Website URL</label>
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input
-                            type="text"
-                            value={websiteUrl}
-                            onChange={(e) => setWebsiteUrl(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                            type="radio"
+                            name="hasEuUsers"
+                            checked={hasEuUsers === true}
+                            onChange={() => setHasEuUsers(true)}
+                            className="size-3.5 text-[#2563eb]"
                           />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Privacy / Support Email</label>
+                          <span className="text-xs text-slate-800">Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input
-                            type="email"
-                            value={supportEmail}
-                            onChange={(e) => setSupportEmail(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                            type="radio"
+                            name="hasEuUsers"
+                            checked={hasEuUsers === false}
+                            onChange={() => setHasEuUsers(false)}
+                            className="size-3.5 text-[#2563eb]"
                           />
-                        </div>
+                          <span className="text-xs text-slate-800">No</span>
+                        </label>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Effective Date</label>
+                    {/* Question 3 */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Do you have users in Canada?
+                        </p>
+                        <HelpCircle className="size-3.5 text-slate-400" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input
-                            type="text"
-                            value={effectiveDate}
-                            onChange={(e) => setEffectiveDate(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                            type="radio"
+                            name="hasCanadaUsers"
+                            checked={hasCanadaUsers === true}
+                            onChange={() => setHasCanadaUsers(true)}
+                            className="size-3.5 text-[#2563eb]"
                           />
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Governing Country</label>
+                          <span className="text-xs text-slate-800">Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input
-                            type="text"
-                            value={country}
-                            onChange={(e) => setCountry(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                            type="radio"
+                            name="hasCanadaUsers"
+                            checked={hasCanadaUsers === false}
+                            onChange={() => setHasCanadaUsers(false)}
+                            className="size-3.5 text-[#2563eb]"
                           />
-                        </div>
+                          <span className="text-xs text-slate-800">No</span>
+                        </label>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* STEP 3: Collection of Information */}
+                {/* STEP 3: Collection of Information (22%) */}
                 {activeStep === 3 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Personal Information Collected Directly
+                    </h2>
+
                     <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Personal Information Collected Directly
-                      </h2>
-                      <div className="mt-1 space-y-1">
-                        <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
-                          <span>Please select the personal information you intend to collect directly from the user:</span>
-                          <HelpCircle className="size-3.5 text-slate-400" />
-                        </div>
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Please select the personal information you intend to collect directly from the user:
+                        </p>
+                        <HelpCircle className="size-3.5 text-slate-400" />
                       </div>
+                      <p className="text-[11px] text-slate-500 italic mt-0.5">
+                        &quot;Collect directly&quot; means the user directly provides you with this information. For example, a user may give you their name and email address when signing up for an account on your site.
+                      </p>
                     </div>
 
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                       {[
                         "Names",
                         "Phone numbers",
@@ -1367,16 +883,13 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
                         "Usernames",
                         "Passwords",
                         "Contact preferences",
-                        "Authentication data",
+                        "Contact or authentication data",
                         "Billing addresses",
                         "Debit/credit card numbers",
                       ].map((item) => {
                         const isChecked = directData.includes(item)
                         return (
-                          <label
-                            key={item}
-                            className="flex items-center gap-3 p-3 rounded-md border border-slate-200 hover:bg-slate-50/70 cursor-pointer transition-colors"
-                          >
+                          <label key={item} className="flex items-center gap-2.5 cursor-pointer select-none">
                             <input
                               type="checkbox"
                               checked={isChecked}
@@ -1384,24 +897,24 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
                                 if (e.target.checked) setDirectData([...directData, item])
                                 else setDirectData(directData.filter((d) => d !== item))
                               }}
-                              className="rounded border-slate-300 text-[#1868db] focus:ring-blue-500 size-4"
+                              className="rounded border-slate-300 text-[#2563eb] size-4"
                             />
-                            <span className="text-xs font-semibold text-slate-800">{item}</span>
+                            <span className="text-xs text-slate-800">{item}</span>
                           </label>
                         )
                       })}
                     </div>
 
-                    {/* Add your own info */}
-                    <div className="pt-3 border-t border-slate-100 space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 block">Add other personal information</label>
+                    {/* Add your own */}
+                    <div className="pt-2 space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-700 block">Add your own</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
                           value={customDataInput}
                           onChange={(e) => setCustomDataInput(e.target.value)}
-                          placeholder="e.g. Passport number"
-                          className="flex-1 max-w-md px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
+                          placeholder="Enter custom data field"
+                          className="w-full max-w-sm px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault()
@@ -1412,971 +925,867 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
                         <button
                           type="button"
                           onClick={handleAddCustomData}
-                          className="px-3 py-1.5 rounded bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer inline-flex items-center gap-1"
+                          className="px-3 py-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 uppercase tracking-wide cursor-pointer"
                         >
-                          <Plus className="size-3.5" />
-                          <span>Add</span>
+                          + ADD
                         </button>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* STEP 4: Use of Information */}
+                {/* STEP 4: Marketing Communications (41%) */}
                 {activeStep === 4 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Purpose and Lawful Grounds for Processing
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Select why you process personal data collected from visitors:
-                      </p>
-                    </div>
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Marketing and Promotional Communications
+                    </h2>
 
-                    <div className="space-y-2.5">
-                      {[
-                        "To facilitate account creation and logon process",
-                        "To deliver and facilitate delivery of services to the user",
-                        "To respond to user inquiries and offer support to users",
-                        "To send administrative information to users",
-                        "To fulfill and manage orders, payments, and subscriptions",
-                        "To enable user-to-user communications",
-                        "To request feedback and contact users about their use of our services",
-                        "To protect our services from malicious activities, spam, and fraud",
-                        "To analyze web metrics and improve platform performance",
-                      ].map((item) => {
-                        const isChecked = purposes.includes(item)
-                        return (
-                          <label
-                            key={item}
-                            className="flex items-center gap-3 p-3 rounded-md border border-slate-200 hover:bg-slate-50/70 cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) setPurposes([...purposes, item])
-                                else setPurposes(purposes.filter((p) => p !== item))
-                              }}
-                              className="rounded border-slate-300 text-[#1868db] focus:ring-blue-500 size-4"
-                            />
-                            <span className="text-xs font-semibold text-slate-800">{item}</span>
-                          </label>
-                        )
-                      })}
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-slate-800">
+                        Do you send marketing or promotional communications to your users?
+                      </p>
+                      <p className="text-[11px] text-slate-500 italic">
+                        If yes, make sure you have selected &quot;To send marketing and promotional communications&quot; as a reason for using your users&apos; personal information (on previous page).
+                      </p>
+
+                      <div className="space-y-1.5 pt-2">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="sendMarketing"
+                            checked={sendMarketing === true}
+                            onChange={() => setSendMarketing(true)}
+                            className="size-3.5 text-[#2563eb]"
+                          />
+                          <span className="text-xs text-slate-800">Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="sendMarketing"
+                            checked={sendMarketing === false}
+                            onChange={() => setSendMarketing(false)}
+                            className="size-3.5 text-[#2563eb]"
+                          />
+                          <span className="text-xs text-slate-800">No</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* STEP 5: Disclosure of Information */}
+                {/* STEP 5: Artificial Intelligence (45%) */}
                 {activeStep === 5 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Third-Party Disclosures & Processors
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Who do you share or transfer collected data with?
-                      </p>
-                    </div>
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Artificial Intelligence
+                    </h2>
 
-                    <div className="space-y-2.5">
-                      {[
-                        "Cloud hosting and database infrastructure (AWS, Vercel, Google Cloud)",
-                        "Payment processors (Stripe, PayPal, Paddle)",
-                        "Web analytics engines (Cookieless Analytics)",
-                        "Customer support and live ticketing desks",
-                        "Email newsletter and notification service providers",
-                        "Legal authorities and regulators when required by statutory law",
-                      ].map((item) => {
-                        const isChecked = disclosures.includes(item)
-                        return (
-                          <label
-                            key={item}
-                            className="flex items-center gap-3 p-3 rounded-md border border-slate-200 hover:bg-slate-50/70 cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) setDisclosures([...disclosures, item])
-                                else setDisclosures(disclosures.filter((d) => d !== item))
-                              }}
-                              className="rounded border-slate-300 text-[#1868db] focus:ring-blue-500 size-4"
-                            />
-                            <span className="text-xs font-semibold text-slate-800">{item}</span>
-                          </label>
-                        )
-                      })}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Does your website or app offer AI-based services?
+                        </p>
+                        <HelpCircle className="size-3.5 text-slate-400" />
+                      </div>
+
+                      <div className="space-y-1.5 pt-1">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="offerAi"
+                            checked={offerAi === true}
+                            onChange={() => setOfferAi(true)}
+                            className="size-3.5 text-[#2563eb]"
+                          />
+                          <span className="text-xs text-slate-800">Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="offerAi"
+                            checked={offerAi === false}
+                            onChange={() => setOfferAi(false)}
+                            className="size-3.5 text-[#2563eb]"
+                          />
+                          <span className="text-xs text-slate-800">No</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* STEP 6: Tracking Technologies */}
+                {/* STEP 6: Tracking Technologies (70%) */}
                 {activeStep === 6 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Tracking Technologies & Cookies
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Specify if you use cookies or beacons on your site:
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Tracking Technologies
+                    </h2>
+
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-slate-800">
+                        Which of the following does your website or app use or plan to use?
                       </p>
-                    </div>
 
-                    <div className="space-y-4">
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={useCookies}
-                          onChange={(e) => setUseCookies(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            We use cookies and other tracking technologies
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            Cookies are used to access or store session info and keep you logged in.
-                          </p>
-                        </div>
-                      </label>
-
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={useAnalytics}
-                          onChange={(e) => setUseAnalytics(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            We use web analytics (e.g., Google Analytics / Cookieless Analytics)
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            Aggregated diagnostic data is recorded to improve site quality.
-                          </p>
-                        </div>
-                      </label>
-
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={useAds}
-                          onChange={(e) => setUseAds(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            We serve third-party targeted advertisements
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            Discloses behavioral ad targeting and retargeting pixels.
-                          </p>
-                        </div>
-                      </label>
+                      <div className="space-y-2 pt-1">
+                        {[
+                          { id: "cookies", label: "Cookies and/or web beacons" },
+                          { id: "maps", label: "Google Maps APIs" },
+                          { id: "both", label: "Both" },
+                          { id: "neither", label: "Neither" },
+                        ].map((t) => (
+                          <label key={t.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="trackingTech"
+                              checked={trackingTech === t.id}
+                              onChange={() => setTrackingTech(t.id as any)}
+                              className="size-3.5 text-[#2563eb]"
+                            />
+                            <span className="text-xs text-slate-800">{t.label}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* STEP 7: User Rights */}
+                {/* STEP 7: Data Protection Officer (77%) */}
                 {activeStep === 7 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        International Frameworks & User Rights
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Select applicable privacy regulations to incorporate statutory clauses:
+                  <div className="space-y-5 animate-in fade-in duration-150">
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Data Protection Officer (DPO)
+                    </h2>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-semibold text-slate-800">
+                          Have you, or will you, appoint a data protection officer (DPO)?
+                        </p>
+                        <HelpCircle className="size-3.5 text-slate-400" />
+                      </div>
+                      <p className="text-[11px] text-slate-500 italic leading-relaxed">
+                        A data protection officer (DPO) oversees the company&apos;s compliance with US, EU and/or UK privacy laws. If you are targeting EU or UK users, you may be required to have a DPO. If you only target US users, we still highly recommend having a DPO or another individual responsible for all privacy issues at your company.
                       </p>
-                    </div>
 
-                    <div className="space-y-4">
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={includeGdpr}
-                          onChange={(e) => setIncludeGdpr(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs font-bold text-slate-900">
-                              GDPR (European Economic Area & UK)
-                            </p>
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              RECOMMENDED
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Includes explicit statutory disclosures for data subject access, portability, and right to be forgotten.
-                          </p>
-                        </div>
-                      </label>
+                      <div className="space-y-1.5 pt-1">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="hasDpo"
+                            checked={hasDpo === true}
+                            onChange={() => setHasDpo(true)}
+                            className="size-3.5 text-[#2563eb]"
+                          />
+                          <span className="text-xs text-slate-800">Yes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="hasDpo"
+                            checked={hasDpo === false}
+                            onChange={() => setHasDpo(false)}
+                            className="size-3.5 text-[#2563eb]"
+                          />
+                          <span className="text-xs text-slate-800">No</span>
+                        </label>
+                      </div>
 
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={includeCcpa}
-                          onChange={(e) => setIncludeCcpa(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs font-bold text-slate-900">
-                              CCPA / CPRA (California Residents)
-                            </p>
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              US STANDARD
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Notice at collection and disclosure that personal information is not sold for valuable consideration.
-                          </p>
+                      {hasDpo && (
+                        <div className="pt-3">
+                          <label className="text-xs font-semibold text-slate-700 block mb-1">DPO Email Address</label>
+                          <input
+                            type="email"
+                            value={dpoEmail}
+                            onChange={(e) => setDpoEmail(e.target.value)}
+                            placeholder="dpo@yourdomain.com"
+                            className="w-full max-w-sm px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                          />
                         </div>
-                      </label>
-
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={includeCoppa}
-                          onChange={(e) => setIncludeCoppa(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            COPPA (Children's Online Privacy Protection)
-                          </p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Sets minimum user age requirement (default: 13+).
-                          </p>
-                        </div>
-                      </label>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* STEP 8: Final Review */}
+                {/* STEP 8: Final Details (83% -> 90% -> 93% -> 96% -> 100%) */}
                 {activeStep === 8 && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Final Review & Document Assembly
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Review your assembled Privacy Policy document before saving as draft or publishing live:
-                      </p>
-                    </div>
+                    {/* Sub-step 1: Review Your Policy Coverage (83%) */}
+                    {step8SubStep === 1 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Review Your Policy Coverage
+                        </h2>
 
-                    {/* Legal Document Paper Preview */}
-                    <div className="bg-white border border-slate-300 rounded-lg p-6 sm:p-8 shadow-xs text-xs text-slate-700 space-y-5 max-h-[480px] overflow-y-auto leading-relaxed">
-                      <div className="border-b border-slate-200 pb-4">
-                        <h1 className="text-xl font-extrabold text-slate-900">
-                          Privacy Policy for {domain}
-                        </h1>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Effective Date: {effectiveDate} | Domain: {websiteUrl} | Entity: {companyName}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">1. Scope & Platforms</h2>
-                        <p className="text-slate-600">
-                          This policy governs {companyName} across {platforms.join(", ")}.
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">2. Personal Information Collected</h2>
-                        <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                          {directData.map((d, i) => (
-                            <li key={i}>{d}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">3. Automatically Collected Telemetry</h2>
-                        <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                          {autoData.map((a, i) => (
-                            <li key={i}>{a}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">4. Processing Purposes</h2>
-                        <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                          {purposes.map((p, i) => (
-                            <li key={i}>{p}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">5. International Privacy Rights</h2>
-                        <div className="space-y-1.5 text-slate-600">
-                          {includeGdpr && (
-                            <p>
-                              <strong>GDPR (EEA/UK):</strong> You have statutory rights to access, rectify, port, or erase your data. Contact DPO at {dpoEmail}.
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs font-semibold text-slate-800">
+                              Select any other regions you do business in and wish to add to your policy:
                             </p>
-                          )}
-                          {includeCcpa && (
-                            <p>
-                              <strong>CCPA / CPRA:</strong> California consumers may request notice at collection and disclosure of personal data categories collected in the preceding 12 months. We do not sell personal information.
-                            </p>
-                          )}
-                          {includeCoppa && (
-                            <p>
-                              <strong>COPPA Children's Shield:</strong> Services are strictly for users aged {minAge} and older.
-                            </p>
-                          )}
+                            <HelpCircle className="size-3.5 text-slate-400" />
+                          </div>
+
+                          <div className="space-y-2 pt-1">
+                            {[
+                              "POPIA (South Africa)",
+                              "Privacy Act (Australia)",
+                              "The Privacy Act 2020 (New Zealand)",
+                            ].map((region) => {
+                              const isChecked = extraRegions.includes(region)
+                              return (
+                                <label key={region} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) setExtraRegions([...extraRegions, region])
+                                      else setExtraRegions(extraRegions.filter((r) => r !== region))
+                                    }}
+                                    className="rounded border-slate-300 text-[#2563eb] size-4"
+                                  />
+                                  <span className="text-xs text-slate-800">{region}</span>
+                                </label>
+                              )
+                            })}
+                          </div>
                         </div>
                       </div>
+                    )}
 
-                      <div className="space-y-2 border-t border-slate-100 pt-3">
-                        <h2 className="text-sm font-bold text-slate-900">6. Data Retention & Inquiries</h2>
-                        <p className="text-slate-600">
-                          For data deletion requests or legal inquiries, please contact our compliance team at <strong className="text-[#1868db]">{supportEmail}</strong>.
-                        </p>
+                    {/* Sub-step 2: Company (90%) */}
+                    {step8SubStep === 2 && (
+                      <div className="space-y-5">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Company
+                        </h2>
+
+                        <div className="space-y-4">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-0.5">
+                              Full legal name of company
+                            </label>
+                            <p className="text-[11px] text-slate-500 italic mb-1.5">
+                              Include corporate ending if applicable: Inc., LLC, etc.
+                            </p>
+                            <input
+                              type="text"
+                              value={companyName}
+                              onChange={(e) => setCompanyName(e.target.value)}
+                              placeholder="e.g., Apple Inc."
+                              className="w-full px-3.5 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1">
+                              <label className="text-xs font-semibold text-slate-800 block">
+                                Are you doing business under a short form or trade name (also known as a DBA)?
+                              </label>
+                              <HelpCircle className="size-3.5 text-slate-400" />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="isDba"
+                                  checked={isDba === true}
+                                  onChange={() => setIsDba(true)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">Yes</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="isDba"
+                                  checked={isDba === false}
+                                  onChange={() => setIsDba(false)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">No</span>
+                              </label>
+                            </div>
+                            {isDba && (
+                              <input
+                                type="text"
+                                value={dbaName}
+                                onChange={(e) => setDbaName(e.target.value)}
+                                placeholder="Enter trade or DBA name"
+                                className="w-full max-w-sm mt-2 px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                              />
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">
+                              Please provide an email address for privacy-related inquiries, (e.g., data subject access requests or questions related to this Privacy Policy)
+                            </label>
+                            <input
+                              type="email"
+                              value={supportEmail}
+                              onChange={(e) => setSupportEmail(e.target.value)}
+                              placeholder="privacy@example.com"
+                              className="w-full px-3.5 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <label className="text-xs font-semibold text-slate-800 block">
+                                Phone number
+                              </label>
+                              <HelpCircle className="size-3.5 text-slate-400" />
+                            </div>
+                            <p className="text-[11px] text-slate-500 italic mb-1.5">
+                              Include your office phone number or your personal phone number.
+                            </p>
+                            <input
+                              type="text"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              placeholder="e.g., 1-800-555-5555"
+                              className="w-full px-3.5 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Sub-step 3: Corporate Address (93%) */}
+                    {step8SubStep === 3 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Corporate Address
+                        </h2>
+
+                        <div className="space-y-3.5">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Country</label>
+                            <select
+                              value={country}
+                              onChange={(e) => setCountry(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb] bg-white"
+                            >
+                              <option value="">Please select</option>
+                              <option value="United States">United States</option>
+                              <option value="United Kingdom">United Kingdom</option>
+                              <option value="Canada">Canada</option>
+                              <option value="Australia">Australia</option>
+                              <option value="Germany">Germany</option>
+                              <option value="France">France</option>
+                              <option value="Netherlands">Netherlands</option>
+                              <option value="Switzerland">Switzerland</option>
+                              <option value="Ireland">Ireland</option>
+                              <option value="India">India</option>
+                              <option value="Singapore">Singapore</option>
+                              <option value="New Zealand">New Zealand</option>
+                              <option value="South Africa">South Africa</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-0.5">Address line 1</label>
+                            <p className="text-[11px] text-slate-500 italic mb-1">
+                              Provide the address where your company is registered or located.
+                            </p>
+                            <input
+                              type="text"
+                              value={addressLine1}
+                              onChange={(e) => setAddressLine1(e.target.value)}
+                              placeholder="Enter street address"
+                              className="w-full px-3.5 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">Address line 2</label>
+                            <input
+                              type="text"
+                              value={addressLine2}
+                              onChange={(e) => setAddressLine2(e.target.value)}
+                              placeholder="Enter street address"
+                              className="w-full px-3.5 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">City / town</label>
+                            <input
+                              type="text"
+                              value={city}
+                              onChange={(e) => setCity(e.target.value)}
+                              placeholder="Enter city / town"
+                              className="w-full px-3.5 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold text-slate-800 block mb-1">ZIP code / postal code</label>
+                            <input
+                              type="text"
+                              value={zipCode}
+                              onChange={(e) => setZipCode(e.target.value)}
+                              placeholder="Enter ZIP code / postal code"
+                              className="w-full px-3.5 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-step 4: Name Your Policy (96%) */}
+                    {step8SubStep === 4 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Name Your Policy
+                        </h2>
+
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-slate-800">
+                            What do you want to call your policy?
+                          </p>
+                          <p className="text-[11px] text-slate-500 italic mb-2">
+                            This will be the title shown on the policy.
+                          </p>
+
+                          <div className="space-y-2.5">
+                            {[
+                              { id: "Privacy Policy", label: "Privacy Policy" },
+                              { id: "Privacy Notice", label: "Privacy Notice" },
+                              { id: "none", label: "I don't want to include a title" },
+                            ].map((opt) => (
+                              <label key={opt.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name="policyTitleChoice"
+                                  checked={policyTitleChoice === opt.id}
+                                  onChange={() => setPolicyTitleChoice(opt.id as any)}
+                                  className="size-3.5 text-[#2563eb]"
+                                />
+                                <span className="text-xs text-slate-800">{opt.label}</span>
+                              </label>
+                            ))}
+
+                            <label className="flex items-center gap-2.5 cursor-pointer select-none pt-1">
+                              <input
+                                type="radio"
+                                name="policyTitleChoice"
+                                checked={policyTitleChoice === "custom"}
+                                onChange={() => setPolicyTitleChoice("custom")}
+                                className="size-3.5 text-[#2563eb]"
+                              />
+                              <input
+                                type="text"
+                                value={customPolicyTitle}
+                                onChange={(e) => {
+                                  setCustomPolicyTitle(e.target.value)
+                                  setPolicyTitleChoice("custom")
+                                }}
+                                placeholder="Add your own here"
+                                className="flex-1 max-w-sm px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-step 5: Version Date (100%) */}
+                    {step8SubStep === 5 && (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-slate-900">
+                          Version Date
+                        </h2>
+
+                        <div className="space-y-2">
+                          <p className="text-xs font-semibold text-slate-800">
+                            What is the effective date for this Privacy Policy?
+                          </p>
+                          <p className="text-[11px] text-slate-500 italic leading-relaxed mb-3">
+                            The effective date on your Privacy Policy informs your users of when your Privacy Policy was originally published or last updated. When you make an update to your Privacy Policy that requires notifying your users, make sure the effective date is the same date you indicated in your notice communications.
+                          </p>
+
+                          <div className="relative max-w-xs">
+                            <Calendar className="size-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={effectiveDate}
+                              onChange={(e) => setEffectiveDate(e.target.value)}
+                              placeholder={new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}
+                              className="w-full pl-9 pr-3 py-2 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#2563eb]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
             )}
 
-            {/* ========================================================= */}
-            {/* 3. TERMS OF SERVICE 8 FULL STEPS QUESTIONNAIRE */}
-            {/* ========================================================= */}
+            {/* ------------------------------------------------------- */}
+            {/* COOKIE & TERMS POLICIES (FALLBACK / PRESERVED) */}
+            {/* ------------------------------------------------------- */}
+            {isCookies && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold text-slate-900">Cookie Policy Configuration</h2>
+                <p className="text-xs text-slate-600">Configures dynamic cookie categorization table synchronized with live website scans.</p>
+              </div>
+            )}
             {isTerms && (
-              <>
-                {/* STEP 1: Agreement Scope & Platforms */}
-                {activeStep === 1 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Agreement Scope & Operating Entity
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Identify where these Terms and Conditions will govern:
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700 block mb-1">Company Legal Name</label>
-                        <input
-                          type="text"
-                          value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
-                          className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Primary Website Domain / URL</label>
-                          <input
-                            type="text"
-                            value={websiteUrl}
-                            onChange={(e) => setWebsiteUrl(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Legal / Support Email</label>
-                          <input
-                            type="email"
-                            value={supportEmail}
-                            onChange={(e) => setSupportEmail(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">Governing Country</label>
-                          <input
-                            type="text"
-                            value={country}
-                            onChange={(e) => setCountry(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs font-semibold text-slate-700 block mb-1">State / Province</label>
-                          <input
-                            type="text"
-                            value={stateRegion}
-                            onChange={(e) => setStateRegion(e.target.value)}
-                            className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pt-2">
-                        <label className="text-xs font-semibold text-slate-700 block mb-2">Target Platforms</label>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                          {[
-                            "Website",
-                            "SaaS Web Application",
-                            "Mobile App (iOS/Android)",
-                            "E-Commerce Storefront",
-                            "Online Marketplace",
-                            "API Services",
-                          ].map((p) => {
-                            const isChecked = tosPlatforms.includes(p)
-                            return (
-                              <label
-                                key={p}
-                                className={cn(
-                                  "flex items-center gap-2 p-2.5 rounded-md border text-xs cursor-pointer transition-colors select-none",
-                                  isChecked
-                                    ? "border-[#1868db] bg-blue-50/60 font-semibold text-[#1868db]"
-                                    : "border-slate-200 hover:bg-slate-50 text-slate-700"
-                                )}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    if (e.target.checked) setTosPlatforms([...tosPlatforms, p])
-                                    else setTosPlatforms(tosPlatforms.filter((item) => item !== p))
-                                  }}
-                                  className="rounded border-slate-300 text-[#1868db] size-3.5"
-                                />
-                                <span>{p}</span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 2: User Accounts & Eligibility */}
-                {activeStep === 2 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        User Accounts & Age Eligibility
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Define account creation rules and user eligibility requirements:
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700 block mb-1">Minimum User Age</label>
-                        <div className="grid grid-cols-3 gap-3">
-                          {["13", "16", "18"].map((age) => (
-                            <button
-                              key={age}
-                              type="button"
-                              onClick={() => setTosUserAge(age)}
-                              className={cn(
-                                "py-2.5 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer",
-                                tosUserAge === age
-                                  ? "border-[#1868db] bg-blue-50 text-[#1868db] shadow-2xs"
-                                  : "border-slate-200 text-slate-700 hover:bg-slate-50"
-                              )}
-                            >
-                              {age}+ Years Old
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 pt-2">
-                        <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={accountRequired}
-                            onChange={(e) => setAccountRequired(e.target.checked)}
-                            className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                          />
-                          <div>
-                            <p className="text-xs font-bold text-slate-900">
-                              Account Registration Required
-                            </p>
-                            <p className="text-[11px] text-slate-500">
-                              Users must register an account to access core platform features and are liable for credential safeguarding.
-                            </p>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 3: User-Generated Content & Contributions */}
-                {activeStep === 3 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        User-Generated Content & Contributions
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Do users upload content, post comments, or submit reviews on your platform?
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={allowUgc}
-                          onChange={(e) => setAllowUgc(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            Users can post or upload content (Comments, Reviews, Media, Files)
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            Users grant your company a non-exclusive, royalty-free, worldwide license to host and display their contributions.
-                          </p>
-                        </div>
-                      </label>
-
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={ugcModeration}
-                          onChange={(e) => setUgcModeration(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            Right to Moderate & Remove Content
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            Grants administrators the unilateral right to delete or restrict content that violates platform standards or statutory law.
-                          </p>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 4: Prohibited Conduct */}
-                {activeStep === 4 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Prohibited Activities & Platform Abuse
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Select restricted behaviors that violate your terms and may lead to account termination:
-                      </p>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {[
-                        "Automated scraping, crawling, or extracting data without authorization",
-                        "Reverse engineering, decompiling, or attempting to discover source code",
-                        "Transmitting viruses, malware, or attempting denial-of-service attacks",
-                        "Impersonating other users or misrepresenting entity affiliations",
-                        "Harassing, defaming, or abusing other members or staff",
-                        "Commercial reselling or exploiting services without permission",
-                        "Bypassing security barriers, authentication limits, or access controls",
-                      ].map((item) => {
-                        const isChecked = prohibitedList.includes(item)
-                        return (
-                          <label
-                            key={item}
-                            className="flex items-center gap-3 p-3 rounded-md border border-slate-200 hover:bg-slate-50/70 cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={(e) => {
-                                if (e.target.checked) setProhibitedList([...prohibitedList, item])
-                                else setProhibitedList(prohibitedList.filter((p) => p !== item))
-                              }}
-                              className="rounded border-slate-300 text-[#1868db] focus:ring-blue-500 size-4"
-                            />
-                            <span className="text-xs font-semibold text-slate-800">{item}</span>
-                          </label>
-                        )
-                      })}
-                    </div>
-
-                    {/* Add your own prohibited activity */}
-                    <div className="pt-3 border-t border-slate-100 space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700 block">Add custom restricted activity</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={customProhibitedInput}
-                          onChange={(e) => setCustomProhibitedInput(e.target.value)}
-                          placeholder="e.g. Using the platform for automated cryptocurrency trading"
-                          className="flex-1 max-w-md px-3 py-1.5 text-xs rounded border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault()
-                              handleAddCustomProhibited()
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddCustomProhibited}
-                          className="px-3 py-1.5 rounded bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors cursor-pointer inline-flex items-center gap-1"
-                        >
-                          <Plus className="size-3.5" />
-                          <span>Add</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 5: Intellectual Property & DMCA */}
-                {activeStep === 5 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Intellectual Property & DMCA Copyright Notice
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Protect your trademarks and provide designated DMCA agent details:
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-lg bg-blue-50/50 border border-blue-200/60 text-xs text-blue-900 space-y-2">
-                        <p className="font-semibold">Platform Intellectual Property Shield</p>
-                        <p className="text-[11px] text-blue-800 leading-relaxed">
-                          All proprietary source code, interface designs, logos, trademarks, and platform architecture are the exclusive property of <strong>{companyName}</strong>.
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700 block mb-1">Designated DMCA / Copyright Agent Email</label>
-                        <input
-                          type="email"
-                          value={dmcaEmail}
-                          onChange={(e) => setDmcaEmail(e.target.value)}
-                          className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 6: Purchases, Subscriptions & Billing */}
-                {activeStep === 6 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Purchases, Subscriptions & Billing
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Configure payment terms, billing cadence, and refund disclosures:
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700 block mb-1">Monetization Model</label>
-                        <div className="grid grid-cols-3 gap-3">
-                          {[
-                            { id: "paid_subscriptions", label: "Recurring Subscriptions" },
-                            { id: "one_time", label: "One-Time Purchases" },
-                            { id: "free", label: "Completely Free Service" },
-                          ].map((model) => (
-                            <button
-                              key={model.id}
-                              type="button"
-                              onClick={() => setMonetizationType(model.id)}
-                              className={cn(
-                                "p-3 rounded-lg border text-xs font-bold text-left transition-all cursor-pointer",
-                                monetizationType === model.id
-                                  ? "border-[#1868db] bg-blue-50 text-[#1868db] shadow-2xs"
-                                  : "border-slate-200 text-slate-700 hover:bg-slate-50"
-                              )}
-                            >
-                              {model.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {monetizationType === "paid_subscriptions" && (
-                        <div className="space-y-3 pt-2">
-                          <div>
-                            <label className="text-xs font-semibold text-slate-700 block mb-1">Billing Frequency</label>
-                            <select
-                              value={billingCycle}
-                              onChange={(e) => setBillingCycle(e.target.value)}
-                              className="w-full px-3 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                            >
-                              <option value="monthly_annual">Monthly and Annual billing options</option>
-                              <option value="monthly_only">Monthly billing only</option>
-                              <option value="annual_only">Annual billing only</option>
-                              <option value="weekly_monthly">Weekly or Monthly billing</option>
-                            </select>
-                          </div>
-
-                          <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={autoRenewalNotice}
-                              onChange={(e) => setAutoRenewalNotice(e.target.checked)}
-                              className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                            />
-                            <div>
-                              <p className="text-xs font-bold text-slate-900">
-                                Automatic Renewal Disclosure
-                              </p>
-                              <p className="text-[11px] text-slate-500">
-                                Subscriptions renew automatically until cancelled by the user prior to next billing date.
-                              </p>
-                            </div>
-                          </label>
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700 block mb-1">Refund & Cancellation Policy Summary</label>
-                        <textarea
-                          rows={2}
-                          value={refundPolicySummary}
-                          onChange={(e) => setRefundPolicySummary(e.target.value)}
-                          className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 7: Liability & Dispute Resolution */}
-                {activeStep === 7 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Liability, Warranties & Dispute Resolution
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Protect your business from outsized liability and enforce arbitration:
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={warrantyDisclaimer}
-                          onChange={(e) => setWarrantyDisclaimer(e.target.checked)}
-                          className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-slate-900">
-                            "AS IS" & "AS AVAILABLE" Warranty Disclaimer
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            Disclaims implied warranties of merchantability, fitness for particular purpose, and non-infringement.
-                          </p>
-                        </div>
-                      </label>
-
-                      <div>
-                        <label className="text-xs font-semibold text-slate-700 block mb-1">Maximum Aggregate Liability Cap</label>
-                        <input
-                          type="text"
-                          value={liabilityLimit}
-                          onChange={(e) => setLiabilityLimit(e.target.value)}
-                          className="w-full px-3.5 py-2 text-xs rounded-md border border-slate-300 focus:outline-hidden focus:border-[#1868db]"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                        <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={arbitrationClause}
-                            onChange={(e) => setArbitrationClause(e.target.checked)}
-                            className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                          />
-                          <div>
-                            <p className="text-xs font-bold text-slate-900">
-                              Mandatory Binding Arbitration
-                            </p>
-                            <p className="text-[11px] text-slate-500">
-                              Requires disputes to be resolved out of court via binding arbitration in {country}.
-                            </p>
-                          </div>
-                        </label>
-
-                        <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={classActionWaiver}
-                            onChange={(e) => setClassActionWaiver(e.target.checked)}
-                            className="mt-0.5 rounded border-slate-300 text-[#1868db] size-4"
-                          />
-                          <div>
-                            <p className="text-xs font-bold text-slate-900">
-                              Class Action Waiver
-                            </p>
-                            <p className="text-[11px] text-slate-500">
-                              Users agree to bring legal claims strictly on an individual basis.
-                            </p>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 8: Final Review & Assembly */}
-                {activeStep === 8 && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Review & Document Assembly
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Review your assembled Terms of Service document before saving as draft or publishing live:
-                      </p>
-                    </div>
-
-                    {/* Legal Document Paper Preview */}
-                    <div className="bg-white border border-slate-300 rounded-lg p-6 sm:p-8 shadow-xs text-xs text-slate-700 space-y-5 max-h-[480px] overflow-y-auto leading-relaxed">
-                      <div className="border-b border-slate-200 pb-4">
-                        <h1 className="text-xl font-extrabold text-slate-900">
-                          Terms of Service for {domain}
-                        </h1>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Effective Date: {effectiveDate} | Domain: {websiteUrl} | Entity: {companyName}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">1. Agreement to Terms</h2>
-                        <p className="text-slate-600">
-                          These terms govern your access to {websiteUrl} across {tosPlatforms.join(", ")}. Minimum age requirement: <strong>{tosUserAge}+</strong> years old.
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">2. User Accounts</h2>
-                        <p className="text-slate-600">
-                          {accountRequired ? "Users must register an account to access core features and maintain password security." : "Account registration is optional for public access."}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">3. User Contributions</h2>
-                        <p className="text-slate-600">
-                          {allowUgc ? `Users may submit or upload content on the platform. You grant ${companyName} a worldwide, royalty-free license to host and distribute such content.` : "Users cannot submit public content."}
-                          {ugcModeration ? " We reserve the right to remove any violating content without prior notice." : ""}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">4. Prohibited Activities</h2>
-                        <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                          {prohibitedList.map((p, i) => (
-                            <li key={i}>{p}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">5. Intellectual Property & DMCA Notice</h2>
-                        <p className="text-slate-600">
-                          All proprietary source code, trademarks, and design assets are owned by <strong>{companyName}</strong>. For copyright takedown requests, contact our DMCA agent at <strong className="text-[#1868db]">{dmcaEmail}</strong>.
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h2 className="text-sm font-bold text-slate-900">6. Subscriptions & Billing</h2>
-                        <p className="text-slate-600">
-                          {monetizationType === "paid_subscriptions" ? `Services are billed on a ${billingCycle.replace("_", " & ")} basis.` : "Services are provided on a complimentary or per-purchase basis."} {autoRenewalNotice ? "Subscriptions automatically renew unless cancelled prior to billing." : ""} {refundPolicySummary}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2 border-t border-slate-100 pt-3">
-                        <h2 className="text-sm font-bold text-slate-900">7. Limitation of Liability & Dispute Resolution</h2>
-                        <p className="text-slate-600">
-                          Our aggregate liability shall not exceed <strong>{liabilityLimit}</strong>. {arbitrationClause ? `Disputes shall be resolved through binding arbitration in ${country}${stateRegion ? `, ${stateRegion}` : ""}.` : ""} Inquiries should be sent to <strong className="text-[#1868db]">{supportEmail}</strong>.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold text-slate-900">Terms of Service Configuration</h2>
+                <p className="text-xs text-slate-600">Configures platform rules, user agreements, IP, and liability clauses.</p>
+              </div>
             )}
           </div>
 
           {/* ========================================================= */}
-          {/* BOTTOM STEP NAVIGATION BUTTONS (BACK & NEXT) */}
+          {/* BOTTOM STEP NAVIGATION (BACK & NEXT / PUBLISH) */}
           {/* ========================================================= */}
-          <div className="pt-6 border-t border-slate-200 flex items-center justify-between mt-8">
-            <div>
-              {activeStep > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveStep(activeStep - 1)}
-                  className="rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-4 py-2 transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
-                >
-                  <ChevronLeft className="size-4" />
-                  <span>Back</span>
-                </button>
-              )}
+          <div className="pt-8 border-t border-slate-100 flex items-center justify-between mt-8">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="text-xs font-bold text-[#2563eb] hover:text-blue-800 transition-colors uppercase tracking-wider cursor-pointer"
+            >
+              BACK
+            </button>
+
+            {isFinalScreen ? (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handlePublishAction}
+                className="rounded-md bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold px-7 py-2.5 shadow-xs cursor-pointer transition-colors disabled:opacity-50 uppercase tracking-wide"
+              >
+                {isSaving ? "PUBLISHING..." : "PUBLISH"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleNext}
+                className="rounded-md bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold px-7 py-2.5 shadow-xs cursor-pointer transition-colors uppercase tracking-wide"
+              >
+                NEXT
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* 3. RIGHT RAIL: DOCUMENT PREVIEW THUMBNAIL & TIPS */}
+        {/* ========================================================= */}
+        <div className="w-full lg:w-[320px] shrink-0 p-6 bg-white space-y-6 select-none overflow-y-auto">
+          {/* Paper Document Preview Thumbnail */}
+          <div className="space-y-3">
+            <div
+              onClick={() => setIsPreviewModalOpen(true)}
+              className="border border-slate-200 rounded-lg p-5 bg-slate-50/50 shadow-2xs hover:shadow-xs transition-shadow cursor-pointer relative group"
+            >
+              <div className="bg-white border border-slate-200 rounded shadow-2xs p-3 space-y-2 h-44 overflow-hidden pointer-events-none select-none text-[8px] text-slate-400 font-serif leading-tight">
+                <div className="text-[10px] font-bold text-slate-900 font-sans border-b border-slate-100 pb-1 uppercase">
+                  {policyTitleChoice === "none" ? "Privacy Notice" : policyTitleChoice === "custom" && customPolicyTitle ? customPolicyTitle : policyTitleChoice}
+                </div>
+                <p className="line-clamp-2">This Privacy Notice for {companyName || domain} describes how and why we access, collect, store, use personal information.</p>
+                <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">1. WHAT INFORMATION DO WE COLLECT?</div>
+                <p className="line-clamp-2">We collect personal information voluntarily provided when you register: {directData.slice(0, 3).join(", ")}.</p>
+                <div className="text-[8px] font-bold text-slate-700 uppercase pt-1">2. HOW DO WE PROCESS YOUR INFORMATION?</div>
+                <p className="line-clamp-2">We process your information to provide, improve, and administer our Services, communicate with you.</p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {activeStep < totalSteps ? (
-                <button
-                  type="button"
-                  onClick={() => setActiveStep(activeStep + 1)}
-                  className="rounded-md bg-[#1868db] hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 shadow-2xs cursor-pointer inline-flex items-center gap-1.5 transition-colors"
-                >
-                  <span>Next Step</span>
-                  <ChevronRight className="size-4" />
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={handleSaveDraftAction}
-                    className="rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-4 py-2 transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
-                  >
-                    {isSaving && <Loader2 className="size-3.5 animate-spin" />}
-                    <span>Save Draft</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={handlePublishAction}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-[#10b981] hover:bg-emerald-700 text-white text-xs font-bold px-6 py-2 shadow-xs cursor-pointer transition-colors disabled:opacity-50"
-                  >
-                    {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                    <span>Publish Policy</span>
-                  </button>
-                </div>
-              )}
+            {/* PREVIEW BUTTON */}
+            <button
+              type="button"
+              onClick={() => setIsPreviewModalOpen(true)}
+              className="w-full py-2.5 px-4 rounded-md border border-[#2563eb] text-[#2563eb] hover:bg-blue-50/60 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+            >
+              <Eye className="size-4" />
+              <span>PREVIEW</span>
+            </button>
+          </div>
+
+          {/* Tips Guidance Box matching screenshots */}
+          <div className="space-y-2.5 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+              <span className="text-base">💡</span>
+              <span>Tips:</span>
             </div>
+
+            {activeStep === 1 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800">What is a privacy policy?</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  A privacy policy (also referred to as a privacy notice) is a legal document that informs your users about how your website or app collects, uses, and discloses their personal information.
+                </p>
+              </div>
+            )}
+
+            {activeStep === 2 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800">What are users?</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Users are individuals that visit your website or app. Indicating whether you target users in the US, EU, UK, and Canada activates corresponding GDPR, CCPA, and statutory privacy disclosures.
+                </p>
+              </div>
+            )}
+
+            {activeStep === 3 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800">What is personal information?</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Personal information is information that is linked or reasonably linked, directly or indirectly, to an identified or identifiable natural person. Personal identifiers include names, addresses, emails, and payment details.
+                </p>
+              </div>
+            )}
+
+            {activeStep === 4 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800">Marketing and Promotional Communications</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Disclosing marketing outreach keeps you compliant with global anti-spam regulations (CAN-SPAM, CASL, GDPR) and provides users with explicit opt-out mechanisms.
+                </p>
+              </div>
+            )}
+
+            {activeStep === 5 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800">Artificial Intelligence (AI)</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Disclose whether your services utilize automated decision-making, machine learning, or third-party AI models to process user interactions or generate content.
+                </p>
+              </div>
+            )}
+
+            {activeStep === 6 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800">What are cookies, web beacons, and APIs?</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Cookies and web beacons are tracking technologies stored on a user&apos;s browser or device that allow your website to remember preferences. If you use analytics services or Google Maps APIs, this must be disclosed.
+                </p>
+              </div>
+            )}
+
+            {activeStep === 7 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800">Data Protection Officer (DPO)</h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  A Data Protection Officer (DPO) oversees the company&apos;s compliance with US, EU, and UK privacy laws. Appointing a DPO or privacy contact point is required for large-scale data controllers.
+                </p>
+              </div>
+            )}
+
+            {activeStep === 8 && (
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-slate-800">
+                  {step8SubStep === 2 || step8SubStep === 3
+                    ? "Why should I include my business address?"
+                    : "Are you making substantive or material changes to your Privacy Policy?"}
+                </h4>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  {step8SubStep === 2 || step8SubStep === 3
+                    ? "It's best practice to include your business address in your privacy policy, so users and customers can send you legal communication related to your privacy policy (such as requests to delete their personal information) by mail."
+                    : "The effective date informs users of when your Privacy Policy was originally published or last updated. When making updates, make sure the effective date matches your notice communications."}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* ========================================================= */}
-      {/* PUBLISHED SUCCESS POPUP MODAL (STATIC HTML & SCRIPT TABS) */}
+      {/* FULL SCREEN MODAL PREVIEW (Full 13 Sections Document View) */}
+      {/* ========================================================= */}
+      {isPreviewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in-0 duration-200">
+          <div className="relative w-full max-w-4xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+              <div className="flex items-center gap-2.5">
+                <div className="size-8 rounded-full bg-blue-50 text-[#2563eb] flex items-center justify-center border border-blue-100">
+                  <FileText className="size-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {policyTitleChoice === "none" ? "Privacy Notice Preview" : policyTitleChoice === "custom" && customPolicyTitle ? customPolicyTitle : policyTitleChoice}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Complete standardized 13-section legal document preview
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPreviewModalOpen(false)}
+                className="text-xs font-bold text-slate-400 hover:text-slate-700 cursor-pointer p-1.5 rounded-lg hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* View Mode Switcher */}
+            <div className="px-5 py-2.5 bg-white border-b border-slate-100 flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalTab("rendered")}
+                  className={cn(
+                    "px-3 py-1 font-semibold rounded-md transition-all cursor-pointer",
+                    previewModalTab === "rendered"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  Document View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalTab("html")}
+                  className={cn(
+                    "px-3 py-1 font-semibold rounded-md transition-all cursor-pointer",
+                    previewModalTab === "html"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  HTML Code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalTab("markdown")}
+                  className={cn(
+                    "px-3 py-1 font-semibold rounded-md transition-all cursor-pointer",
+                    previewModalTab === "markdown"
+                      ? "bg-white text-slate-900 shadow-2xs font-bold"
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  Markdown
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleCopy(generateMarkdown(), "preview_md")}
+                  className="px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  {copiedType === "preview_md" ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5 text-slate-500" />}
+                  <span>{copiedType === "preview_md" ? "Copied!" : "Copy"}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-8 overflow-y-auto flex-1 bg-slate-50/50">
+              {previewModalTab === "rendered" && (
+                <div className="bg-white border border-slate-200 rounded-xl p-8 sm:p-12 shadow-sm max-w-3xl mx-auto space-y-4 text-xs text-slate-700 leading-relaxed">
+                  {generateMarkdown()
+                    .replace(/\r\n/g, "\n")
+                    .replace(/(^|\n)(#{1,3}\s+[^\n]+)/g, "\n\n$2\n\n")
+                    .replace(/(^|\n)(---\s*)/g, "\n\n---\n\n")
+                    .split(/\n\s*\n/)
+                    .map((section, idx) => {
+                      const trimmed = section.trim()
+                      if (!trimmed) return null
+                      if (trimmed === "---") return <hr key={idx} className="border-t border-slate-200 my-4" />
+
+                      if (trimmed.startsWith("# ")) {
+                        return (
+                          <div key={idx} className="border-b border-slate-100 pb-3 mb-4">
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">{trimmed.replace(/^# /, "")}</h1>
+                          </div>
+                        )
+                      }
+
+                      if (trimmed.startsWith("## ")) {
+                        return (
+                          <h2 key={idx} className="text-sm font-bold text-slate-900 mt-6 mb-2 tracking-tight">
+                            {trimmed.replace(/^## /, "")}
+                          </h2>
+                        )
+                      }
+
+                      if (trimmed.startsWith("### ")) {
+                        return (
+                          <h3 key={idx} className="text-xs font-semibold text-slate-800 mt-4 mb-1.5">
+                            {trimmed.replace(/^### /, "")}
+                          </h3>
+                        )
+                      }
+
+                      if (trimmed.startsWith("- ")) {
+                        const items = trimmed.split("\n").map((line) => line.replace(/^- /, "").trim())
+                        return (
+                          <ul key={idx} className="list-disc pl-5 space-y-1 text-slate-600 text-[13px] font-normal">
+                            {items.map((item, i) => (
+                              <li
+                                key={i}
+                                dangerouslySetInnerHTML={{
+                                  __html: item
+                                    .replace(/\*\*(.*?)\*\*/g, "<strong class='font-semibold text-slate-800'>$1</strong>")
+                                    .replace(/\*(.*?)\*/g, "<em class='italic'>$1</em>"),
+                                }}
+                              />
+                            ))}
+                          </ul>
+                        )
+                      }
+
+                      return (
+                        <p
+                          key={idx}
+                          className="text-[13px] text-slate-600 font-normal leading-relaxed mb-2"
+                          dangerouslySetInnerHTML={{
+                            __html: trimmed
+                              .replace(/\*\*(.*?)\*\*/g, "<strong class='font-semibold text-slate-800'>$1</strong>")
+                              .replace(/\*(.*?)\*/g, "<em class='italic'>$1</em>")
+                              .replace(/\`(.*?)\`/g, "<code class='bg-slate-100 px-1 py-0.5 rounded text-blue-700 text-[11px] font-mono'>$1</code>")
+                              .replace(/\[(.*?)\]\((.*?)\)/g, "<a href='$2' class='text-[#2563eb] hover:underline' target='_blank' rel='noopener noreferrer'>$1</a>"),
+                          }}
+                        />
+                      )
+                    })}
+                </div>
+              )}
+
+              {previewModalTab === "html" && (
+                <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 text-xs font-mono text-emerald-400 overflow-x-auto">
+                  <pre className="whitespace-pre-wrap">{generateHtml()}</pre>
+                </div>
+              )}
+
+              {previewModalTab === "markdown" && (
+                <div className="rounded-xl border border-slate-200 bg-white p-6 font-mono text-xs text-slate-800 overflow-x-auto shadow-2xs">
+                  <pre className="whitespace-pre-wrap">{generateMarkdown()}</pre>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="size-4 text-emerald-600" />
+                <span>13 standard statutory compliance sections</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPreviewModalOpen(false)}
+                className="px-4 py-1.5 rounded-md bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* PUBLISHED SUCCESS MODAL */}
       {/* ========================================================= */}
       {isPublishModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in-0 duration-200">
           <div className="relative w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
@@ -2404,7 +1813,6 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
               </button>
             </div>
 
-            {/* Modal Tab Selector */}
             <div className="px-5 pt-3 border-b border-slate-100 flex items-center gap-2 bg-white text-xs">
               <button
                 type="button"
@@ -2412,7 +1820,7 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
                 className={cn(
                   "pb-2.5 px-2 border-b-2 font-semibold transition-colors cursor-pointer",
                   publishModalTab === "html"
-                    ? "border-[#1868db] text-[#1868db]"
+                    ? "border-[#2563eb] text-[#2563eb]"
                     : "border-transparent text-slate-500 hover:text-slate-900"
                 )}
               >
@@ -2424,23 +1832,22 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
                 className={cn(
                   "pb-2.5 px-2 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5",
                   publishModalTab === "script"
-                    ? "border-[#1868db] text-[#1868db]"
+                    ? "border-[#2563eb] text-[#2563eb]"
                     : "border-transparent text-slate-500 hover:text-slate-900"
                 )}
               >
                 <span>2. Auto-Updating Script (Growth)</span>
-                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-[#1868db] border border-blue-200">
+                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-[#2563eb] border border-blue-200">
                   PRO
                 </span>
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6 overflow-y-auto flex-1 space-y-4">
               {publishModalTab === "html" ? (
                 <div className="space-y-3">
                   <p className="text-xs text-slate-600">
-                    Copy the standard static HTML code and paste it directly into your website's <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">{isCookies ? "/cookie-policy" : isPrivacy ? "/privacy" : "/terms"}</code> page:
+                    Copy the standard static HTML code and paste it directly into your website&apos;s <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[11px]">{isCookies ? "/cookie-policy" : isPrivacy ? "/privacy" : "/terms"}</code> page:
                   </p>
                   <div className="bg-slate-900 rounded-lg p-4 font-mono text-xs text-emerald-400 overflow-x-auto max-h-[260px]">
                     <pre className="whitespace-pre-wrap">{generateHtml()}</pre>
@@ -2458,7 +1865,6 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
               <div className="text-xs text-slate-500 flex items-center gap-1.5">
                 <CheckCircle2 className="size-4 text-emerald-600" />
@@ -2469,7 +1875,7 @@ ${classActionWaiver ? "You agree to resolve disputes solely on an individual bas
                 <button
                   type="button"
                   onClick={() => handleCopy(publishModalTab === "html" ? generateHtml() : dynamicScriptEmbed, "publish_code")}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-[#1868db] hover:bg-blue-700 text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-[#2563eb] hover:bg-blue-700 text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer"
                 >
                   {copiedType === "publish_code" ? <Check className="size-3.5 text-white" /> : <Copy className="size-3.5" />}
                   <span>{copiedType === "publish_code" ? "Copied to Clipboard!" : "Copy Code"}</span>

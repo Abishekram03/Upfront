@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { PolicyDefinition, DomainPolicyRecord } from "./policy-types"
 import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
+import { generatePrivacyPolicyMarkdown, generatePrivacyPolicyHtml } from "./policy-generator-template"
 import { cn } from "@/lib/utils"
 
 interface PolicyPreviewModalProps {
@@ -111,22 +112,23 @@ export function PolicyPreviewModal({
   const activeMarkdown =
     isCookiePolicy && cmpData.generatedMarkdown
       ? cmpData.generatedMarkdown
+      : policy.id === "privacy"
+      ? generatePrivacyPolicyMarkdown(cfg, domain)
       : record?.contentMarkdown ||
         `# ${policyTitle} for ${domain}
 **Effective Date:** ${effectiveDate}  
 **Website:** https://${domain || "example.com"}
 
-## 1. Introduction & Scope
-This ${policyTitle} sets forth the legal policies and guidelines for **${domain || "example.com"}** operated by Acme Corporation.
-
-## 2. Information Collection & Usage
-We process information necessary to deliver transparent, secure, and performant web services in compliance with statutory standards.
+## 1. Agreement & Terms
+This ${policyTitle} sets forth the legal policies and guidelines for **${domain || "example.com"}**.
 `
 
   // Sample or live HTML content
   const activeHtml =
     isCookiePolicy && cmpData.generatedHtml
       ? cmpData.generatedHtml
+      : policy.id === "privacy"
+      ? generatePrivacyPolicyHtml(cfg, domain)
       : record?.contentHtml ||
         `<div class="legal-policy-container" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 800px; margin: 0 auto; padding: 20px;">
   <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">${policyTitle} for ${domain}</h1>
@@ -148,24 +150,30 @@ We process information necessary to deliver transparent, secure, and performant 
 
   // Generic Markdown renderer for any markdown text
   const renderGenericMarkdown = (md: string) => {
-    const sections = md.split("\n\n")
+    const normalized = md
+      .replace(/\r\n/g, "\n")
+      .replace(/(^|\n)(#{1,3}\s+[^\n]+)/g, "\n\n$2\n\n")
+      .replace(/(^|\n)(---\s*)/g, "\n\n---\n\n")
+
+    const sections = normalized.split(/\n\s*\n/)
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 font-normal text-slate-600 font-sans antialiased text-[13px] leading-relaxed">
         {sections.map((section, idx) => {
           const trimmed = section.trim()
-          if (!trimmed || trimmed === "---") return null
+          if (!trimmed) return null
+          if (trimmed === "---") return <hr key={idx} className="border-t border-slate-200/80 my-4" />
 
           if (trimmed.startsWith("# ")) {
             return (
-              <div key={idx} className="border-b border-slate-100 pb-4 mb-4">
-                <h1 className="text-xl font-bold text-slate-900">{trimmed.replace(/^# /, "")}</h1>
+              <div key={idx} className="border-b border-slate-100 pb-3 mb-3">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">{trimmed.replace(/^# /, "")}</h1>
               </div>
             )
           }
 
           if (trimmed.startsWith("## ")) {
             return (
-              <h2 key={idx} className="text-sm font-bold text-slate-900 mt-5 mb-2">
+              <h2 key={idx} className="text-sm font-bold text-slate-900 mt-6 mb-2 tracking-tight">
                 {trimmed.replace(/^## /, "")}
               </h2>
             )
@@ -173,7 +181,7 @@ We process information necessary to deliver transparent, secure, and performant 
 
           if (trimmed.startsWith("### ")) {
             return (
-              <h3 key={idx} className="text-xs font-bold text-slate-800 mt-3 mb-1.5">
+              <h3 key={idx} className="text-xs font-semibold text-slate-800 mt-4 mb-1.5">
                 {trimmed.replace(/^### /, "")}
               </h3>
             )
@@ -182,12 +190,14 @@ We process information necessary to deliver transparent, secure, and performant 
           if (trimmed.startsWith("- ")) {
             const items = trimmed.split("\n").map((line) => line.replace(/^- /, "").trim())
             return (
-              <ul key={idx} className="list-disc pl-5 space-y-1 text-slate-600 text-xs">
+              <ul key={idx} className="list-disc pl-5 space-y-1.5 text-slate-600 text-[13px] font-normal">
                 {items.map((item, i) => (
                   <li
                     key={i}
                     dangerouslySetInnerHTML={{
-                      __html: item.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"),
+                      __html: item
+                        .replace(/\*\*(.*?)\*\*/g, "<strong class='font-semibold text-slate-800'>$1</strong>")
+                        .replace(/\*(.*?)\*/g, "<em class='italic'>$1</em>"),
                     }}
                   />
                 ))}
@@ -198,10 +208,11 @@ We process information necessary to deliver transparent, secure, and performant 
           return (
             <p
               key={idx}
-              className="text-xs text-slate-600 leading-relaxed mb-2"
+              className="text-[13px] text-slate-600 font-normal leading-relaxed mb-2"
               dangerouslySetInnerHTML={{
                 __html: trimmed
-                  .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                  .replace(/\*\*(.*?)\*\*/g, "<strong class='font-semibold text-slate-800'>$1</strong>")
+                  .replace(/\*(.*?)\*/g, "<em class='italic'>$1</em>")
                   .replace(/\`(.*?)\`/g, "<code class='bg-slate-100 px-1 py-0.5 rounded text-blue-700 text-[11px] font-mono'>$1</code>")
                   .replace(/\[(.*?)\]\((.*?)\)/g, "<a href='$2' class='text-[#1868db] hover:underline' target='_blank' rel='noopener noreferrer'>$1</a>"),
               }}
@@ -407,80 +418,10 @@ We process information necessary to deliver transparent, secure, and performant 
                 </div>
               ) : policy.id === "privacy" ? (
                 /* ======================================================= */
-                /* 2. PRIVACY POLICY (Matches Stage Editor Exactly) */
+                /* 2. PRIVACY POLICY (Full 13 Sections) */
                 /* ======================================================= */
-                <div className="space-y-6 text-slate-800 leading-relaxed text-xs">
-                  <div className="border-b border-slate-100 pb-4">
-                    <h1 className="text-xl font-bold text-slate-900">Privacy Policy for {domain}</h1>
-                    <p className="text-slate-500 text-[11px] mt-1">
-                      <strong>Effective Date:</strong> {effectiveDate} | <strong>Domain:</strong> https://{domain}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h2 className="text-sm font-bold text-slate-900">1. Overview & Platform Scope</h2>
-                    <p className="text-slate-600 leading-relaxed">
-                      Welcome to <strong>{companyName}</strong>. This Privacy Policy describes how we collect, store, process, and protect your personal information across our <strong>{platforms.join(", ")}</strong> located at <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px] text-blue-700 font-mono">{websiteUrl}</code>.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h2 className="text-sm font-bold text-slate-900">2. Personal Information Collected Directly</h2>
-                    <p className="text-slate-600">When you visit or interact with our services, we collect information you voluntarily provide:</p>
-                    <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                      {directData.map((d, i) => (
-                        <li key={i}><strong>{d}</strong></li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h2 className="text-sm font-bold text-slate-900">3. Purpose and Lawful Grounds for Processing</h2>
-                    <p className="text-slate-600">We utilize your personal information for legitimate business operations:</p>
-                    <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                      {purposes.map((p, i) => (
-                        <li key={i}>{p}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h2 className="text-sm font-bold text-slate-900">4. Third-Party Service Providers</h2>
-                    <p className="text-slate-600">We disclose data to compliant infrastructure partners:</p>
-                    <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                      {disclosures.map((d, i) => (
-                        <li key={i}>{d}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="space-y-2 border-t border-slate-100 pt-3">
-                    <h2 className="text-sm font-bold text-slate-900">5. International Frameworks & Privacy Rights</h2>
-                    <div className="space-y-2 text-slate-600">
-                      {includeGdpr && (
-                        <p>
-                          <strong>GDPR / UK DPA:</strong> Under European data protection laws, you retain the statutory right to request access, rectification, portability, and erasure of your personal data or contact our DPO at <strong>{dpoEmail}</strong>.
-                        </p>
-                      )}
-                      {includeCcpa && (
-                        <p>
-                          <strong>CCPA / CPRA:</strong> California consumers may request notice at collection and disclosure of personal data categories collected in the preceding 12 months. We do not sell personal information.
-                        </p>
-                      )}
-                      {includeCoppa && (
-                        <p>
-                          <strong>COPPA Children's Shield:</strong> Services are strictly for users aged {minAge} and older.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 border-t border-slate-100 pt-3">
-                    <h2 className="text-sm font-bold text-slate-900">6. Data Retention & Inquiries</h2>
-                    <p className="text-slate-600">
-                      For data deletion requests or legal inquiries, please contact our compliance team at <strong className="text-[#1868db]">{supportEmail}</strong>.
-                    </p>
-                  </div>
+                <div className="space-y-4 text-slate-800 leading-relaxed text-xs">
+                  {renderGenericMarkdown(activeMarkdown)}
                 </div>
               ) : policy.id === "terms" ? (
                 /* ======================================================= */

@@ -42,7 +42,7 @@ const TRACKER_SCRIPT = `(function () {
       reject_all_label: "Reject All",
       preferences_label: "Customise",
       preferences_title: "Customise Consent Preferences",
-      preferences_description: "We respect your privacy preferences. You can customize which category of cookies or tracking scripts you permit on this website. Essential cookies cannot be turned off.",
+      preferences_description: "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.",
       save_preferences_label: "Save My Preferences",
       pref_accept_all_label: "Accept All",
       pref_reject_all_label: "Reject All",
@@ -312,8 +312,27 @@ const TRACKER_SCRIPT = `(function () {
     var enDefault = (TRANSLATIONS["en"] && TRANSLATIONS["en"][key]) || "";
     var customVal = config ? config[key] : undefined;
 
+    if (config && (customVal === undefined || customVal === null || customVal === "")) {
+      if (key === "preferences_description") {
+        customVal = config.preferences_description || config.preference_description || config.preference_message;
+      } else if (key === "preferences_title") {
+        customVal = config.preferences_title || config.preference_title;
+      } else if (key === "show_more_label") {
+        customVal = config.show_more_label;
+      } else if (key === "show_less_label") {
+        customVal = config.show_less_label;
+      }
+    }
+
+    if (customVal && typeof customVal === "string" && customVal.indexOf("We respect your privacy preferences") !== -1) {
+      customVal = enDefault;
+    }
+
     // Customer custom copy always takes precedence over automatic translation
-    if (customVal && typeof customVal === "string" && customVal.trim().length > 0 && customVal !== enDefault) {
+    if (customVal && typeof customVal === "string" && customVal.trim().length > 0) {
+      if (lang !== "en" && lang !== (config && config.default_language ? config.default_language : "en") && customVal === enDefault) {
+        return (dict && dict[key]) || enDefault || "";
+      }
       return customVal;
     }
 
@@ -1369,7 +1388,7 @@ const TRACKER_SCRIPT = `(function () {
 
     var style = document.createElement("style");
     style.textContent = \`
-      * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+      * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 300; -webkit-font-smoothing: antialiased; }
       
       .usrly-banner-wrapper {
         z-index: 2147483646;
@@ -1403,14 +1422,16 @@ const TRACKER_SCRIPT = `(function () {
       }
       .usrly-banner-title {
         font-size: 15px;
-        font-weight: 700;
+        font-weight: 500;
+        letter-spacing: -0.01em;
         color: \${textPrimary};
         margin-bottom: 4px;
       }
       .usrly-banner-desc {
         font-size: 13px;
+        font-weight: 300;
         color: \${textMuted};
-        line-height: 1.5;
+        line-height: 1.55;
       }
       .usrly-banner-desc a {
         color: \${primaryColor};
@@ -1427,9 +1448,9 @@ const TRACKER_SCRIPT = `(function () {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 9px 18px;
+        padding: 8px 16px;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 400;
         border-radius: \${borderRadius};
         cursor: pointer;
         transition: all 0.15s ease;
@@ -1519,8 +1540,9 @@ const TRACKER_SCRIPT = `(function () {
         border-bottom: 1px solid \${borderCard};
       }
       .usrly-modal-title {
-        font-size: 17px;
-        font-weight: 700;
+        font-size: 16px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
         color: \${textPrimary};
       }
       .usrly-modal-close {
@@ -1540,12 +1562,14 @@ const TRACKER_SCRIPT = `(function () {
         overflow-y: auto;
         flex: 1;
         font-size: 13px;
+        font-weight: 300;
         color: \${textMuted};
         line-height: 1.55;
       }
       .usrly-intro-text {
         margin-bottom: 18px;
         color: \${textMuted};
+        font-weight: 300;
       }
 
       .usrly-category-item {
@@ -1572,14 +1596,14 @@ const TRACKER_SCRIPT = `(function () {
         transform: rotate(90deg);
       }
       .usrly-cat-title {
-        font-size: 14px;
-        font-weight: 700;
+        font-size: 13.5px;
+        font-weight: 500;
         color: \${textPrimary};
       }
       .usrly-cat-always-active {
         color: #16a34a;
-        font-size: 12px;
-        font-weight: 700;
+        font-size: 11.5px;
+        font-weight: 500;
       }
       .usrly-cat-desc {
         padding: 10px 0 4px 20px;

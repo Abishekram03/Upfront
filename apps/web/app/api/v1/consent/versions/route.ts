@@ -214,7 +214,7 @@ export async function POST(req: Request) {
         historicalConfig.reject_all_label || "Reject All",
         historicalConfig.preferences_label || "Customise",
         historicalConfig.preferences_title || "Customise Consent Preferences",
-        historicalConfig.preferences_description || "We respect your privacy...",
+        historicalConfig.preferences_description || historicalConfig.preference_description || historicalConfig.preference_message || "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.",
         historicalConfig.save_preferences_label || "Save My Preferences",
         historicalConfig.always_active_label || "Always Active",
         historicalConfig.no_cookies_to_display_label || "No cookies to display",

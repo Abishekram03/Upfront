@@ -15,6 +15,7 @@ import {
   FileText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { generatePrivacyPolicyMarkdown } from "./policy-generator-template"
 
 interface PolicyWizardModalProps {
   policy: PolicyDefinition | null
@@ -50,6 +51,19 @@ export function PolicyWizardModal({
   const IconComponent = policy.icon
 
   const generateContent = () => {
+    if (policy.id === "privacy") {
+      return generatePrivacyPolicyMarkdown(
+        {
+          companyName,
+          websiteUrl,
+          supportEmail,
+          country,
+          hasUsUsers: includeCcpa,
+          hasEuUsers: includeGdpr,
+        },
+        websiteUrl.replace(/https?:\/\//, "").split("/")[0] || "example.com"
+      )
+    }
     return `# ${policy.name}
 
 **Effective Date:** ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}  

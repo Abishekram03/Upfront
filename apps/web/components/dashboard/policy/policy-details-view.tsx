@@ -9,11 +9,6 @@ import {
   Check,
   Copy,
   ExternalLink,
-  ShieldCheck,
-  Info,
-  Sparkles,
-  Calendar,
-  Layers,
   CheckCircle2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -21,6 +16,81 @@ import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/sonner"
 import { PolicyDefinition, DomainPolicyRecord } from "./policy-types"
 import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
+import { generatePrivacyPolicyMarkdown } from "./policy-generator-template"
+
+function renderGenericMarkdown(md: string) {
+  const normalized = md
+    .replace(/\r\n/g, "\n")
+    .replace(/(^|\n)(#{1,3}\s+[^\n]+)/g, "\n\n$2\n\n")
+    .replace(/(^|\n)(---\s*)/g, "\n\n---\n\n")
+
+  const sections = normalized.split(/\n\s*\n/)
+  return (
+    <div className="space-y-4 font-normal text-slate-600 font-sans antialiased text-[13px] leading-relaxed">
+      {sections.map((section, idx) => {
+        const trimmed = section.trim()
+        if (!trimmed) return null
+        if (trimmed === "---") return <hr key={idx} className="border-t border-slate-200/80 my-4" />
+
+        if (trimmed.startsWith("# ")) {
+          return (
+            <div key={idx} className="border-b border-slate-100 pb-3 mb-3">
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">{trimmed.replace(/^# /, "")}</h1>
+            </div>
+          )
+        }
+
+        if (trimmed.startsWith("## ")) {
+          return (
+            <h2 key={idx} className="text-sm font-bold text-slate-900 mt-6 mb-2 tracking-tight">
+              {trimmed.replace(/^## /, "")}
+            </h2>
+          )
+        }
+
+        if (trimmed.startsWith("### ")) {
+          return (
+            <h3 key={idx} className="text-xs font-semibold text-slate-800 mt-4 mb-1.5">
+              {trimmed.replace(/^### /, "")}
+            </h3>
+          )
+        }
+
+        if (trimmed.startsWith("- ")) {
+          const items = trimmed.split("\n").map((line) => line.replace(/^- /, "").trim())
+          return (
+            <ul key={idx} className="list-disc pl-5 space-y-1.5 text-slate-600 text-[13px] font-normal">
+              {items.map((item, i) => (
+                <li
+                  key={i}
+                  dangerouslySetInnerHTML={{
+                    __html: item
+                      .replace(/\*\*(.*?)\*\*/g, "<strong class='font-semibold text-slate-800'>$1</strong>")
+                      .replace(/\*(.*?)\*/g, "<em class='italic'>$1</em>"),
+                  }}
+                />
+              ))}
+            </ul>
+          )
+        }
+
+        return (
+          <p
+            key={idx}
+            className="text-[13px] text-slate-600 font-normal leading-relaxed mb-2"
+            dangerouslySetInnerHTML={{
+              __html: trimmed
+                .replace(/\*\*(.*?)\*\*/g, "<strong class='font-semibold text-slate-800'>$1</strong>")
+                .replace(/\*(.*?)\*/g, "<em class='italic'>$1</em>")
+                .replace(/\`(.*?)\`/g, "<code class='bg-slate-100 px-1 py-0.5 rounded text-blue-700 text-[11px] font-mono'>$1</code>")
+                .replace(/\[(.*?)\]\((.*?)\)/g, "<a href='$2' class='text-[#1868db] hover:underline' target='_blank' rel='noopener noreferrer'>$1</a>"),
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
 
 interface PolicyDetailsViewProps {
   policy: PolicyDefinition
@@ -53,9 +123,25 @@ export function PolicyDetailsView({
 
   const isPublished = record?.status === "published"
   const policyTitle = record?.customTitle || policy.name
-  const lastUpdated =
-    record?.publishedAt ||
-    (isCookiePolicy && cmpData.lastScanDate ? cmpData.lastScanDate : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }))
+  const lastUpdated = (() => {
+    if (isCookiePolicy && cmpData.lastScanDate) return cmpData.lastScanDate
+    if (record?.publishedAt) {
+      try {
+        return new Date(record.publishedAt).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      } catch {
+        return record.publishedAt
+      }
+    }
+    return new Date().toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+  })()
 
   // Snippets
   const widgetSnippet = isCookiePolicy
@@ -142,344 +228,170 @@ export function PolicyDetailsView({
         </div>
       </div>
 
-      {/* 2. MAIN 2-COLUMN LAYOUT: PREVIEW (LEFT) | NOTICE & INFO (RIGHT) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN: LIVE RENDERED POLICY PREVIEW */}
-        <div className="lg:col-span-8 bg-white rounded-lg border border-slate-200/90 shadow-2xs p-6 sm:p-8 space-y-6 text-slate-800">
-          {/* Document Header */}
-          <div className="border-b border-slate-100 pb-5 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-[#1868db] border border-blue-100">
-                {policy.shortTitle}
-              </span>
-              <span className="text-xs text-slate-400">•</span>
-              <span className="text-xs text-slate-500 font-mono">{domain}</span>
+      {/* 2. POLICY PREVIEW CONTAINER */}
+      <div className="w-full bg-white rounded-lg border border-slate-200/90 shadow-2xs p-6 sm:p-10 space-y-6 text-slate-800">
+        {/* COOKIE POLICY PREVIEW */}
+        {isCookiePolicy && (
+          <div className="space-y-6 text-xs leading-relaxed text-slate-700">
+            <div className="border-b border-slate-100 pb-3">
+              <h1 className="text-xl font-medium text-slate-900 tracking-tight">{policyTitle}</h1>
+              <p className="text-xs text-slate-400 italic mt-1">Last updated: {lastUpdated}</p>
             </div>
-
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {policyTitle}
-            </h1>
-
-            <p className="text-xs text-slate-400 italic">
-              Last updated: {lastUpdated}
-            </p>
-          </div>
-
-          {/* COOKIE POLICY PREVIEW */}
-          {isCookiePolicy && (
-            <div className="space-y-6 text-xs leading-relaxed text-slate-700">
-              {/* Section 1 */}
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">{cmpData.aboutHeading}</h2>
-                {cmpData.aboutDescription.split("\n\n").map((p, i) => (
-                  <p key={i} className="text-slate-600 leading-relaxed">{p}</p>
-                ))}
-              </div>
-
-              {/* Section 2 */}
-              <div className="space-y-2 pt-2">
-                <h2 className="text-sm font-bold text-slate-900">{cmpData.useHeading}</h2>
-                {cmpData.useDescription.split("\n\n").map((p, i) => (
-                  <p key={i} className="text-slate-600 leading-relaxed">{p}</p>
-                ))}
-              </div>
-
-              {/* Section 3: Live Cookie Table */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-slate-900">{cmpData.typesHeading}</h2>
-                  <span className="text-[11px] font-semibold text-[#1868db] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                    {cmpData.cookies.length} Active Cookies Linked
-                  </span>
-                </div>
-
-                <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-700 text-[11px]">
-                      <tr>
-                        <th className="p-2.5 font-bold">Cookie</th>
-                        <th className="p-2.5 font-bold">Category</th>
-                        <th className="p-2.5 font-bold">Duration</th>
-                        <th className="p-2.5 font-bold">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-600 text-xs">
-                      {cmpData.cookies.map((c, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-2.5 font-mono font-semibold text-slate-900">{c.name}</td>
-                          <td className="p-2.5">
-                            <span
-                              className={cn(
-                                "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize",
-                                c.category === "necessary"
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : c.category === "analytics"
-                                  ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                  : "bg-purple-50 text-purple-700 border border-purple-200"
-                              )}
-                            >
-                              {c.category}
-                            </span>
-                          </td>
-                          <td className="p-2.5 text-slate-600">{c.duration || "Session"}</td>
-                          <td className="p-2.5 text-slate-500">
-                            {c.description || (c.service_name ? `Set by ${c.service_name}` : "Website functionality & security")}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Section 4: Manage Cookie Preferences */}
-              <div className="space-y-3 pt-2">
-                <h2 className="text-sm font-bold text-slate-900">{cmpData.prefHeading}</h2>
-
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => toast.info("Opens CMP Cookie Preferences modal for website visitors.")}
-                    className="px-3.5 py-1.5 rounded-md bg-[#1868db] hover:bg-blue-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                  >
-                    <span>Consent Preferences</span>
-                  </button>
-                </div>
-
-                {cmpData.prefDescription.split("\n\n").map((p, i) => (
-                  <p key={i} className="text-slate-600 leading-relaxed">{p}</p>
-                ))}
-
-                {/* Browser Links */}
-                <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {cmpData.browserLinks.map((b) => (
-                    <a
-                      key={b.name}
-                      href={b.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded-md border border-slate-200 bg-slate-50 hover:bg-white text-slate-700 text-[11px] font-medium flex items-center justify-between transition-colors"
-                    >
-                      <span>{b.name}</span>
-                      <ExternalLink className="size-3 text-slate-400" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* PRIVACY POLICY PREVIEW */}
-          {isPrivacyPolicy && (
-            <div className="space-y-6 text-xs leading-relaxed text-slate-700">
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">1. Introduction & Overview</h2>
-                <p className="text-slate-600">
-                  Welcome to {domain}. We are committed to safeguarding personal data in accordance with the General Data Protection Regulation (GDPR) and California Consumer Privacy Act (CCPA/CPRA).
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">2. Personal Data We Collect</h2>
-                <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1">
-                  <li>Directly provided information: Account credentials, contact email, and payment records.</li>
-                  <li>Automated telemetry: Device identifiers, browser characteristics, IP addresses, and session timestamps.</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">3. How We Use Personal Data</h2>
-                <p className="text-slate-600">
-                  We process data to deliver secure services, prevent fraud, analyze performance, and fulfill user requests. We do not sell or monetize personal data.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">4. Your Privacy Rights</h2>
-                <p className="text-slate-600">
-                  Visitors have the right to access, rectify, port, or erase their personal information, or opt out of non-essential data processing at any time.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* TERMS OF SERVICE PREVIEW */}
-          {isTermsPolicy && (
-            <div className="space-y-6 text-xs leading-relaxed text-slate-700">
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">1. Agreement to Terms</h2>
-                <p className="text-slate-600">
-                  By accessing or using {domain}, you agree to comply with and be bound by these Terms of Service. If you disagree, do not use the service.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">2. User Accounts & Responsibilities</h2>
-                <p className="text-slate-600">
-                  Users are responsible for maintaining account confidentiality and all activities conducted under their credentials.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">3. Prohibited Activities</h2>
-                <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1">
-                  <li>Attempting to decompile, reverse engineer, or exploit the platform.</li>
-                  <li>Using unauthorized automated scrapers, bots, or crawlers.</li>
-                  <li>Transmitting malicious code or violating applicable regulations.</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-sm font-bold text-slate-900">4. Disclaimers & Limitation of Liability</h2>
-                <p className="text-slate-600">
-                  The service is provided on an 'AS IS' basis without express or implied warranties. Our liability is limited to the fullest extent permitted by law.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* OTHER POLICIES PREVIEW */}
-          {!isCookiePolicy && !isPrivacyPolicy && !isTermsPolicy && (
-            <div className="space-y-4 text-xs text-slate-600 leading-relaxed">
-              <p>
-                {record?.contentMarkdown || policy.defaultSampleText || "This policy statement protects your platform, ensures consumer compliance, and defines clear legal guidelines."}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT COLUMN: NOTICE & INFORMATION PANEL */}
-        <div className="lg:col-span-4 space-y-5">
-          {/* 1. Notice Kind of Thing / Information Box */}
-          <div className="rounded-lg border border-blue-200/90 bg-gradient-to-br from-blue-50/80 to-indigo-50/40 p-5 space-y-3 shadow-2xs">
-            <div className="flex items-start gap-2.5">
-              <div className="size-7 rounded-md bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
-                <Info className="size-4" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-xs font-bold text-blue-950">
-                  Auto-Updating Compliance Notice
-                </h3>
-                <p className="text-[11px] text-blue-900/80 leading-relaxed">
-                  This document is synchronized directly with your domain's live configuration. Whenever scanner detects new cookies or you edit details, your published policy updates in real time without republishing code.
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-blue-200/60 flex items-center gap-1.5 text-[11px] font-semibold text-blue-800">
-              <Sparkles className="size-3.5 text-blue-600" />
-              <span>Live Synced with UpFront CMP</span>
-            </div>
-          </div>
-
-          {/* 2. Policy Metadata & Status Card */}
-          <div className="rounded-lg border border-slate-200/90 bg-white p-5 space-y-4 shadow-2xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Policy Details
-            </h3>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <span className="text-slate-500 flex items-center gap-1.5">
-                  <ShieldCheck className="size-3.5 text-slate-400" />
-                  Status
-                </span>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold",
-                    isPublished
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : "bg-amber-50 text-amber-700 border border-amber-200"
-                  )}
-                >
-                  <span className={cn("size-1.5 rounded-full", isPublished ? "bg-emerald-500" : "bg-amber-500")} />
-                  {isPublished ? "Active & Published" : "Draft Mode"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <span className="text-slate-500 flex items-center gap-1.5">
-                  <Globe className="size-3.5 text-slate-400" />
-                  Linked Domain
-                </span>
-                <span className="font-mono font-medium text-slate-800">{domain}</span>
-              </div>
-
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <span className="text-slate-500 flex items-center gap-1.5">
-                  <Calendar className="size-3.5 text-slate-400" />
-                  Last Updated
-                </span>
-                <span className="text-slate-700 font-medium">{lastUpdated}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 flex items-center gap-1.5">
-                  <Layers className="size-3.5 text-slate-400" />
-                  Version
-                </span>
-                <span className="font-mono text-slate-700 font-medium">v1.0</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. Quick Embed Code Card */}
-          <div className="rounded-lg border border-slate-200/90 bg-white p-5 space-y-3 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Embed Container
-              </h3>
-              <button
-                type="button"
-                onClick={() => handleCopy(widgetSnippet, "quick_embed")}
-                className="text-[11px] font-bold text-[#1868db] hover:underline cursor-pointer inline-flex items-center gap-1"
-              >
-                {copiedType === "quick_embed" ? (
-                  <>
-                    <Check className="size-3 text-emerald-600" />
-                    <span className="text-emerald-600">Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="size-3" />
-                    <span>Copy Code</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <p className="text-[11px] text-slate-500">
-              Paste this tag into your website page HTML to embed this policy declaration:
-            </p>
-
-            <div className="bg-slate-900 rounded-md p-3 font-mono text-[11px] text-emerald-400 overflow-x-auto leading-relaxed">
-              <code>{widgetSnippet}</code>
-            </div>
-          </div>
-
-          {/* 4. Compliance Scope Checklist */}
-          <div className="rounded-lg border border-slate-200/90 bg-white p-5 space-y-3 shadow-2xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Regulatory Coverage
-            </h3>
-
-            <div className="space-y-2 text-xs">
-              {[
-                { name: "EU GDPR & UK GDPR", desc: "Data Controller & Consent Standards" },
-                { name: "California CCPA / CPRA", desc: "Notice at Collection & Opt-Out" },
-                { name: "ePrivacy Directive", desc: "Cookie Consent & Tracker Disclosure" },
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-start gap-2 p-2 rounded-md bg-slate-50 border border-slate-100">
-                  <Check className="size-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <div className="font-semibold text-slate-800">{item.name}</div>
-                    <div className="text-[10px] text-slate-500">{item.desc}</div>
-                  </div>
-                </div>
+            {/* Section 1 */}
+            <div className="space-y-2">
+              <h2 className="text-sm font-bold text-slate-900">{cmpData.aboutHeading}</h2>
+              {cmpData.aboutDescription.split("\n\n").map((p, i) => (
+                <p key={i} className="text-slate-600 leading-relaxed">{p}</p>
               ))}
             </div>
+
+            {/* Section 2 */}
+            <div className="space-y-2 pt-2">
+              <h2 className="text-sm font-bold text-slate-900">{cmpData.useHeading}</h2>
+              {cmpData.useDescription.split("\n\n").map((p, i) => (
+                <p key={i} className="text-slate-600 leading-relaxed">{p}</p>
+              ))}
+            </div>
+
+            {/* Section 3: Live Cookie Table */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-900">{cmpData.typesHeading}</h2>
+                <span className="text-[11px] font-semibold text-[#1868db] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  {cmpData.cookies.length} Active Cookies Linked
+                </span>
+              </div>
+
+              <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-700 text-[11px]">
+                    <tr>
+                      <th className="p-2.5 font-bold">Cookie</th>
+                      <th className="p-2.5 font-bold">Category</th>
+                      <th className="p-2.5 font-bold">Duration</th>
+                      <th className="p-2.5 font-bold">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-600 text-xs">
+                    {cmpData.cookies.map((c, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-2.5 font-mono font-semibold text-slate-900">{c.name}</td>
+                        <td className="p-2.5">
+                          <span
+                            className={cn(
+                              "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize",
+                              c.category === "necessary"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : c.category === "analytics"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-purple-50 text-purple-700 border border-purple-200"
+                            )}
+                          >
+                            {c.category}
+                          </span>
+                        </td>
+                        <td className="p-2.5 text-slate-600">{c.duration || "Session"}</td>
+                        <td className="p-2.5 text-slate-500">
+                          {c.description || (c.service_name ? `Set by ${c.service_name}` : "Website functionality & security")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Section 4: Manage Cookie Preferences */}
+            <div className="space-y-3 pt-2">
+              <h2 className="text-sm font-bold text-slate-900">{cmpData.prefHeading}</h2>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toast.info("Opens CMP Cookie Preferences modal for website visitors.")}
+                  className="px-3.5 py-1.5 rounded-md bg-[#1868db] hover:bg-blue-700 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <span>Consent Preferences</span>
+                </button>
+              </div>
+
+              {cmpData.prefDescription.split("\n\n").map((p, i) => (
+                <p key={i} className="text-slate-600 leading-relaxed">{p}</p>
+              ))}
+
+              {/* Browser Links */}
+              <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {cmpData.browserLinks.map((b) => (
+                  <a
+                    key={b.name}
+                    href={b.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-md border border-slate-200 bg-slate-50 hover:bg-white text-slate-700 text-[11px] font-medium flex items-center justify-between transition-colors"
+                  >
+                    <span>{b.name}</span>
+                    <ExternalLink className="size-3 text-slate-400" />
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* PRIVACY POLICY PREVIEW (Full 13 Sections) */}
+        {isPrivacyPolicy && (
+          <div className="space-y-4 text-xs leading-relaxed text-slate-700">
+            {renderGenericMarkdown(generatePrivacyPolicyMarkdown(record?.config || {}, domain))}
+          </div>
+        )}
+
+        {/* TERMS OF SERVICE PREVIEW */}
+        {isTermsPolicy && (
+          <div className="space-y-6 text-xs leading-relaxed text-slate-700">
+            <div className="border-b border-slate-100 pb-3">
+              <h1 className="text-xl font-medium text-slate-900 tracking-tight">{policyTitle}</h1>
+              <p className="text-xs text-slate-400 italic mt-1">Last updated: {lastUpdated}</p>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-sm font-bold text-slate-900">1. Agreement to Terms</h2>
+              <p className="text-slate-600">
+                By accessing or using {domain}, you agree to comply with and be bound by these Terms of Service. If you disagree, do not use the service.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-sm font-bold text-slate-900">2. User Accounts & Responsibilities</h2>
+              <p className="text-slate-600">
+                Users are responsible for maintaining account confidentiality and all activities conducted under their credentials.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-sm font-bold text-slate-900">3. Prohibited Activities</h2>
+              <ul className="list-disc list-inside space-y-1 text-slate-600 pl-1">
+                <li>Attempting to decompile, reverse engineer, or exploit the platform.</li>
+                <li>Using unauthorized automated scrapers, bots, or crawlers.</li>
+                <li>Transmitting malicious code or violating applicable regulations.</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-sm font-bold text-slate-900">4. Disclaimers & Limitation of Liability</h2>
+              <p className="text-slate-600">
+                The service is provided on an 'AS IS' basis without express or implied warranties. Our liability is limited to the fullest extent permitted by law.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* OTHER POLICIES PREVIEW */}
+        {!isCookiePolicy && !isPrivacyPolicy && !isTermsPolicy && (
+          <div className="space-y-4 text-xs text-slate-600 leading-relaxed">
+            <p>
+              {record?.contentMarkdown || policy.defaultSampleText || "This policy statement protects your platform, ensures consumer compliance, and defines clear legal guidelines."}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 3. ADD TO WEBSITE MODAL */}

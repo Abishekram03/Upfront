@@ -57,6 +57,14 @@ export async function GET(req: Request) {
     const res = await pool.query("SELECT * FROM consent_configs WHERE domain = $1", [domain])
     let config = res.rows.length > 0 ? res.rows[0] : null
 
+    if (config) {
+      if (!config.preferences_description || String(config.preferences_description).startsWith("We respect your privacy preferences")) {
+        config.preferences_description = "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below."
+        config.preference_description = config.preferences_description
+        config.preference_message = config.preferences_description
+      }
+    }
+
     if (!config) {
       // Default configuration
       const id = randomUUID()
@@ -78,7 +86,7 @@ export async function GET(req: Request) {
           'We value your privacy',
           'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking ''Accept All'', you consent to our use of cookies.',
           '/privacy', FALSE, 'Accept All', 'Reject All',
-          'Customise', 'Customise Consent Preferences', 'We respect your privacy preferences and allow you to select which cookies and tracking technologies are enabled.', 'Save My Preferences',
+          'Customise', 'Customise Consent Preferences', 'We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.', 'Save My Preferences',
           'Always Active', 'No cookies to display', 'Cookie',
           'Duration', 'Description',
           TRUE, TRUE,
@@ -190,8 +198,8 @@ export async function POST(req: Request) {
     const acceptAllLabel = body.accept_all_label || currentConfig?.accept_all_label || "Accept All"
     const rejectAllLabel = body.reject_all_label || currentConfig?.reject_all_label || "Reject All"
     const preferencesLabel = body.preferences_label || currentConfig?.preferences_label || "Customise"
-    const preferencesTitle = body.preferences_title || currentConfig?.preferences_title || "Customise Consent Preferences"
-    const preferencesDescription = body.preferences_description || currentConfig?.preferences_description || "We respect your privacy preferences and allow you to select which cookies and tracking technologies are enabled."
+    const preferencesTitle = body.preferences_title || body.preference_title || currentConfig?.preferences_title || "Customise Consent Preferences"
+    const preferencesDescription = body.preferences_description || body.preference_description || body.preference_message || currentConfig?.preferences_description || "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below."
     const savePreferencesLabel = body.save_preferences_label || currentConfig?.save_preferences_label || "Save My Preferences"
     const alwaysActiveLabel = body.always_active_label || currentConfig?.always_active_label || "Always Active"
     const noCookiesToDisplayLabel = body.no_cookies_to_display_label || currentConfig?.no_cookies_to_display_label || "No cookies to display"

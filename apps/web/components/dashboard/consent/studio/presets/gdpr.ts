@@ -28,7 +28,7 @@ export const gdprPreset: LawPreset = {
   },
   preferenceCenterData: {
     title: "Customise Consent Preferences",
-    description: "We respect your privacy preferences. Essential cookies are required for website operation. Non-essential cookies and tracking scripts remain disabled until you give explicit consent.",
+    description: "We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.",
     always_active_label: "Always Active",
     save_preferences_label: "Save My Preferences",
   },
