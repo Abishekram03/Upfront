@@ -1103,7 +1103,7 @@ export async function GET(req: Request) {
             var html = data.contentHtml || data.content_html || "";
             if (!html && (data.contentMarkdown || data.content_markdown)) {
               var rawMd = data.contentMarkdown || data.content_markdown;
-              var lines = rawMd.split("\n");
+              var lines = rawMd.split(String.fromCharCode(10));
               var out = [];
               for (var j = 0; j < lines.length; j++) {
                 var line = lines[j].trim();
@@ -1118,8 +1118,15 @@ export async function GET(req: Request) {
                 } else if (line === "---") {
                   out.push("<hr style='border:0;border-top:1px solid #e2e8f0;margin:24px 0;'/>");
                 } else {
-                  var formatted = line.replace(/\*\*(.*?)\*\*/g, "<strong style='font-weight:600;color:#0f172a;'>$1</strong>")
-                                      .replace(/\*(.*?)\*/g, "<em>$1</em>");
+                  var parts = line.split("**");
+                  var formatted = "";
+                  for (var k = 0; k < parts.length; k++) {
+                    if (k % 2 === 1) {
+                      formatted += "<strong style='font-weight:600;color:#0f172a;'>$1</strong>".replace("$1", parts[k]);
+                    } else {
+                      formatted += parts[k];
+                    }
+                  }
                   out.push("<p style='margin:0 0 12px;color:#475569;font-size:14px;line-height:1.65;font-weight:400;'>" + formatted + "</p>");
                 }
               }
