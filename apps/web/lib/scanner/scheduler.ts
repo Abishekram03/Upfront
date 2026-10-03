@@ -207,11 +207,34 @@ export class ScheduleService {
     return res.rows[0] as ScanScheduleRecord
   }
 
+  private static _inFlightProcess: Promise<any> | null = null
+
   /**
    * Finds due schedules and executes/enqueues scanner jobs.
    * Atomically claims schedules and handles overlapping scans & duplicate prevention.
    */
   static async processDueSchedules(options: { maxJobs?: number; executeInline?: boolean } = {}): Promise<{
+    processed: number
+    skipped: number
+    failed: number
+    results: Array<{ domain: string; status: "completed" | "skipped" | "failed" | "queued"; message?: string }>
+  }> {
+    if (ScheduleService._inFlightProcess) {
+      return ScheduleService._inFlightProcess
+    }
+
+    ScheduleService._inFlightProcess = (async () => {
+      try {
+        return await ScheduleService._doProcessDueSchedules(options)
+      } finally {
+        ScheduleService._inFlightProcess = null
+      }
+    })()
+
+    return ScheduleService._inFlightProcess
+  }
+
+  private static async _doProcessDueSchedules(options: { maxJobs?: number; executeInline?: boolean } = {}): Promise<{
     processed: number
     skipped: number
     failed: number
@@ -223,6 +246,7 @@ export class ScheduleService {
 
     const client = await pool.connect()
     const dueSchedules: ScanScheduleRecord[] = []
+    let hasError = false
 
     try {
       await client.query("BEGIN")
@@ -240,10 +264,11 @@ export class ScheduleService {
       dueSchedules.push(...(dueRes.rows as ScanScheduleRecord[]))
       await client.query("COMMIT")
     } catch (err) {
-      await client.query("ROLLBACK")
+      hasError = true
+      await client.query("ROLLBACK").catch(() => {})
       throw err
     } finally {
-      client.release()
+      client.release(hasError)
     }
 
     const results: Array<{ domain: string; status: "completed" | "skipped" | "failed" | "queued"; message?: string }> = []

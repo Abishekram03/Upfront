@@ -67,8 +67,18 @@ export const pool =
     connectionString: pgConnectionString,
     ssl: { rejectUnauthorized: false },
     max: 10,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: 20000,
+    connectionTimeoutMillis: 10000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   })
+
+if (!global._pgPool) {
+  pool.on("error", (err) => {
+    // Prevent unhandled idle connection terminations from crashing the Node process
+    console.warn("[Postgres Pool] Idle client connection event:", err?.message || err)
+  })
+}
 
 export const db = pool
 
@@ -502,6 +512,22 @@ export async function ensureTables() {
         );
         CREATE INDEX IF NOT EXISTS ix_generated_policies_domain ON generated_policies(domain);
         CREATE INDEX IF NOT EXISTS ix_generated_policies_domain_policy ON generated_policies(domain, policy_id);
+
+        -- User Notification Read & Cleared States (Persistent across Logins, Reloads, and Devices)
+        CREATE TABLE IF NOT EXISTS user_notification_states (
+          id VARCHAR(36) PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          domain VARCHAR(255) NOT NULL,
+          notification_id VARCHAR(255) NOT NULL,
+          is_read BOOLEAN DEFAULT FALSE,
+          is_cleared BOOLEAN DEFAULT FALSE,
+          read_at TIMESTAMP WITHOUT TIME ZONE,
+          cleared_at TIMESTAMP WITHOUT TIME ZONE,
+          created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          CONSTRAINT uq_user_domain_notification UNIQUE (user_id, domain, notification_id)
+        );
+        CREATE INDEX IF NOT EXISTS ix_user_notif_user_domain ON user_notification_states(user_id, domain);
       `)
       tablesInitialized = true
     } finally {

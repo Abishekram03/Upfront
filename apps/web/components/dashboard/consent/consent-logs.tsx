@@ -261,7 +261,7 @@ export function ConsentLogs() {
                 filterType === "custom" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
               )}
             >
-              Custom
+              Partially Accepted
             </button>
           </div>
         </div>
@@ -342,7 +342,7 @@ export function ConsentLogs() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[11px] font-bold bg-blue-50 text-[#1868db] border border-blue-200">
-                            <Sliders className="size-3" /> Custom
+                            <Sliders className="size-3" /> Partially Accepted
                           </span>
                         )}
                       </td>

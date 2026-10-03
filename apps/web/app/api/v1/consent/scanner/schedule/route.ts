@@ -21,8 +21,8 @@ export async function GET(req: Request) {
     // Process any due scheduled scans before returning schedule state
     try {
       await ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true })
-    } catch (err) {
-      console.warn("[Auto-Trigger] Overdue schedule check warning:", err)
+    } catch (err: any) {
+      console.warn("[Auto-Trigger] Overdue schedule check notice:", err?.message || err)
     }
 
     if (!domain) {

@@ -48,7 +48,7 @@ export function ConsentLedger() {
   const [receipts, setReceipts] = useState<ConsentReceipt[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [filterType, setFilterType] = useState<"all" | "consented" | "rejected" | "custom">("all")
+  const [filterType, setFilterType] = useState<"all" | "accepted" | "rejected" | "custom">("all")
   const [selectedReceipt, setSelectedReceipt] = useState<ConsentReceipt | null>(null)
 
   // Pagination states
@@ -110,7 +110,7 @@ export function ConsentLedger() {
       const isAcceptedAll = r.consent_given && r.functional && r.analytics && r.performance && isAd
       const isRejectedAll = !r.consent_given && !r.functional && !r.analytics && !r.performance && !isAd
 
-      if (filterType === "consented") return isAcceptedAll || r.consent_given
+      if (filterType === "accepted") return isAcceptedAll || r.consent_given
       if (filterType === "rejected") return isRejectedAll
       if (filterType === "custom") return !isAcceptedAll && !isRejectedAll && r.consent_given
       return true
@@ -220,13 +220,13 @@ export function ConsentLedger() {
           </button>
           <button
             type="button"
-            onClick={() => setFilterType("consented")}
+            onClick={() => setFilterType("accepted")}
             className={cn(
               "px-2.5 py-1 rounded-[4px] font-bold transition-all cursor-pointer",
-              filterType === "consented" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+              filterType === "accepted" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
             )}
           >
-            Consented
+            Accepted All
           </button>
           <button
             type="button"
@@ -246,7 +246,7 @@ export function ConsentLedger() {
               filterType === "custom" ? "bg-[#1868db] text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
             )}
           >
-            Custom
+            Partially Accepted
           </button>
         </div>
       </div>
@@ -275,7 +275,7 @@ export function ConsentLedger() {
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold text-[11px] uppercase tracking-wider">
                   <th className="py-2.5 px-4">Consent ID & Hash</th>
                   <th className="py-2.5 px-4">Status</th>
-                  <th className="py-2.5 px-4">Consented Categories</th>
+                  <th className="py-2.5 px-4">Accepted Categories</th>
                   <th className="py-2.5 px-4">Country & Device</th>
                   <th className="py-2.5 px-4">Version</th>
                   <th className="py-2.5 px-4">Timestamp</th>
@@ -299,9 +299,9 @@ export function ConsentLedger() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        {isAcceptedAll || r.consent_given ? (
+                        {isAcceptedAll ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="size-3" /> Consented
+                            <CheckCircle2 className="size-3" /> Accepted All
                           </span>
                         ) : isRejectedAll ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
@@ -309,7 +309,7 @@ export function ConsentLedger() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-bold bg-blue-50 text-[#1868db] border border-blue-200">
-                            <Sliders className="size-3" /> Custom
+                            <Sliders className="size-3" /> Partially Accepted
                           </span>
                         )}
                       </td>

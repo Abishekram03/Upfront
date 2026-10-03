@@ -11,8 +11,8 @@ export async function GET(req: Request) {
     // Check and process any due scheduled scans before responding
     try {
       await ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true })
-    } catch (err) {
-      console.warn("[Auto-Trigger] Overdue scan check warning:", err)
+    } catch (err: any) {
+      console.warn("[Auto-Trigger] Overdue scan check notice:", err?.message || err)
     }
     const { searchParams } = new URL(req.url)
     const domain = sanitizeDomain(searchParams.get("domain"))
