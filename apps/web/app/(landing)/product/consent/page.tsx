@@ -18,7 +18,6 @@ import {
   Section,
   SectionHeader,
 } from "@/components/marketing/ui";
-import { ConsentPreview } from "@/components/product-ui/consent";
 import { FaqSection } from "@/components/marketing/faq";
 import { FinalCta } from "@/components/marketing/cta";
 
@@ -73,12 +72,6 @@ export default function ConsentPage() {
           secondary={{ label: "See pricing", to: "/pricing" }}
         />
       </PageHero>
-
-      <Section>
-        <Reveal className="mx-auto max-w-2xl">
-          <ConsentPreview />
-        </Reveal>
-      </Section>
 
       <Section className="border-t border-line bg-surface">
         <Reveal>

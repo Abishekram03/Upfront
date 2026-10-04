@@ -36,10 +36,6 @@ import {
   Section,
   SectionHeader,
 } from "@/components/marketing/ui";
-import { DashboardPreview } from "@/components/product-ui/dashboard";
-import { ConsentPreview } from "@/components/product-ui/consent";
-import { ScannerPreview } from "@/components/product-ui/scanner";
-import { ProofPreview } from "@/components/product-ui/proof";
 import { FaqSection } from "@/components/marketing/faq";
 import { PricingSection } from "@/components/marketing/pricing";
 import { ComparisonSection } from "@/components/marketing/comparison";
@@ -62,13 +58,13 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      <ProblemSection />
+      {/* <ProblemSection /> — Hidden from landing view */}
       <AnalyticsSection />
       <ConsentSection />
       <ScannerProofSection />
       <SetupSection />
       <WhyUpFrontSection />
-      <ComparisonSection />
+      {/* <ComparisonSection /> — Hidden from landing view */}
       <PricingSection />
       <FaqSection items={homeFaqs} />
       <FinalCta />
@@ -78,49 +74,59 @@ export default function HomePage() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-brand-mist via-surface to-brand-mist">
-      <Container className="relative grid items-center gap-12 pb-16 pt-16 md:pb-24 md:pt-24 lg:grid-cols-[1.15fr_1fr]">
-        <div>
-          <Reveal>
-            <h1 className="text-4xl font-medium leading-[1.2] text-ink sm:text-5xl md:text-[3.5rem]">
-              <span className="text-primary">Privacy analytics and consent</span> in one lightweight script
-            </h1>
-          </Reveal>
-          <Reveal delay={100}>
-            <p className="mt-6 max-w-xl text-lg font-normal leading-relaxed text-ink-soft">
-              UpFront combines cookieless analytics and a full-featured Consent Management Platform
-              in one script under 4KB, so you can understand your traffic and respect visitor choices.
-            </p>
-          </Reveal>
-          <Reveal delay={180}>
-            <CTAGroup align="left" className="mt-8" primary={{ label: "Get started for free", to: "/contact" }} />
-          </Reveal>
-          <Reveal delay={240}>
-            <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-base font-normal text-ink-soft">
-              {["No credit card required", "Unlimited websites"].map((t) => (
-                <li key={t} className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-primary" aria-hidden="true" />
-                  {t}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {["Cookieless analytics", "Consent banner", "Cookie scanner", "Proof of consent"].map((t) => (
-                <span key={t} className="inline-flex items-center gap-1.5 rounded-md bg-brand-mist px-3 py-1.5 text-sm font-normal text-primary">
-                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t}
-                </span>
-              ))}
-            </div>
-          </Reveal>
-        </div>
-        <Reveal delay={200} className="relative">
-          <ConsentPreview />
-        </Reveal>
-      </Container>
-      <Container className="relative pb-20">
+    <section className="relative overflow-hidden bg-gradient-to-br from-brand-mist via-surface to-brand-mist py-20 md:py-28">
+      <Container className="relative mx-auto max-w-4xl text-center">
         <Reveal>
-          <DashboardPreview />
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-brand-mist px-4 py-1.5 text-xs font-medium text-primary shadow-xs">
+            <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+            <span>Privacy Analytics + Integrated Consent Management</span>
+          </div>
+        </Reveal>
+        <Reveal delay={80}>
+          <h1 className="mt-6 text-4xl font-medium leading-[1.15] tracking-tight text-ink sm:text-5xl md:text-6xl text-balance">
+            <span className="text-primary">Privacy analytics and consent</span> in one lightweight script
+          </h1>
+        </Reveal>
+        <Reveal delay={160}>
+          <p className="mx-auto mt-6 max-w-2xl text-lg font-normal leading-relaxed text-ink-soft text-balance">
+            UpFront combines cookieless analytics and a full-featured Consent Management Platform
+            in one script under 4KB, so you can understand your traffic and respect visitor choices without sacrificing performance.
+          </p>
+        </Reveal>
+        <Reveal delay={240}>
+          <CTAGroup
+            align="center"
+            className="mt-8 justify-center"
+            primary={{ label: "Get started for free", to: "/contact" }}
+            secondary={{ label: "Explore features", to: "/product/analytics" }}
+          />
+        </Reveal>
+        <Reveal delay={300}>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm font-normal text-ink-soft">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span>No credit card required</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span>Unlimited websites</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span>Under 4KB footprint</span>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {["Cookieless analytics", "Consent banner", "Cookie scanner", "Proof of consent"].map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface/80 px-3 py-1.5 text-xs font-normal text-ink-soft shadow-2xs backdrop-blur-xs"
+              >
+                <Check className="h-3 w-3 text-primary" aria-hidden="true" />
+                {t}
+              </span>
+            ))}
+          </div>
         </Reveal>
       </Container>
     </section>
@@ -187,90 +193,42 @@ const analyticsChips = [
 function AnalyticsSection() {
   return (
     <Section className="border-t border-line">
-      <div className="grid items-center gap-12 lg:grid-cols-2">
-        <Reveal>
-          <div>
-            <SectionHeader
-              align="left"
-              eyebrow="Analytics"
-              title="Understand your traffic without tracking your visitors."
-              description="UpFront provides privacy-oriented website analytics without cookies by default and without storing raw IP addresses. You get the numbers that matter — nothing more, nothing leaked."
-            />
-            <ul className="mt-8 grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
-              {analyticsChips.map((chip) => (
-                <li key={chip.label} className="flex items-center gap-2 text-sm text-ink-soft">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-mist text-primary">
-                    <chip.icon className="h-3.5 w-3.5" aria-hidden="true" />
-                  </span>
-                  {chip.label}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-6 rounded-lg border border-line bg-brand-mist/60 px-4 py-3 text-sm text-ink-soft">
-              <span className="font-semibold text-ink">Unlimited websites</span> on every plan —
-              pricing is based on monthly pageviews, not the number of sites you add.
-            </p>
-            <div className="mt-6">
-              <PrimaryCta label="Explore analytics" to="/product/analytics" />
-            </div>
-          </div>
-        </Reveal>
-        <Reveal delay={120}>
-          <LiveTrafficCard />
-        </Reveal>
-      </div>
-    </Section>
-  );
-}
-
-function LiveTrafficCard() {
-  const points = [8, 14, 11, 19, 16, 24, 21, 28, 25, 33, 30, 38];
-  const w = 320;
-  const h = 90;
-  const line = points
-    .map((v, i) => `${(i * w) / (points.length - 1)},${h - (v / 42) * h}`)
-    .join(" ");
-  return (
-    <div className="rounded-xl border border-line bg-surface p-5 shadow-lg shadow-slate-900/[0.06]">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-ink">Right now</p>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-emerald-800">
-          <span className="live-dot" aria-hidden="true" />
-          34 live
-        </span>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Active visitors on your site in the last 5 minutes
-      </p>
-      <svg viewBox={`0 0 ${w} ${h}`} className="mt-4 w-full" role="img" aria-label="Sample live visitor sparkline">
-        <defs>
-          <linearGradient id="live-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <polygon points={`0,${h} ${line} ${w},${h}`} fill="url(#live-area)" />
-        <polyline
-          points={line}
-          fill="none"
-          stroke="#10b981"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <Reveal>
+        <SectionHeader
+          eyebrow="Analytics"
+          title="Understand your traffic without tracking your visitors."
+          description="UpFront provides privacy-oriented website analytics without cookies by default and without storing raw IP addresses. You get the numbers that matter — nothing more, nothing leaked."
         />
-      </svg>
-      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-line pt-4">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Top source</p>
-          <p className="mt-0.5 text-sm font-semibold text-ink">google.com</p>
+      </Reveal>
+
+      <Reveal delay={100}>
+        <div className="mx-auto mt-12 grid max-w-5xl grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          {analyticsChips.map((chip) => (
+            <div
+              key={chip.label}
+              className="flex items-center gap-2.5 rounded-lg border border-line bg-surface p-3 text-sm text-ink-soft shadow-2xs"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-mist text-primary">
+                <chip.icon className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <span className="font-medium text-ink">{chip.label}</span>
+            </div>
+          ))}
         </div>
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Top page</p>
-          <p className="mt-0.5 font-mono text-sm font-semibold text-ink">/pricing</p>
+      </Reveal>
+
+      <Reveal delay={160}>
+        <div className="mx-auto mt-10 max-w-2xl text-center">
+          <p className="rounded-xl border border-line bg-brand-mist/60 px-6 py-4 text-sm text-ink-soft">
+            <span className="font-semibold text-ink">Unlimited websites</span> on every plan —
+            pricing is based on monthly pageviews, not the number of sites you add.
+          </p>
+          <div className="mt-6">
+            <PrimaryCta label="Explore analytics" to="/product/analytics" />
+          </div>
         </div>
-      </div>
-      <p className="mt-3 text-right text-[10px] text-muted-foreground">Illustrative sample data</p>
-    </div>
+      </Reveal>
+    </Section>
   );
 }
 
@@ -299,9 +257,6 @@ function ConsentSection() {
           description="A complete Consent Management Platform built into the same script — configure it once and let it handle categories, blocking, and records."
         />
       </Reveal>
-      <Reveal delay={120} className="mx-auto mt-12 max-w-2xl">
-        <ConsentPreview />
-      </Reveal>
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {consentFeatures.map((f, i) => (
           <Reveal key={f.title} delay={(i % 3) * 80}>
@@ -327,53 +282,49 @@ function ConsentSection() {
 function ScannerProofSection() {
   return (
     <Section className="border-t border-line">
-      <div className="grid items-center gap-12 lg:grid-cols-2">
+      <div className="grid gap-10 md:grid-cols-2">
         <Reveal>
-          <ScannerPreview />
-        </Reveal>
-        <Reveal delay={120}>
-          <div>
-            <SectionHeader
-              align="left"
-              eyebrow="Cookie Scanner"
-              title="Know what's actually running on your website."
-              description="UpFront scans your website and identifies the cookies and trackers it finds — then helps you map every one to the right consent category."
-            />
-            <ul className="mt-6 space-y-2.5">
-              <CheckItem>HTTP scanning and browser-based scanning</CheckItem>
-              <CheckItem>Automatic cookie classification</CheckItem>
-              <CheckItem>Manual category overrides where you decide</CheckItem>
-              <CheckItem>Scheduled scans and scan history</CheckItem>
-            </ul>
-            <div className="mt-6">
+          <div className="flex h-full flex-col justify-between rounded-2xl border border-line bg-surface p-8 shadow-xs">
+            <div>
+              <SectionHeader
+                align="left"
+                eyebrow="Cookie Scanner"
+                title="Know what's actually running on your website."
+                description="UpFront scans your website and identifies the cookies and trackers it finds — then helps you map every one to the right consent category."
+              />
+              <ul className="mt-6 space-y-3">
+                <CheckItem>HTTP scanning and browser-based scanning</CheckItem>
+                <CheckItem>Automatic cookie classification</CheckItem>
+                <CheckItem>Manual category overrides where you decide</CheckItem>
+                <CheckItem>Scheduled scans and scan history</CheckItem>
+              </ul>
+            </div>
+            <div className="mt-8 pt-4 border-t border-line">
               <SecondaryCta label="Explore the scanner" to="/product/scanner" />
             </div>
           </div>
         </Reveal>
-      </div>
 
-      <div className="mt-20 grid items-center gap-12 lg:grid-cols-2">
-        <Reveal className="order-2 lg:order-1">
-          <div>
-            <SectionHeader
-              align="left"
-              eyebrow="Proof of Consent"
-              title="Keep a clear record of consent."
-              description="Every consent decision is stored as a proof-of-consent record — a receipt you can search, filter, and export when you need evidence."
-            />
-            <ul className="mt-6 space-y-2.5">
-              <CheckItem>Timestamp, country, and consent status per record</CheckItem>
-              <CheckItem>Categories granted and configuration version</CheckItem>
-              <CheckItem>Search, filtering, and CSV export</CheckItem>
-              <CheckItem>Historical records retained per your plan</CheckItem>
-            </ul>
-            <div className="mt-6">
+        <Reveal delay={120}>
+          <div className="flex h-full flex-col justify-between rounded-2xl border border-line bg-surface p-8 shadow-xs">
+            <div>
+              <SectionHeader
+                align="left"
+                eyebrow="Proof of Consent"
+                title="Keep a clear record of consent."
+                description="Every consent decision is stored as a proof-of-consent record — a receipt you can search, filter, and export when you need evidence."
+              />
+              <ul className="mt-6 space-y-3">
+                <CheckItem>Timestamp, country, and consent status per record</CheckItem>
+                <CheckItem>Categories granted and configuration version</CheckItem>
+                <CheckItem>Search, filtering, and CSV export</CheckItem>
+                <CheckItem>Historical records retained per your plan</CheckItem>
+              </ul>
+            </div>
+            <div className="mt-8 pt-4 border-t border-line">
               <SecondaryCta label="Explore the audit vault" to="/product/proof" />
             </div>
           </div>
-        </Reveal>
-        <Reveal delay={120} className="order-1 lg:order-2">
-          <ProofPreview />
         </Reveal>
       </div>
     </Section>
@@ -418,28 +369,6 @@ function SetupSection() {
           </Reveal>
         ))}
       </div>
-      <Reveal delay={150}>
-        <div className="mx-auto mt-10 max-w-2xl">
-          <div className="overflow-hidden rounded-xl border border-line bg-ink shadow-lg">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
-              <span className="text-xs font-medium text-slate-400">index.html</span>
-              <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-white">
-                &lt; 4KB
-              </span>
-            </div>
-            <pre className="overflow-x-auto p-4 font-mono text-[13px] leading-relaxed text-slate-200">
-              <code>{`<script
-  defer
-  src="https://cdn.upfront.app/upfront.js"
-  data-site="YOUR-SITE-ID"
-></script>`}</code>
-            </pre>
-          </div>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            Example snippet — the exact script is generated in your workspace.
-          </p>
-        </div>
-      </Reveal>
     </Section>
   );
 }
@@ -508,3 +437,4 @@ function WhyUpFrontSection() {
     </Section>
   );
 }
+

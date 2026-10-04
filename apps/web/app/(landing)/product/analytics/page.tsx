@@ -20,7 +20,6 @@ import {
   Section,
   SectionHeader,
 } from "@/components/marketing/ui";
-import { DashboardPreview } from "@/components/product-ui/dashboard";
 import { FaqSection } from "@/components/marketing/faq";
 import { FinalCta } from "@/components/marketing/cta";
 
@@ -75,15 +74,6 @@ export default function AnalyticsPage() {
           secondary={{ label: "See pricing", to: "/pricing" }}
         />
       </PageHero>
-
-      <Section>
-        <Reveal>
-          <DashboardPreview />
-        </Reveal>
-        <p className="mt-3 text-center text-xs text-muted-foreground">
-          Illustrative sample data from a sample workspace.
-        </p>
-      </Section>
 
       <Section className="border-t border-line bg-surface">
         <Reveal>
