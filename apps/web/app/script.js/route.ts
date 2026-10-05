@@ -1388,7 +1388,7 @@ const TRACKER_SCRIPT = `(function () {
 
     var style = document.createElement("style");
     style.textContent = \`
-      * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 300; -webkit-font-smoothing: antialiased; }
+      * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
       
       .usrly-banner-wrapper {
         z-index: 2147483646;
@@ -1422,20 +1422,21 @@ const TRACKER_SCRIPT = `(function () {
       }
       .usrly-banner-title {
         font-size: 15px;
-        font-weight: 500;
+        font-weight: 600;
         letter-spacing: -0.01em;
         color: \${textPrimary};
         margin-bottom: 4px;
       }
       .usrly-banner-desc {
         font-size: 13px;
-        font-weight: 300;
+        font-weight: 400;
         color: \${textMuted};
         line-height: 1.55;
       }
       .usrly-banner-desc a {
         color: \${primaryColor};
         text-decoration: underline;
+        font-weight: 600;
       }
       .usrly-btn-group {
         display: flex;
@@ -1450,7 +1451,7 @@ const TRACKER_SCRIPT = `(function () {
         justify-content: center;
         padding: 8px 16px;
         font-size: 13px;
-        font-weight: 400;
+        font-weight: 600;
         border-radius: \${borderRadius};
         cursor: pointer;
         transition: all 0.15s ease;
@@ -1541,7 +1542,7 @@ const TRACKER_SCRIPT = `(function () {
       }
       .usrly-modal-title {
         font-size: 16px;
-        font-weight: 500;
+        font-weight: 600;
         letter-spacing: -0.01em;
         color: \${textPrimary};
       }
@@ -1553,6 +1554,7 @@ const TRACKER_SCRIPT = `(function () {
         font-size: 20px;
         line-height: 1;
         padding: 4px;
+        font-weight: 700;
       }
       .usrly-modal-close:hover {
         color: \${textPrimary};
@@ -1562,14 +1564,14 @@ const TRACKER_SCRIPT = `(function () {
         overflow-y: auto;
         flex: 1;
         font-size: 13px;
-        font-weight: 300;
+        font-weight: 400;
         color: \${textMuted};
         line-height: 1.55;
       }
       .usrly-intro-text {
         margin-bottom: 18px;
         color: \${textMuted};
-        font-weight: 300;
+        font-weight: 400;
       }
 
       .usrly-category-item {
@@ -1591,23 +1593,25 @@ const TRACKER_SCRIPT = `(function () {
         font-size: 12px;
         color: \${textMuted};
         transition: transform 0.2s;
+        font-weight: 700;
       }
       .usrly-cat-arrow.expanded {
         transform: rotate(90deg);
       }
       .usrly-cat-title {
         font-size: 13.5px;
-        font-weight: 500;
+        font-weight: 600;
         color: \${textPrimary};
       }
       .usrly-cat-always-active {
         color: #16a34a;
         font-size: 11.5px;
-        font-weight: 500;
+        font-weight: 600;
       }
       .usrly-cat-desc {
         padding: 10px 0 4px 20px;
         font-size: 12.5px;
+        font-weight: 400;
         color: \${textMuted};
         line-height: 1.5;
         display: none;
@@ -1664,11 +1668,13 @@ const TRACKER_SCRIPT = `(function () {
         flex: 1;
         padding: 11px;
         font-size: 13.5px;
+        font-weight: 600;
       }
       .usrly-google-policy-notice {
         padding: 8px 12px;
         border-radius: 4px;
         font-size: 11px;
+        font-weight: 400;
         margin-bottom: 14px;
         border: 1px solid \${borderCard};
         background: \${isDark ? "rgba(30, 41, 59, 0.6)" : "#f8fafc"};
@@ -1687,7 +1693,7 @@ const TRACKER_SCRIPT = `(function () {
       .usrly-cookie-table-header {
         display: grid;
         grid-template-columns: 35% 25% 40%;
-        font-weight: 700;
+        font-weight: 600;
         font-size: 10px;
         padding-bottom: 5px;
         border-bottom: 1px solid \${borderCard};
@@ -1701,13 +1707,14 @@ const TRACKER_SCRIPT = `(function () {
         align-items: center;
         min-width: 280px;
         font-size: 10px;
+        font-weight: 400;
         color: \${textMuted};
       }
       .usrly-cookie-table-row:not(:last-child) {
         border-bottom: 1px dashed \${isDark ? "rgba(51, 65, 85, 0.5)" : "#e2e8f0"};
       }
       .usrly-cookie-name {
-        font-weight: 700;
+        font-weight: 600;
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         color: \${textPrimary};
         overflow: hidden;
@@ -1717,11 +1724,13 @@ const TRACKER_SCRIPT = `(function () {
       }
       .usrly-cookie-duration {
         color: \${textMuted};
+        font-weight: 400;
         padding-right: 6px;
       }
       .usrly-cookie-desc {
         color: \${textMuted};
         font-size: 9.5px;
+        font-weight: 400;
         line-height: 1.35;
       }
       .usrly-no-cookies-box {
@@ -1732,6 +1741,7 @@ const TRACKER_SCRIPT = `(function () {
         text-align: center;
         font-size: 10.5px;
         font-style: italic;
+        font-weight: 400;
         color: \${textMuted};
         background: \${isDark ? "rgba(30, 41, 59, 0.3)" : "rgba(248, 250, 252, 0.7)"};
       }
@@ -1744,6 +1754,7 @@ const TRACKER_SCRIPT = `(function () {
         justify-content: flex-end;
         gap: 6px;
         font-size: 11px;
+        font-weight: 500;
         color: \${textMuted};
       }
       .usrly-powered-bar img {

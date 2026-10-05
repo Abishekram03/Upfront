@@ -938,10 +938,10 @@ export async function GET(req: Request) {
       @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       .inner { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
       @media (min-width: 768px) { .inner { flex-direction: row; align-items: center; justify-content: space-between; } }
-      .title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-      .desc { font-size: 13px; color: #475569; line-height: 1.5; }
+      .title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+      .desc { font-size: 13px; color: #334155; line-height: 1.5; font-weight: 400; }
       .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
-      .btn { padding: 8px 16px; border-radius: 4px; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid transparent; white-space: normal; line-height: 1.3; text-align: center; max-width: 100%; transition: all 0.15s ease; }
+      .btn { padding: 8px 16px; border-radius: 4px; font-size: 12.5px; font-weight: 600; cursor: pointer; border: 1px solid transparent; white-space: normal; line-height: 1.3; text-align: center; max-width: 100%; transition: all 0.15s ease; }
       .btn-primary { background: \${initialConfig.primary_color || "#1868db"}; color: white; }
       .btn-secondary { background: white; border-color: #cbd5e1; color: #334155; }
       .btn-outline { background: transparent; border-color: \${initialConfig.primary_color || "#1868db"}; color: \${initialConfig.primary_color || "#1868db"}; }
