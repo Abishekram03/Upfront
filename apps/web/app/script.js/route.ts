@@ -274,15 +274,53 @@ const TRACKER_SCRIPT = `(function () {
       blocked_content_alt_text: "इस सामग्री को देखने के लिए कृपया कुकीज़ स्वीकार करें",
       revisit_button_label: "कुकी प्राथमिकताएं",
       read_privacy_policy: "गोपनीयता नीति पढ़ें"
+    },
+    ja: {
+      title: "お客様のプライバシーを尊重します",
+      description: "当サイトでは、ブラウジング体験の向上、パーソナライズされた広告やコンテンツの提供、トラフィックの分析のためにクッキーを使用しています。「すべて同意する」をクリックすると、クッキーの使用に同意したことになります。",
+      accept_all_label: "すべて同意する",
+      reject_all_label: "すべて拒否する",
+      preferences_label: "設定をカスタマイズ",
+      preferences_title: "同意設定のカスタマイズ",
+      preferences_description: "当サイトでは、快適なナビゲーションと特定機能の提供のためにクッキーを使用しています。以下の各カテゴリで詳細情報をご確認いただけます。必要なクッキーを無効にすることはできません。",
+      save_preferences_label: "設定を保存する",
+      pref_accept_all_label: "すべて同意する",
+      pref_reject_all_label: "すべて拒否する",
+      always_active_label: "常に有効",
+      no_cookies_to_display_label: "表示するクッキーはありません",
+      cookie_column_label: "クッキー",
+      duration_column_label: "有効期間",
+      description_column_label: "説明",
+      necessary_title: "必須クッキー",
+      necessary_description: "必須クッキーは、安全なログインや同意設定の保存など、ウェブサイトの基本機能を有効にするために必要です。個人を特定するデータは保存されません。",
+      functional_title: "機能性クッキー",
+      functional_description: "機能性クッキーは、ソーシャルメディアでの共有、フィードバックの収集、その他のサードパーティ機能などの実行を支援します。",
+      analytics_title: "分析用クッキー",
+      analytics_description: "分析用クッキーは、訪問者がウェブサイトとどのように対話しているかを理解し、訪問者数、直帰率、トラフィックソースなどの情報を提供します。",
+      performance_title: "パフォーマンスクッキー",
+      performance_description: "パフォーマンスクッキーは、ウェブサイトの主要なパフォーマンス指標を分析し、より良いユーザー体験を提供するために使用されます。",
+      advertisement_title: "広告・マーケティングクッキー",
+      advertisement_description: "広告クッキーは、訪問者にパーソナライズされた広告を提供し、広告キャンペーンの効果を測定するために使用されます。",
+      blocked_content_alt_text: "このコンテンツを表示するにはクッキーを許可してください",
+      revisit_button_label: "クッキー設定",
+      read_privacy_policy: "プライバシーポリシーを読む"
     }
   };
 
   var activeLanguage = "en";
 
   function detectVisitorLanguage(config) {
+    var supportedList = (config && Array.isArray(config.supported_languages) && config.supported_languages.length > 0)
+      ? config.supported_languages
+      : Object.keys(TRANSLATIONS);
+
+    function isAllowed(code) {
+      return supportedList.indexOf(code) !== -1 && Boolean(TRANSLATIONS[code]);
+    }
+
     try {
       var visitorLang = localStorage.getItem("usrly_lang_" + domain);
-      if (visitorLang && TRANSLATIONS[visitorLang]) {
+      if (visitorLang && isAllowed(visitorLang)) {
         return visitorLang;
       }
     } catch (e) {}
@@ -292,18 +330,18 @@ const TRACKER_SCRIPT = `(function () {
         var navLangs = (navigator.languages && navigator.languages.length > 0) ? navigator.languages : [navigator.language || navigator.userLanguage || "en"];
         for (var i = 0; i < navLangs.length; i++) {
           var tag = (navLangs[i] || "").toLowerCase().trim();
-          if (TRANSLATIONS[tag]) return tag;
+          if (isAllowed(tag)) return tag;
           var primary = tag.split("-")[0];
-          if (TRANSLATIONS[primary]) return primary;
+          if (isAllowed(primary)) return primary;
         }
       } catch (e) {}
     }
 
-    if (config && config.default_language && TRANSLATIONS[config.default_language]) {
+    if (config && config.default_language && isAllowed(config.default_language)) {
       return config.default_language;
     }
 
-    return "en";
+    return isAllowed("en") ? "en" : (supportedList[0] || "en");
   }
 
   function resolveText(key, config, customLang) {
@@ -685,17 +723,61 @@ const TRACKER_SCRIPT = `(function () {
 
   // 1. CONSENT MANAGEMENT PLATFORM (CMP) CORE STATE
   function getStoredConsent() {
+    // 1. Try 1st-party cookie (upfront_cookie, fallback usrly_consent, consentos_consent)
     try {
-      var item = localStorage.getItem(STORAGE_KEY);
-      return item ? JSON.parse(item) : null;
-    } catch (e) {
-      return null;
-    }
+      var cookieMatch = document.cookie.match(/(?:^|; )(?:upfront_cookie|usrly_consent|consentos_consent)=([^;]*)/);
+      if (cookieMatch && cookieMatch[1]) {
+        var parsedCookie = JSON.parse(decodeURIComponent(cookieMatch[1]));
+        if (parsedCookie && typeof parsedCookie === "object") return parsedCookie;
+      }
+    } catch (e) {}
+
+    // 2. Try localStorage across keys
+    try {
+      var item = localStorage.getItem("upfront_cookie") ||
+                 localStorage.getItem(STORAGE_KEY) ||
+                 localStorage.getItem("usrly_consent_" + window.location.hostname) ||
+                 localStorage.getItem("usrly_consent") ||
+                 localStorage.getItem("consentos_consent");
+      if (item) {
+        var parsedLs = JSON.parse(item);
+        if (parsedLs && typeof parsedLs === "object") return parsedLs;
+      }
+    } catch (e) {}
+
+    return null;
   }
 
   function setStoredConsent(consentObj) {
+    // 1. Write to localStorage
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(consentObj));
+      localStorage.setItem("upfront_cookie", JSON.stringify(consentObj));
+      if (window.location && window.location.hostname) {
+        localStorage.setItem("usrly_consent_" + window.location.hostname, JSON.stringify(consentObj));
+      }
+    } catch (e) {}
+
+    // 2. Write 1st-party cookie (1 year / 365 days expiration)
+    try {
+      var val = encodeURIComponent(JSON.stringify(consentObj));
+      var expDays = 365;
+      var d = new Date();
+      d.setTime(d.getTime() + expDays * 24 * 60 * 60 * 1000);
+      var expiresStr = "; expires=" + d.toUTCString();
+
+      // Write on standard path
+      document.cookie = "upfront_cookie=" + val + expiresStr + "; path=/; SameSite=Lax";
+
+      // Also set on root domain for subdomains if applicable
+      var host = window.location.hostname;
+      if (host && host.indexOf(".") !== -1 && !/^[0-9.]+$/.test(host) && host !== "localhost") {
+        var parts = host.split(".");
+        if (parts.length > 1) {
+          var rootDomain = "." + parts.slice(-2).join(".");
+          document.cookie = "upfront_cookie=" + val + expiresStr + "; path=/; domain=" + rootDomain + "; SameSite=Lax";
+        }
+      }
     } catch (e) {}
   }
 
@@ -1763,6 +1845,13 @@ const TRACKER_SCRIPT = `(function () {
         display: inline-block;
         vertical-align: middle;
       }
+      .usrly-banner-branding {
+        padding: 5px 18px;
+        font-size: 10px;
+        background: \${isDark ? "rgba(15, 23, 42, 0.4)" : "rgba(248, 250, 252, 0.7)"};
+        border-bottom-left-radius: inherit;
+        border-bottom-right-radius: inherit;
+      }
     \`;
     shadow.appendChild(style);
 
@@ -1858,7 +1947,7 @@ const TRACKER_SCRIPT = `(function () {
           // Default standard cookies matching banner studio
           if (catName === "necessary") {
             catCookies = [
-              { name: "usrly_consent", duration: "1 year", description: "Consent preferences state" },
+              { name: "upfront_cookie", duration: "1 year", description: "Consent preferences state" },
               { name: "cf_clearance", duration: "30 days", description: "Cloudflare bot clearance" }
             ];
           } else if (catName === "functional") {
@@ -2167,6 +2256,14 @@ const TRACKER_SCRIPT = `(function () {
           <button class="usrly-btn usrly-btn-primary" id="usrly-btn-accept">\${resolveText("accept_all_label", config)}</button>
         </div>
       </div>
+      \${config.show_branding !== false && !config.hide_branding ? \`
+      <div class="usrly-powered-bar usrly-banner-branding">
+        <span>Powered by</span>
+        <a href="https://upfront.io" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;">
+          <img src="\${apiHost}/UpFront-Logo-Blue-500.svg" alt="Upfront" style="\${isDark ? "filter:brightness(0) invert(1);" : ""}" />
+        </a>
+      </div>
+      \` : ""}
     \`;
     shadow.appendChild(banner);
 

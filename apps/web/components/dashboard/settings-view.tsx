@@ -33,6 +33,14 @@ import {
   ArrowRight,
   AlertCircle,
   Ban,
+  Languages,
+  Sliders,
+  CheckSquare,
+  Square,
+  FileText,
+  Eye,
+  Info,
+  Layers,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,8 +52,15 @@ import { useSession, authClient } from "@/lib/auth-client"
 import { useEntitlements } from "@/lib/entitlements-context"
 import { PLANS, type PlanId } from "@/lib/billing/plans"
 import { openPaddleCustomerPortal } from "@/lib/billing/paddle-client"
+import {
+  SUPPORTED_LANGUAGES,
+  CMP_TRANSLATIONS,
+  resolveCMPText,
+  POLICY_TRANSLATIONS,
+  resolvePolicyText,
+} from "@/lib/i18n/translations"
 
-type TabType = "profile" | "workspace" | "billing" | "sites"
+type TabType = "profile" | "workspace" | "billing" | "sites" | "languages"
 
 export function SettingsView() {
   const router = useRouter()
@@ -311,6 +326,117 @@ export function SettingsView() {
   useEffect(() => {
     loadSites()
   }, [])
+
+  // ==========================================
+  // 4. LANGUAGES & LOCALIZATION STATE
+  // ==========================================
+  const { activeDomain } = useDomain()
+  const [selectedDomainForLang, setSelectedDomainForLang] = useState<string>("")
+  const [enableAutoLanguage, setEnableAutoLanguage] = useState(true)
+  const [defaultLanguage, setDefaultLanguage] = useState("en")
+  const [supportedLanguages, setSupportedLanguages] = useState<string[]>([
+    "en", "de", "fr", "es", "pt", "it", "nl", "hi", "ja"
+  ])
+  const [isLoadingLangConfig, setIsLoadingLangConfig] = useState(false)
+  const [isSavingLangConfig, setIsSavingLangConfig] = useState(false)
+  const [langConfigMessage, setLangConfigMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [previewLangSimulator, setPreviewLangSimulator] = useState("en")
+  const [previewPillarTab, setPreviewPillarTab] = useState<"banner" | "preference" | "policy">("banner")
+
+  useEffect(() => {
+    if (!selectedDomainForLang && (activeDomain || sites.length > 0)) {
+      setSelectedDomainForLang(activeDomain || sites[0]?.domain || "")
+    }
+  }, [activeDomain, sites, selectedDomainForLang])
+
+  useEffect(() => {
+    if (!selectedDomainForLang) return
+    let isMounted = true
+    const fetchConfig = async () => {
+      try {
+        setIsLoadingLangConfig(true)
+        const res = await fetch(`/api/v1/consent/config?domain=${encodeURIComponent(selectedDomainForLang)}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (isMounted && data) {
+            setEnableAutoLanguage(data.enable_auto_language !== false)
+            setDefaultLanguage(data.default_language || "en")
+            if (Array.isArray(data.supported_languages) && data.supported_languages.length > 0) {
+              setSupportedLanguages(data.supported_languages)
+            } else {
+              setSupportedLanguages(["en", "de", "fr", "es", "pt", "it", "nl", "hi", "ja"])
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to load localization config:", e)
+      } finally {
+        if (isMounted) setIsLoadingLangConfig(false)
+      }
+    }
+    fetchConfig()
+    return () => { isMounted = false }
+  }, [selectedDomainForLang])
+
+  const handleSaveLangConfig = async () => {
+    if (!selectedDomainForLang) return
+    try {
+      setIsSavingLangConfig(true)
+      setLangConfigMessage(null)
+      const res = await fetch("/api/v1/consent/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: selectedDomainForLang,
+          enable_auto_language: enableAutoLanguage,
+          default_language: defaultLanguage,
+          supported_languages: supportedLanguages,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || "Failed to save language settings")
+      setLangConfigMessage({
+        type: "success",
+        text: `Language & localization settings saved and deployed for ${selectedDomainForLang}!`,
+      })
+      setTimeout(() => setLangConfigMessage(null), 4500)
+    } catch (err: any) {
+      setLangConfigMessage({
+        type: "error",
+        text: err.message || "Failed to update language settings.",
+      })
+    } finally {
+      setIsSavingLangConfig(false)
+    }
+  }
+
+  const toggleLanguage = (code: string) => {
+    setSupportedLanguages((prev) => {
+      if (prev.includes(code)) {
+        if (prev.length <= 1) {
+          return prev
+        }
+        if (code === defaultLanguage) {
+          const remaining = prev.filter((c) => c !== code)
+          setDefaultLanguage(remaining[0] || "en")
+          return remaining
+        }
+        return prev.filter((c) => c !== code)
+      } else {
+        return [...prev, code]
+      }
+    })
+  }
+
+  const selectAllLanguages = () => {
+    setSupportedLanguages(SUPPORTED_LANGUAGES.map((l) => l.code))
+  }
+
+  const resetToDefaultLanguages = () => {
+    setSupportedLanguages(["en", "de", "fr", "es", "pt", "it", "nl", "hi", "ja"])
+    setDefaultLanguage("en")
+    setEnableAutoLanguage(true)
+  }
 
   // ==========================================
   // HANDLERS: PROFILE & SECURITY
@@ -676,6 +802,7 @@ export function SettingsView() {
             { id: "workspace", label: "Workspace & Team", icon: Building2 },
             { id: "billing", label: "Billing & Plans", icon: CreditCard },
             { id: "sites", label: "Sites & Domains", icon: Globe },
+            { id: "languages", label: "Languages & Localization", icon: Languages },
           ].map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -1747,6 +1874,445 @@ export function SettingsView() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: LANGUAGES & LOCALIZATION (CENTRALIZED MULTI-LANGUAGE ENGINE)         */}
+      {/* ========================================================================= */}
+      {activeTab === "languages" && (
+        <div className="space-y-6 animate-in fade-in duration-150">
+          {/* Domain Binding Bar */}
+          <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-md bg-blue-50 border border-blue-200 text-[#1868db] flex items-center justify-center">
+                <Languages className="size-5" />
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Target Domain for Localization</div>
+                <div className="text-sm font-bold text-slate-900">
+                  {selectedDomainForLang || "No Domain Selected"}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedDomainForLang}
+                onChange={(e) => setSelectedDomainForLang(e.target.value)}
+                className="h-8.5 text-xs font-semibold bg-slate-50 border border-slate-300 rounded-md px-3 text-slate-800 cursor-pointer"
+              >
+                {sites.map((s) => (
+                  <option key={s.id} value={s.domain}>
+                    {s.domain}
+                  </option>
+                ))}
+              </select>
+
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-[#1868db] border border-blue-200 shrink-0">
+                {supportedLanguages.length} of {SUPPORTED_LANGUAGES.length} Languages Enabled
+              </span>
+            </div>
+          </div>
+
+          {/* Feedback message banner */}
+          {langConfigMessage && (
+            <div
+              className={cn(
+                "p-3 rounded-md text-xs font-medium border animate-in fade-in",
+                langConfigMessage.type === "success"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-800 flex items-center gap-2"
+                  : "bg-rose-50 border-rose-200 text-rose-800 flex items-center gap-2"
+              )}
+            >
+              {langConfigMessage.type === "success" ? <CheckCircle2 className="size-4 text-emerald-600 shrink-0" /> : <AlertTriangle className="size-4 text-rose-600 shrink-0" />}
+              <span>{langConfigMessage.text}</span>
+            </div>
+          )}
+
+          {/* 3 Pillars Scope Showcase Card */}
+          <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-lg p-6 shadow-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold tracking-wider uppercase border border-blue-500/30 mb-2">
+                  <Sparkles className="size-3" />
+                  Unified Multi-Language Architecture
+                </div>
+                <h2 className="text-base font-bold text-white">Centralized Localization for All 3 Compliance Pillars</h2>
+                <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                  Your enabled languages and auto-detection rules automatically propagate across your entire customer-facing compliance stack in real-time.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                onClick={handleSaveLangConfig}
+                disabled={isSavingLangConfig || !selectedDomainForLang}
+                className="h-9 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white px-5 cursor-pointer shrink-0 shadow-xs"
+              >
+                {isSavingLangConfig ? <Loader2 className="size-3.5 animate-spin" /> : "Save & Deploy Languages"}
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+              <div className="p-3.5 rounded-md bg-slate-800/80 border border-slate-700/80 space-y-1.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-blue-300">
+                  <Layers className="size-4" />
+                  1. Cookie Notice Banner
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Headline, value description, and all CTA buttons (Accept All, Reject All, Customise Preferences) translate automatically.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-md bg-slate-800/80 border border-slate-700/80 space-y-1.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
+                  <ShieldCheck className="size-4" />
+                  2. Granular Preference Centre
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  5 standard categories (Necessary, Functional, Analytics, Performance, Ad), Always-Active tags, and cookie column headers.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-md bg-slate-800/80 border border-slate-700/80 space-y-1.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-purple-300">
+                  <FileText className="size-4" />
+                  3. Legal Policies Suite
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Self-updating Cookie Policy, Privacy Policy, and Terms of Service documents render in the visitor&apos;s detected locale.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Configuration Card: Auto-detection & Fallback */}
+          <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-2xs space-y-5">
+            <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
+              <span>Detection & Fallback Rules</span>
+              <span className="text-[11px] font-normal text-slate-500">Domain: {selectedDomainForLang || "All Sites"}</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Auto-Detection Switch */}
+              <div className="p-4 rounded-lg bg-slate-50/80 border border-slate-200/80 flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <Globe className="size-3.5 text-[#1868db]" />
+                    Auto-Language Detection
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Inspects visitor browser locale (e.g. <code className="text-slate-700 font-mono bg-slate-200/60 px-1 rounded">de-DE</code>, <code className="text-slate-700 font-mono bg-slate-200/60 px-1 rounded">fr-FR</code>, <code className="text-slate-700 font-mono bg-slate-200/60 px-1 rounded">ja-JP</code>) and geolocation headers to pick the matching active language.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={enableAutoLanguage}
+                  onChange={(e) => setEnableAutoLanguage(e.target.checked)}
+                  className="size-4.5 rounded text-[#1868db] focus:ring-[#1868db] cursor-pointer mt-0.5"
+                />
+              </div>
+
+              {/* Default Language Select */}
+              <div className="p-4 rounded-lg bg-slate-50/80 border border-slate-200/80 space-y-2">
+                <label className="text-xs font-bold text-slate-900 block">
+                  Default Fallback Language
+                </label>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Served if a visitor&apos;s browser locale is not present in your enabled languages list.
+                </p>
+                <select
+                  value={defaultLanguage}
+                  onChange={(e) => {
+                    const newDefault = e.target.value
+                    setDefaultLanguage(newDefault)
+                    if (!supportedLanguages.includes(newDefault)) {
+                      setSupportedLanguages((prev) => [...prev, newDefault])
+                    }
+                  }}
+                  className="w-full h-9 text-xs font-semibold bg-white border border-slate-300 rounded-md px-3 text-slate-800 cursor-pointer shadow-2xs focus:border-[#1868db]"
+                >
+                  {SUPPORTED_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.flag} {l.name} ({l.nativeName}) [{l.code.toUpperCase()}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Supported Languages Checklist Grid */}
+          <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Active Supported Languages</h3>
+                <p className="text-xs text-slate-500">
+                  Select which languages you want to provide for your visitors. Check a language to activate auto-detection and live translation for it.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={selectAllLanguages}
+                  className="text-xs font-bold text-[#1868db] hover:underline px-2 py-1 rounded cursor-pointer"
+                >
+                  Select All ({SUPPORTED_LANGUAGES.length})
+                </button>
+                <span className="text-slate-300">|</span>
+                <button
+                  type="button"
+                  onClick={resetToDefaultLanguages}
+                  className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-2 py-1 rounded cursor-pointer"
+                >
+                  Reset Recommended
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {SUPPORTED_LANGUAGES.map((lang) => {
+                const isSelected = supportedLanguages.includes(lang.code)
+                const isDefault = defaultLanguage === lang.code
+
+                return (
+                  <label
+                    key={lang.code}
+                    onClick={() => toggleLanguage(lang.code)}
+                    className={cn(
+                      "flex items-center justify-between p-3.5 rounded-lg border transition-all cursor-pointer select-none",
+                      isSelected
+                        ? "bg-blue-50/40 border-[#1868db] shadow-2xs ring-1 ring-[#1868db]/20"
+                        : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        className="size-4 text-[#1868db] rounded focus:ring-[#1868db] cursor-pointer"
+                      />
+                      <span className="text-2xl shrink-0">{lang.flag}</span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-1.5">
+                          <span>{lang.nativeName}</span>
+                          <span className="text-[10px] font-mono text-slate-400 font-semibold uppercase">({lang.code})</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate">{lang.name}</div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-1">
+                      {isDefault && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                          Fallback
+                        </span>
+                      )}
+                      {isSelected && !isDefault && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Interactive Translation Simulator & Preview Tester */}
+          <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Eye className="size-4 text-[#1868db]" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Interactive Translation Preview Simulator</h3>
+                  <p className="text-xs text-slate-500">Test how your compliance assets render across your selected languages</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-md border border-slate-200 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPillarTab("banner")}
+                    className={cn(
+                      "px-2.5 py-1 rounded font-bold transition-all cursor-pointer",
+                      previewPillarTab === "banner" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    Banner
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPillarTab("preference")}
+                    className={cn(
+                      "px-2.5 py-1 rounded font-bold transition-all cursor-pointer",
+                      previewPillarTab === "preference" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    Preference Centre
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPillarTab("policy")}
+                    className={cn(
+                      "px-2.5 py-1 rounded font-bold transition-all cursor-pointer",
+                      previewPillarTab === "policy" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                    )}
+                  >
+                    Legal Policy
+                  </button>
+                </div>
+
+                <select
+                  value={previewLangSimulator}
+                  onChange={(e) => setPreviewLangSimulator(e.target.value)}
+                  className="h-8 text-xs font-semibold bg-slate-50 border border-slate-300 rounded-md px-2.5 text-slate-800 cursor-pointer"
+                >
+                  {SUPPORTED_LANGUAGES.filter((l) => supportedLanguages.includes(l.code)).map((l) => (
+                    <option key={l.code} value={l.code}>
+                      Preview: {l.flag} {l.name} ({l.code.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Render selected simulator pillar */}
+            {previewPillarTab === "banner" && (
+              <div className="p-5 rounded-lg border border-slate-200 bg-slate-50 space-y-4 animate-in fade-in">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-slate-900">
+                      {resolveCMPText("title", null, previewLangSimulator)}
+                    </h4>
+                    <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
+                      {resolveCMPText("description", null, previewLangSimulator)}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 shrink-0 font-mono">
+                    {previewLangSimulator.toUpperCase()} Notice
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200/80">
+                  <Button type="button" className="h-8 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white">
+                    {resolveCMPText("accept_all_label", null, previewLangSimulator)}
+                  </Button>
+                  <Button type="button" variant="outline" className="h-8 text-xs font-bold bg-white text-slate-700">
+                    {resolveCMPText("reject_all_label", null, previewLangSimulator)}
+                  </Button>
+                  <Button type="button" variant="outline" className="h-8 text-xs font-semibold bg-white text-slate-700">
+                    {resolveCMPText("preferences_label", null, previewLangSimulator)}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {previewPillarTab === "preference" && (
+              <div className="p-5 rounded-lg border border-slate-200 bg-slate-50 space-y-4 animate-in fade-in">
+                <div className="flex items-start justify-between border-b border-slate-200/80 pb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      {resolveCMPText("preferences_title", null, previewLangSimulator)}
+                    </h4>
+                    <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                      {resolveCMPText("preferences_description", null, previewLangSimulator)}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 shrink-0 font-mono">
+                    {previewLangSimulator.toUpperCase()} Centre
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="p-3 bg-white rounded border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">
+                        {resolveCMPText("necessary_title", null, previewLangSimulator)}
+                      </div>
+                      <div className="text-[11px] text-slate-500 max-w-xl">
+                        {resolveCMPText("necessary_description", null, previewLangSimulator)}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                      {resolveCMPText("always_active_label", null, previewLangSimulator)}
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-white rounded border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">
+                        {resolveCMPText("analytics_title", null, previewLangSimulator)}
+                      </div>
+                      <div className="text-[11px] text-slate-500 max-w-xl">
+                        {resolveCMPText("analytics_description", null, previewLangSimulator)}
+                      </div>
+                    </div>
+                    <input type="checkbox" defaultChecked className="size-4 text-[#1868db] rounded focus:ring-[#1868db]" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-slate-200/80">
+                  <Button type="button" className="h-8 text-xs font-bold bg-[#1868db] text-white">
+                    {resolveCMPText("save_preferences_label", null, previewLangSimulator)}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {previewPillarTab === "policy" && (
+              <div className="p-5 rounded-lg border border-slate-200 bg-slate-50 space-y-4 animate-in fade-in">
+                {(() => {
+                  const policyText = resolvePolicyText("cookie_policy", previewLangSimulator)
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                        <h4 className="text-sm font-bold text-slate-900">
+                          {policyText.title} &mdash; {selectedDomainForLang || "yourwebsite.com"}
+                        </h4>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800 shrink-0 font-mono">
+                          {previewLangSimulator.toUpperCase()} Legal Document
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 bg-white p-4 rounded border border-slate-200">
+                        <div className="text-xs font-bold text-slate-800">{policyText.about_heading}</div>
+                        <p className="text-xs text-slate-600 leading-relaxed">{policyText.about_text}</p>
+
+                        <div className="text-xs font-bold text-slate-800 pt-2">{policyText.table_heading}</div>
+                        <div className="p-2.5 rounded bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-center justify-between font-mono">
+                          <span>{resolveCMPText("cookie_column_label", null, previewLangSimulator)}: _ga</span>
+                          <span>{resolveCMPText("duration_column_label", null, previewLangSimulator)}: 2 Years</span>
+                          <span>{resolveCMPText("analytics_title", null, previewLangSimulator)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Action Save Bar */}
+          <div className="flex items-center justify-between bg-white rounded-lg border border-slate-200 p-4 shadow-2xs">
+            <div className="text-xs text-slate-500">
+              Languages are automatically bundled and cached for fast, sub-millisecond edge rendering.
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleSaveLangConfig}
+              disabled={isSavingLangConfig || !selectedDomainForLang}
+              className="h-8.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white px-5 cursor-pointer shadow-xs"
+            >
+              {isSavingLangConfig ? <Loader2 className="size-3.5 animate-spin" /> : "Save Changes"}
+            </Button>
+          </div>
         </div>
       )}
 

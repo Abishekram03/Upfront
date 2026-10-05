@@ -111,14 +111,15 @@ export async function runIsolatedCategoryScan(
     await context.addInitScript(
       ({ storageDomain, consentObj }: { storageDomain: string; consentObj: any }) => {
         try {
-          // UpFront CMP storage (userly.js)
+          // UpFront CMP storage (script.js / upfront_cookie)
+          localStorage.setItem("upfront_cookie", JSON.stringify(consentObj))
           localStorage.setItem("usrly_consent_" + storageDomain, JSON.stringify(consentObj))
           if (window.location && window.location.hostname) {
             localStorage.setItem("usrly_consent_" + window.location.hostname, JSON.stringify(consentObj))
           }
-          // ConsentOS CMP storage (consentos.js)
           localStorage.setItem("consentos_consent", JSON.stringify(consentObj))
           const val = encodeURIComponent(JSON.stringify(consentObj))
+          document.cookie = "upfront_cookie=" + val + "; path=/; SameSite=Lax; max-age=31536000"
           document.cookie = "consentos_consent=" + val + "; path=/; SameSite=Lax; max-age=31536000"
         } catch (e) {}
       },

@@ -241,7 +241,7 @@ export function StagedPolicyEditor({
       return cmpData.cookies
     }
     return [
-      { name: "consentos_consent", category: "necessary", service_name: "Consent Management", duration: "12 months" },
+      { name: "upfront_cookie", category: "necessary", service_name: "Consent Management", duration: "12 months" },
       { name: "session", category: "necessary", service_name: "Session Management", duration: "Session" },
     ]
   }, [cmpData.cookies])

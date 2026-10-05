@@ -64,7 +64,7 @@ const DEFAULT_COOKIES: DiscoveredCookie[] = [
     description: "Preserves user interface state, preferred language, and regional preferences.",
   },
   {
-    name: "consentos_consent",
+    name: "upfront_cookie",
     category: "necessary",
     service_name: "UpFront CMP",
     duration: "1 year",

@@ -57,7 +57,7 @@ const DEFAULT_BASELINE_COOKIES: CookieItem[] = [
     description: "Remembers user preferences and interface settings across sessions.",
   },
   {
-    name: "consentos_consent",
+    name: "upfront_cookie",
     category: "necessary",
     service_name: "Consent Management",
     duration: "12 months",

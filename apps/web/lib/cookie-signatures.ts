@@ -50,8 +50,8 @@ export const KNOWN_COOKIE_SIGNATURES: CookieSignature[] = [
     description: "Maintains logged-in user state, authentication tokens, and active browser sessions.",
   },
   {
-    pattern: /^(usrly_consent|consentos_consent|cookieyes-consent|OptanonConsent|OptanonAlertBoxClosed)$/i,
-    service: "ConsentOS CMP",
+    pattern: /^(upfront_cookie|usrly_consent|consentos_consent|cookieyes-consent|OptanonConsent|OptanonAlertBoxClosed)$/i,
+    service: "UpFront CMP",
     category: "necessary",
     duration: "1 year",
     description: "Stores the visitor's cookie consent preference state and regulatory version.",

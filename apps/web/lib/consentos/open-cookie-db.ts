@@ -84,8 +84,8 @@ export const OPEN_COOKIE_DATABASE: CookieDefinition[] = [
     script_pattern: "None (HTTP Header)",
   },
   {
-    pattern: /^(consentos_consent|usrly_consent|cookieyes-consent|OptanonConsent|OptanonAlertBoxClosed)$/i,
-    service: "Consent Management",
+    pattern: /^(upfront_cookie|consentos_consent|usrly_consent|cookieyes-consent|OptanonConsent|OptanonAlertBoxClosed)$/i,
+    service: "UpFront Consent Management",
     category: "necessary",
     duration: "1 year",
     description: "Stores the user's cookie consent choices and preferences for the domain.",

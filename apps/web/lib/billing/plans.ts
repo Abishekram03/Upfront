@@ -39,6 +39,7 @@ export type EntitlementKey =
   | "cmp.custom_css"
   | "cmp.version_history"
   | "cmp.whitelabel"
+  | "cmp.disable_banner"
   | "scan.pages_per_scan"
   | "consent.history_days"
 
@@ -127,6 +128,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       "cmp.custom_css": false,
       "cmp.version_history": false,
       "cmp.whitelabel": false,
+      "cmp.disable_banner": false,
       "scan.pages_per_scan": 100,
       "consent.history_days": 30,
     },
@@ -172,6 +174,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       unavailable: [
         "IAB TCF v2.3 Framework",
         "Custom CSS Injection",
+        "Disable Banner (Headless Mode)",
       ],
     },
     capabilities: {
@@ -197,6 +200,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       "cmp.custom_css": false,
       "cmp.version_history": true,
       "cmp.whitelabel": true,
+      "cmp.disable_banner": false,
       "scan.pages_per_scan": 1_000,
       "consent.history_days": 365,
     },
@@ -224,6 +228,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       ],
       cmp: [
         "Everything in Growth",
+        "Disable Banner (CMP Killswitch / Headless Mode)",
         "Weekly & Daily Scheduled Scans (5,000 pages/scan)",
         "24-month Consent Audit Vault",
         "IAB Transparency and Consent Framework (TCF v2.3)",
@@ -255,6 +260,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
       "cmp.custom_css": true,
       "cmp.version_history": true,
       "cmp.whitelabel": true,
+      "cmp.disable_banner": true,
       "scan.pages_per_scan": 5_000,
       "consent.history_days": 730,
     },
@@ -274,7 +280,7 @@ export function getPlan(planId?: string | null): PlanConfig {
  * Returns the minimal required plan for a given capability key.
  */
 export function getRequiredPlanForCapability(key: EntitlementKey): PlanId {
-  if (key === "cmp.tcf_v23" || key === "cmp.custom_css") {
+  if (key === "cmp.tcf_v23" || key === "cmp.custom_css" || key === "cmp.disable_banner") {
     return "business"
   }
   if (

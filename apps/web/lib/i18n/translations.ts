@@ -38,14 +38,15 @@ export interface SupportedLanguageInfo {
 }
 
 export const SUPPORTED_LANGUAGES: SupportedLanguageInfo[] = [
-  { code: "en", name: "English", nativeName: "English" },
-  { code: "de", name: "German", nativeName: "Deutsch" },
-  { code: "fr", name: "French", nativeName: "Français" },
-  { code: "es", name: "Spanish", nativeName: "Español" },
-  { code: "pt", name: "Portuguese", nativeName: "Português" },
-  { code: "it", name: "Italian", nativeName: "Italiano" },
-  { code: "nl", name: "Dutch", nativeName: "Nederlands" },
-  { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
+  { code: "en", name: "English", nativeName: "English", flag: "🇬🇧" },
+  { code: "de", name: "German", nativeName: "Deutsch", flag: "🇩🇪" },
+  { code: "fr", name: "French", nativeName: "Français", flag: "🇫🇷" },
+  { code: "es", name: "Spanish", nativeName: "Español", flag: "🇪🇸" },
+  { code: "pt", name: "Portuguese", nativeName: "Português", flag: "🇵🇹" },
+  { code: "it", name: "Italian", nativeName: "Italiano", flag: "🇮🇹" },
+  { code: "nl", name: "Dutch", nativeName: "Nederlands", flag: "🇳🇱" },
+  { code: "hi", name: "Hindi", nativeName: "हिन्दी", flag: "🇮🇳" },
+  { code: "ja", name: "Japanese", nativeName: "日本語", flag: "🇯🇵" },
 ]
 
 export const CMP_TRANSLATIONS: Record<string, CMPTranslationDictionary> = {
@@ -337,6 +338,35 @@ export const CMP_TRANSLATIONS: Record<string, CMPTranslationDictionary> = {
     blocked_content_alt_text: "इस सामग्री को देखने के लिए कृपया कुकीज़ स्वीकार करें",
     revisit_button_label: "कुकी प्राथमिकताएं",
   },
+  ja: {
+    title: "お客様のプライバシーを尊重します",
+    description: "当サイトでは、ブラウジング体験の向上、パーソナライズされた広告やコンテンツの提供、トラフィックの分析のためにクッキーを使用しています。「すべて同意する」をクリックすると、クッキーの使用に同意したことになります。",
+    accept_all_label: "すべて同意する",
+    reject_all_label: "すべて拒否する",
+    preferences_label: "設定をカスタマイズ",
+    preferences_title: "同意設定のカスタマイズ",
+    preferences_description: "当サイトでは、快適なナビゲーションと特定機能の提供のためにクッキーを使用しています。以下の各カテゴリで詳細情報をご確認いただけます。必要なクッキーを無効にすることはできません。",
+    save_preferences_label: "設定を保存する",
+    pref_accept_all_label: "すべて同意する",
+    pref_reject_all_label: "すべて拒否する",
+    always_active_label: "常に有効",
+    no_cookies_to_display_label: "表示するクッキーはありません",
+    cookie_column_label: "クッキー",
+    duration_column_label: "有効期間",
+    description_column_label: "説明",
+    necessary_title: "必須クッキー",
+    necessary_description: "必須クッキーは、安全なログインや同意設定の保存など、ウェブサイトの基本機能を有効にするために必要です。個人を特定するデータは保存されません。",
+    functional_title: "機能性クッキー",
+    functional_description: "機能性クッキーは、ソーシャルメディアでの共有、フィードバックの収集、その他のサードパーティ機能などの実行を支援します。",
+    analytics_title: "分析用クッキー",
+    analytics_description: "分析用クッキーは、訪問者がウェブサイトとどのように対話しているかを理解し、訪問者数、直帰率、トラフィックソースなどの情報を提供します。",
+    performance_title: "パフォーマンスクッキー",
+    performance_description: "パフォーマンスクッキーは、ウェブサイトの主要なパフォーマンス指標を分析し、より良いユーザー体験を提供するために使用されます。",
+    advertisement_title: "広告・マーケティングクッキー",
+    advertisement_description: "広告クッキーは、訪問者にパーソナライズされた広告を提供し、広告キャンペーンの効果を測定するために使用されます。",
+    blocked_content_alt_text: "このコンテンツを表示するにはクッキーを許可してください",
+    revisit_button_label: "クッキー設定",
+  },
 }
 
 export function resolveCMPText(
@@ -392,11 +422,19 @@ export function detectVisitorLanguage(
   config?: Record<string, any> | null,
   navLangs?: string[]
 ): string {
+  const supported = Array.isArray(config?.supported_languages) && config.supported_languages.length > 0
+    ? config.supported_languages
+    : Object.keys(CMP_TRANSLATIONS)
+
+  const isLangAllowed = (code: string) => {
+    return supported.includes(code) && Boolean(CMP_TRANSLATIONS[code])
+  }
+
   if (typeof window !== "undefined") {
     try {
       const domain = config?.domain || "default"
       const stored = localStorage.getItem("usrly_lang_" + domain)
-      if (stored && CMP_TRANSLATIONS[stored]) return stored
+      if (stored && isLangAllowed(stored)) return stored
     } catch (e) {}
   }
 
@@ -404,16 +442,283 @@ export function detectVisitorLanguage(
     const langs = navLangs || (typeof navigator !== "undefined" ? ((navigator.languages && navigator.languages.length > 0) ? Array.from(navigator.languages) : [navigator.language || "en"]) : [])
     for (const l of langs) {
       const clean = (l || "").toLowerCase().trim()
-      if (CMP_TRANSLATIONS[clean]) return clean
+      if (isLangAllowed(clean)) return clean
       const primary = clean.split("-")[0] || ""
-      if (primary && CMP_TRANSLATIONS[primary]) return primary
+      if (primary && isLangAllowed(primary)) return primary
     }
   }
 
-  if (config && config.default_language && CMP_TRANSLATIONS[config.default_language]) {
+  if (config && config.default_language && isLangAllowed(config.default_language)) {
     return config.default_language
   }
 
-  return "en"
+  return isLangAllowed("en") ? "en" : (supported[0] || "en")
+}
+
+export interface PolicyTranslationDictionary {
+  cookie_policy: {
+    title: string
+    about_heading: string
+    about_text: string
+    manage_heading: string
+    table_heading: string
+    updated_label: string
+  }
+  privacy_policy: {
+    title: string
+    overview_heading: string
+    data_collected_heading: string
+    data_use_heading: string
+    rights_heading: string
+    updated_label: string
+  }
+  terms_of_service: {
+    title: string
+    agreement_heading: string
+    usage_heading: string
+    liability_heading: string
+    updated_label: string
+  }
+}
+
+export const POLICY_TRANSLATIONS: Record<string, PolicyTranslationDictionary> = {
+  en: {
+    cookie_policy: {
+      title: "Cookie Policy",
+      about_heading: "About this Cookie Policy",
+      about_text: "This Cookie Policy explains what cookies are, how we use them, the types of cookies we use, and how to manage your cookie settings.",
+      manage_heading: "Managing Consent & Preferences",
+      table_heading: "Cookies in Use on This Website",
+      updated_label: "Last Updated",
+    },
+    privacy_policy: {
+      title: "Privacy Policy",
+      overview_heading: "Overview & Scope",
+      data_collected_heading: "Information We Collect",
+      data_use_heading: "How We Use Information",
+      rights_heading: "Your Privacy Rights & Choices",
+      updated_label: "Last Updated",
+    },
+    terms_of_service: {
+      title: "Terms of Service",
+      agreement_heading: "Agreement to Terms",
+      usage_heading: "Acceptable Use & User Obligations",
+      liability_heading: "Limitation of Liability & Warranties",
+      updated_label: "Last Updated",
+    },
+  },
+  de: {
+    cookie_policy: {
+      title: "Cookie-Richtlinie",
+      about_heading: "Über diese Cookie-Richtlinie",
+      about_text: "Diese Cookie-Richtlinie erklärt, was Cookies sind, wie wir sie verwenden und wie Sie Ihre Datenschutzeinstellungen verwalten können.",
+      manage_heading: "Einwilligung & Präferenzen verwalten",
+      table_heading: "Auf dieser Website verwendete Cookies",
+      updated_label: "Zuletzt aktualisiert",
+    },
+    privacy_policy: {
+      title: "Datenschutzerklärung",
+      overview_heading: "Überblick & Geltungsbereich",
+      data_collected_heading: "Erfasste Daten",
+      data_use_heading: "Verwendung Ihrer Daten",
+      rights_heading: "Ihre Datenschutzrechte",
+      updated_label: "Zuletzt aktualisiert",
+    },
+    terms_of_service: {
+      title: "Nutzungsbedingungen",
+      agreement_heading: "Zustimmung zu den Bedingungen",
+      usage_heading: "Zulässige Nutzung & Pflichten",
+      liability_heading: "Haftungsbeschränkung & Gewährleistung",
+      updated_label: "Zuletzt aktualisiert",
+    },
+  },
+  fr: {
+    cookie_policy: {
+      title: "Politique de Cookies",
+      about_heading: "À propos de cette politique de cookies",
+      about_text: "Cette politique de cookies explique ce que sont les cookies, comment nous les utilisons et comment gérer vos préférences de consentement.",
+      manage_heading: "Gestion du consentement et des préférences",
+      table_heading: "Cookies utilisés sur ce site",
+      updated_label: "Dernière mise à jour",
+    },
+    privacy_policy: {
+      title: "Politique de Confidentialité",
+      overview_heading: "Aperçu et champ d'application",
+      data_collected_heading: "Données collectées",
+      data_use_heading: "Utilisation des données",
+      rights_heading: "Vos droits en matière de confidentialité",
+      updated_label: "Dernière mise à jour",
+    },
+    terms_of_service: {
+      title: "Conditions d'Utilisation",
+      agreement_heading: "Acceptation des conditions",
+      usage_heading: "Utilisation acceptable et obligations",
+      liability_heading: "Limitation de responsabilité",
+      updated_label: "Dernière mise à jour",
+    },
+  },
+  es: {
+    cookie_policy: {
+      title: "Política de Cookies",
+      about_heading: "Acerca de esta política de cookies",
+      about_text: "Esta Política de Cookies explica qué son las cookies, cómo las utilizamos y cómo puede gestionar sus preferencias de consentimiento.",
+      manage_heading: "Gestión de consentimiento y preferencias",
+      table_heading: "Cookies utilizadas en este sitio web",
+      updated_label: "Última actualización",
+    },
+    privacy_policy: {
+      title: "Política de Privacidad",
+      overview_heading: "Resumen y alcance",
+      data_collected_heading: "Información recopilada",
+      data_use_heading: "Cómo usamos la información",
+      rights_heading: "Sus derechos de privacidad",
+      updated_label: "Última actualización",
+    },
+    terms_of_service: {
+      title: "Términos del Servicio",
+      agreement_heading: "Aceptación de los términos",
+      usage_heading: "Uso aceptable y obligaciones",
+      liability_heading: "Limitación de responsabilidad",
+      updated_label: "Última actualización",
+    },
+  },
+  pt: {
+    cookie_policy: {
+      title: "Política de Cookies",
+      about_heading: "Sobre esta Política de Cookies",
+      about_text: "Esta Política de Cookies explica o que são cookies, como os utilizamos e como você pode gerenciar suas preferências de privacidade.",
+      manage_heading: "Gerenciamento de Consentimento e Preferências",
+      table_heading: "Cookies em uso neste site",
+      updated_label: "Última atualização",
+    },
+    privacy_policy: {
+      title: "Política de Privacidade",
+      overview_heading: "Visão Geral e Escopo",
+      data_collected_heading: "Dados Coletados",
+      data_use_heading: "Como Usamos os Dados",
+      rights_heading: "Seus Direitos de Privacidade",
+      updated_label: "Última atualização",
+    },
+    terms_of_service: {
+      title: "Termos de Serviço",
+      agreement_heading: "Concordância com os Termos",
+      usage_heading: "Uso Aceitável e Obrigações",
+      liability_heading: "Limitação de Responsabilidade",
+      updated_label: "Última atualização",
+    },
+  },
+  it: {
+    cookie_policy: {
+      title: "Informativa sui Cookie",
+      about_heading: "Informazioni su questa Politica sui Cookie",
+      about_text: "La presente Informativa sui Cookie spiega cosa sono i cookie, come li utilizziamo e come gestire le preferenze di consenso.",
+      manage_heading: "Gestione del Consenso e delle Preferenze",
+      table_heading: "Cookie utilizzati su questo sito web",
+      updated_label: "Ultimo aggiornamento",
+    },
+    privacy_policy: {
+      title: "Informativa sulla Privacy",
+      overview_heading: "Panoramica e ambito di applicazione",
+      data_collected_heading: "Dati raccolti",
+      data_use_heading: "Utilizzo delle informazioni",
+      rights_heading: "I tuoi diritti sulla privacy",
+      updated_label: "Ultimo aggiornamento",
+    },
+    terms_of_service: {
+      title: "Termini di Servizio",
+      agreement_heading: "Accettazione dei Termini",
+      usage_heading: "Uso accettabile e obblighi dell'utente",
+      liability_heading: "Limitazione di responsabilità",
+      updated_label: "Ultimo aggiornamento",
+    },
+  },
+  nl: {
+    cookie_policy: {
+      title: "Cookiebeleid",
+      about_heading: "Over dit Cookiebeleid",
+      about_text: "Dit Cookiebeleid legt uit wat cookies zijn, hoe we ze gebruiken en hoe u uw toestemmingsvoorkeuren kunt beheren.",
+      manage_heading: "Toestemming en voorkeuren beheren",
+      table_heading: "Cookies in gebruik op deze website",
+      updated_label: "Laatst bijgewerkt",
+    },
+    privacy_policy: {
+      title: "Privacybeleid",
+      overview_heading: "Overzicht en toepassingsgebied",
+      data_collected_heading: "Verzamelde gegevens",
+      data_use_heading: "Hoe we gegevens gebruiken",
+      rights_heading: "Uw privacyrechten",
+      updated_label: "Laatst bijgewerkt",
+    },
+    terms_of_service: {
+      title: "Algemene Voorwaarden",
+      agreement_heading: "Aanvaarding van voorwaarden",
+      usage_heading: "Aanvaardbaar gebruik en verplichtingen",
+      liability_heading: "Beperking van aansprakelijkheid",
+      updated_label: "Laatst bijgewerkt",
+    },
+  },
+  hi: {
+    cookie_policy: {
+      title: "कुकी नीति",
+      about_heading: "इस कुकी नीति के बारे में",
+      about_text: "यह कुकी नीति बताती है कि कुकीज़ क्या हैं, हम उनका उपयोग कैसे करते हैं और अपनी सहमति प्राथमिकताओं को कैसे प्रबंधित करें।",
+      manage_heading: "सहमति और प्राथमिकताएं प्रबंधित करें",
+      table_heading: "इस वेबसाइट पर उपयोग की जाने वाली कुकीज़",
+      updated_label: "अंतिम अद्यतन",
+    },
+    privacy_policy: {
+      title: "गोपनीयता नीति",
+      overview_heading: "सिंहावलोकन और दायरा",
+      data_collected_heading: "एकत्रित की गई जानकारी",
+      data_use_heading: "हम जानकारी का उपयोग कैसे करते हैं",
+      rights_heading: "आपके गोपनीयता अधिकार",
+      updated_label: "अंतिम अद्यतन",
+    },
+    terms_of_service: {
+      title: "सेवा की शर्तें",
+      agreement_heading: "शर्तों की स्वीकृति",
+      usage_heading: "स्वीकार्य उपयोग और दायित्व",
+      liability_heading: "दायित्व की सीमा",
+      updated_label: "अंतिम अद्यतन",
+    },
+  },
+  ja: {
+    cookie_policy: {
+      title: "クッキーポリシー",
+      about_heading: "本クッキーポリシーについて",
+      about_text: "本クッキーポリシーでは、クッキーとは何か、当社がクッキーをどのように使用しているか、同意設定を管理する方法について説明します。",
+      manage_heading: "同意と設定の管理",
+      table_heading: "本ウェブサイトで使用されているクッキー",
+      updated_label: "最終更新日",
+    },
+    privacy_policy: {
+      title: "プライバシーポリシー",
+      overview_heading: "概要と適用範囲",
+      data_collected_heading: "収集する情報",
+      data_use_heading: "情報の利用目的",
+      rights_heading: "お客様のプライバシー権",
+      updated_label: "最終更新日",
+    },
+    terms_of_service: {
+      title: "利用規約",
+      agreement_heading: "規約への同意",
+      usage_heading: "許容される利用と義務",
+      liability_heading: "責任の制限と保証",
+      updated_label: "最終更新日",
+    },
+  },
+}
+
+export function resolvePolicyText(policyType: "cookie_policy", langCode?: string): PolicyTranslationDictionary["cookie_policy"]
+export function resolvePolicyText(policyType: "privacy_policy", langCode?: string): PolicyTranslationDictionary["privacy_policy"]
+export function resolvePolicyText(policyType: "terms_of_service", langCode?: string): PolicyTranslationDictionary["terms_of_service"]
+export function resolvePolicyText(
+  policyType: "cookie_policy" | "privacy_policy" | "terms_of_service",
+  langCode?: string
+): any {
+  const lang = (langCode || "en").toLowerCase().split("-")[0] || "en"
+  const fallback = POLICY_TRANSLATIONS.en || POLICY_TRANSLATIONS["en"]!
+  const dict = POLICY_TRANSLATIONS[lang] || fallback
+  return dict[policyType] || fallback[policyType]
 }
 

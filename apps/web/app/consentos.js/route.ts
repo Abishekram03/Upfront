@@ -837,11 +837,11 @@ export async function GET(req: Request) {
 
   function getStoredConsent() {
     try {
-      var match = document.cookie.match(new RegExp("(^| )consentos_consent=([^;]+)"));
-      if (match) return JSON.parse(decodeURIComponent(match[2]));
+      var match = document.cookie.match(/(?:^|; )(?:upfront_cookie|consentos_consent|usrly_consent)=([^;]*)/);
+      if (match && match[1]) return JSON.parse(decodeURIComponent(match[1]));
     } catch(e) {}
     try {
-      var ls = localStorage.getItem("consentos_consent");
+      var ls = localStorage.getItem("upfront_cookie") || localStorage.getItem("consentos_consent") || localStorage.getItem("usrly_consent");
       if (ls) return JSON.parse(ls);
     } catch(e) {}
     return null;
@@ -851,8 +851,23 @@ export async function GET(req: Request) {
     var val = encodeURIComponent(JSON.stringify(consent));
     var d = new Date();
     d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000));
-    document.cookie = "consentos_consent=" + val + "; expires=" + d.toUTCString() + "; path=/; SameSite=Lax";
-    try { localStorage.setItem("consentos_consent", JSON.stringify(consent)); } catch(e) {}
+    var expStr = "; expires=" + d.toUTCString();
+    document.cookie = "upfront_cookie=" + val + expStr + "; path=/; SameSite=Lax";
+
+    try {
+      var host = window.location.hostname;
+      if (host && host.indexOf(".") !== -1 && !/^[0-9.]+$/.test(host) && host !== "localhost") {
+        var parts = host.split(".");
+        if (parts.length > 1) {
+          var rootDomain = "." + parts.slice(-2).join(".");
+          document.cookie = "upfront_cookie=" + val + expStr + "; path=/; domain=" + rootDomain + "; SameSite=Lax";
+        }
+      }
+    } catch(e) {}
+
+    try {
+      localStorage.setItem("upfront_cookie", JSON.stringify(consent));
+    } catch(e) {}
   }
 
   function renderAuditTables() {
@@ -968,6 +983,14 @@ export async function GET(req: Request) {
           <button class="btn btn-primary" id="accept-btn">\${resolveText("accept_all_label", initialConfig)}</button>
         </div>
       </div>
+      \${initialConfig.show_branding !== false && !initialConfig.hide_branding ? \`
+      <div style="max-width: 1200px; margin: 8px auto 0; padding-top: 6px; border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 10.5px; color: #64748b;">
+        <span>Powered by</span>
+        <a href="https://upfront.io" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;">
+          <img src="\${apiHost}/UpFront-Logo-Blue-500.svg" alt="Upfront" style="height: 13px; width: auto;" />
+        </a>
+      </div>
+      \` : ""}
     \`;
     shadow.appendChild(banner);
 

@@ -1126,6 +1126,24 @@ export function BannerStudio() {
                       <UpgradeBadge capability="cmp.multilingual" size="sm" />
                     </div>
 
+                    <div className="p-3 rounded-md bg-blue-50/70 border border-blue-200/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                          <Globe className="size-3.5 text-[#1868db]" />
+                          Centralized Language Management
+                        </span>
+                        <a
+                          href="/settings?tab=languages"
+                          className="text-[11px] font-bold text-[#1868db] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          Configure in Settings <ExternalLink className="size-3" />
+                        </a>
+                      </div>
+                      <p className="text-[11px] text-blue-900/80 leading-relaxed">
+                        Translations and supported language checkboxes for Cookie Banner, Preference Centre, and Legal Policies are centralized in Settings.
+                      </p>
+                    </div>
+
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-xs font-bold text-slate-800">Auto-Detect Browser Language</div>
@@ -1148,7 +1166,7 @@ export function BannerStudio() {
                       >
                         {SUPPORTED_LANGUAGES.map((l) => (
                           <option key={l.code} value={l.code}>
-                            {l.name} ({l.nativeName}) [{l.code}]
+                            {l.flag} {l.name} ({l.nativeName}) [{l.code}]
                           </option>
                         ))}
                       </select>
@@ -1480,6 +1498,60 @@ export function BannerStudio() {
                       )}
                     />
                   </button>
+                </div>
+
+                {/* 6. Disable Banner / Killswitch (Business Tier Feature) */}
+                <div className="pt-3 border-t border-slate-100">
+                  <UpgradeGate capability="cmp.disable_banner" featureName="Disable Banner">
+                    <div className={cn(
+                      "p-3 rounded-lg border transition-all flex items-center justify-between gap-3",
+                      config.is_enabled === false
+                        ? "bg-rose-50/70 border-rose-200"
+                        : "bg-slate-50/70 border-slate-200/90"
+                    )}>
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-800">Disable Cookie Banner</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 border border-purple-200">
+                            Business
+                          </span>
+                          <InfoTooltip
+                            position="top"
+                            text="Completely hide the cookie banner on your website without removing the embed script. Cookieless analytics remains operational."
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          {config.is_enabled === false
+                            ? "Banner is disabled — it will not appear on your live site."
+                            : "Banner is currently active and visible to your visitors."}
+                        </p>
+                      </div>
+
+                      {/* iOS Style Switch Toggle */}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={config.is_enabled === false}
+                        onClick={() => {
+                          setConfig((prev) => ({
+                            ...prev,
+                            is_enabled: prev.is_enabled === false ? true : false,
+                          }))
+                        }}
+                        className={cn(
+                          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                          config.is_enabled === false ? "bg-rose-600" : "bg-slate-200"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                            config.is_enabled === false ? "translate-x-4" : "translate-x-0"
+                          )}
+                        />
+                      </button>
+                    </div>
+                  </UpgradeGate>
                 </div>
               </div>
             )}
@@ -2189,6 +2261,12 @@ export function BannerStudio() {
 
             {/* REAL CONNECTED WEBSITE LIVE PREVIEW */}
             <div className="relative w-full h-full flex-1 overflow-hidden bg-slate-50 flex flex-col select-none">
+              {config.is_enabled === false && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold shadow-md animate-in fade-in-50">
+                  <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
+                  <span>Banner Disabled (Headless Mode) — Hidden on live website</span>
+                </div>
+              )}
               {activeDomain ? (
                 <iframe
                   src={`/api/v1/consent/preview-proxy?domain=${encodeURIComponent(activeDomain)}`}
@@ -2577,7 +2655,7 @@ export function BannerStudio() {
                                   <span className="col-span-5">{getText("description_column_label")}</span>
                                 </div>
                                 <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
-                                  <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>usrly_consent</span>
+                                  <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>upfront_cookie</span>
                                   <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>1 year</span>
                                   <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Consent preferences state</span>
                                 </div>

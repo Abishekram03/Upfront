@@ -92,7 +92,7 @@ export async function GET(req: Request) {
           TRUE, TRUE,
           TRUE, TRUE, TRUE,
           TRUE, 'bottom_left', TRUE, TRUE,
-          TRUE, 'en', ARRAY['en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'hi'], 'all',
+          TRUE, 'en', ARRAY['en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'hi', 'ja'], 'all',
           TRUE, '1.0', '', 'gdpr',
           NOW(), NOW()
         )
@@ -218,7 +218,7 @@ export async function POST(req: Request) {
     const enableIabTcf = body.enable_iab_tcf !== undefined ? body.enable_iab_tcf : (currentConfig?.enable_iab_tcf ?? true)
     const enableAutoLanguage = body.enable_auto_language !== undefined ? body.enable_auto_language : (currentConfig?.enable_auto_language ?? true)
     const defaultLanguage = body.default_language || currentConfig?.default_language || "en"
-    const supportedLanguages = body.supported_languages || currentConfig?.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi"]
+    const supportedLanguages = body.supported_languages || currentConfig?.supported_languages || ["en", "de", "fr", "es", "pt", "it", "nl", "hi", "ja"]
     const geoTargeting = body.geo_targeting || currentConfig?.geo_targeting || "all"
     const targetCountries = body.target_countries !== undefined ? (Array.isArray(body.target_countries) ? body.target_countries : []) : (currentConfig?.target_countries || [])
     const enableGpc = body.enable_gpc !== undefined ? body.enable_gpc : (currentConfig?.enable_gpc ?? true)

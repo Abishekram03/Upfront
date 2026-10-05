@@ -75,7 +75,7 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
               { name: "_ga", category: "analytics", service_name: "Google Analytics", duration: "2 years" },
               { name: "_gid", category: "analytics", service_name: "Google Analytics", duration: "24 hours" },
               { name: "upfront_test_functional", category: "functional", service_name: "Uncatalogued Provider", duration: "12 months" },
-              { name: "consentos_consent", category: "necessary", service_name: "Consent Management", duration: "12 months" },
+              { name: "upfront_cookie", category: "necessary", service_name: "Consent Management", duration: "12 months" },
               { name: "session", category: "necessary", service_name: "Session Management", duration: "Session" },
             ])
           }
@@ -84,7 +84,7 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
             { name: "_ga", category: "analytics", service_name: "Google Analytics", duration: "2 years" },
             { name: "_gid", category: "analytics", service_name: "Google Analytics", duration: "24 hours" },
             { name: "upfront_test_functional", category: "functional", service_name: "Uncatalogued Provider", duration: "12 months" },
-            { name: "consentos_consent", category: "necessary", service_name: "Consent Management", duration: "12 months" },
+            { name: "upfront_cookie", category: "necessary", service_name: "Consent Management", duration: "12 months" },
             { name: "session", category: "necessary", service_name: "Session Management", duration: "Session" },
           ])
         }
