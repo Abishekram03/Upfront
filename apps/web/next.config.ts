@@ -1,5 +1,6 @@
 import path from "path"
 import type { NextConfig } from "next"
+import { withSentryConfig } from "@sentry/nextjs"
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@workspace/ui"],
@@ -9,4 +10,9 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  // Suppresses verbose logs during build if auth token is omitted
+  silent: !process.env.CI,
+  // Tree-shakes Sentry logger statements to minimize bundle footprint
+  disableLogger: true,
+})

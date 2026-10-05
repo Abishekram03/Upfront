@@ -257,10 +257,10 @@ export function PolicyDashboardView() {
         </div>
       </div>
 
-      {/* Main 4-Column Card Grid */}
+      {/* Active Policies Card Grid (3-Column Layout) */}
       <div className="max-w-[1400px] mx-auto px-6 sm:px-10 mt-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {AVAILABLE_POLICIES.map((policy) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {AVAILABLE_POLICIES.filter((p) => !p.hidden).map((policy) => {
             const record = activeRecords[policy.id]
             return (
               <PolicyCard

@@ -23,6 +23,7 @@ export interface PolicyDefinition {
   iconColor: string
   iconBg: string
   defaultSampleText: string
+  hidden?: boolean
 }
 
 export interface DomainPolicyRecord {
@@ -53,6 +54,7 @@ export const AVAILABLE_POLICIES: PolicyDefinition[] = [
     iconColor: "text-blue-600",
     iconBg: "bg-blue-50 border-blue-200",
     defaultSampleText: "This Privacy Policy describes how your personal information is collected, used, and shared when you visit or make a purchase from our website. We process personal data under applicable legal frameworks (GDPR, CCPA/CPRA, and DPDP).",
+    hidden: false,
   },
   {
     id: "cookies",
@@ -65,6 +67,7 @@ export const AVAILABLE_POLICIES: PolicyDefinition[] = [
     iconColor: "text-blue-600",
     iconBg: "bg-blue-50 border-blue-200",
     defaultSampleText: "Our website uses cookies to distinguish you from other users. This helps us provide you with a good experience when you browse our website and allows us to improve our site and measure marketing performance.",
+    hidden: false,
   },
   {
     id: "terms",
@@ -77,6 +80,7 @@ export const AVAILABLE_POLICIES: PolicyDefinition[] = [
     iconColor: "text-indigo-600",
     iconBg: "bg-indigo-50 border-indigo-200",
     defaultSampleText: "These Terms and Conditions constitute a legally binding agreement between you and our company concerning your access to and use of our website, services, and associated media channels.",
+    hidden: false,
   },
   {
     id: "eula",
@@ -89,6 +93,7 @@ export const AVAILABLE_POLICIES: PolicyDefinition[] = [
     iconColor: "text-purple-600",
     iconBg: "bg-purple-50 border-purple-200",
     defaultSampleText: "This End User License Agreement is a legal agreement between you and our company for the software product accompanying this EULA, which includes computer software and associated documentation.",
+    hidden: true,
   },
   {
     id: "return",
@@ -101,6 +106,7 @@ export const AVAILABLE_POLICIES: PolicyDefinition[] = [
     iconColor: "text-emerald-600",
     iconBg: "bg-emerald-50 border-emerald-200",
     defaultSampleText: "We offer a 30-day money-back guarantee for all digital software subscriptions and physical purchases. To be eligible for a return, your item must be unused and in the same condition that you received it.",
+    hidden: true,
   },
   {
     id: "disclaimer",
@@ -113,6 +119,7 @@ export const AVAILABLE_POLICIES: PolicyDefinition[] = [
     iconColor: "text-amber-600",
     iconBg: "bg-amber-50 border-amber-200",
     defaultSampleText: "The information provided on this website is for general informational purposes only. All information is provided in good faith, however we make no representation or warranty of any kind regarding accuracy.",
+    hidden: true,
   },
   {
     id: "shipping",
@@ -125,6 +132,7 @@ export const AVAILABLE_POLICIES: PolicyDefinition[] = [
     iconColor: "text-sky-600",
     iconBg: "bg-sky-50 border-sky-200",
     defaultSampleText: "All orders are processed within 1 to 2 business days. Shipping charges for your order will be calculated and displayed at checkout depending on the shipping method selected.",
+    hidden: true,
   },
   {
     id: "acceptable_use",
@@ -137,5 +145,6 @@ export const AVAILABLE_POLICIES: PolicyDefinition[] = [
     iconColor: "text-rose-600",
     iconBg: "bg-rose-50 border-rose-200",
     defaultSampleText: "You may not use our services for any illegal or unauthorized purpose, nor may you violate any laws in your jurisdiction (including copyright or trademark laws) or attempt to probe platform vulnerabilities.",
+    hidden: true,
   },
 ]
