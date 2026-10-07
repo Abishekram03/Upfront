@@ -61,16 +61,29 @@ export function PolicyDashboardView() {
     return first.trim().toLowerCase()
   }, [selectedDomain])
 
+  // Policy records state (Cookie policy is dynamically populated from CMP, others from backend)
+  const [records, setRecords] = useState<Record<PolicyId, DomainPolicyRecord>>(INITIAL_RECORDS)
+
+  // Resolve shared configured company name across all policies/questionnaires for active domain
+  const sharedCompanyName = useMemo(() => {
+    for (const key of Object.keys(records) as PolicyId[]) {
+      const name = records[key]?.config?.companyName?.trim() || (records[key]?.config as any)?.dbaName?.trim()
+      if (name) return name
+    }
+    const matchingSite = sites?.find((s) => s.domain?.toLowerCase().includes(cleanDomain))
+    if (matchingSite?.name && !matchingSite.name.toLowerCase().includes(".com") && !matchingSite.name.toLowerCase().includes(".one")) {
+      return matchingSite.name
+    }
+    return ""
+  }, [records, sites, cleanDomain])
+
   // Live CMP cookie policy data layer for the selected domain
-  const cmpCookieData = useCMPCookiePolicy(cleanDomain)
+  const cmpCookieData = useCMPCookiePolicy(cleanDomain, sharedCompanyName)
 
   // View state: "dashboard" | "details" | "editor"
   const [viewMode, setViewMode] = useState<"dashboard" | "details" | "editor">("dashboard")
   const [stagedEditingPolicy, setStagedEditingPolicy] = useState<PolicyDefinition | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-
-  // Policy records state (Cookie policy is dynamically populated from CMP, others from backend)
-  const [records, setRecords] = useState<Record<PolicyId, DomainPolicyRecord>>(INITIAL_RECORDS)
 
   // Fetch persisted policies from database for the active domain
   const fetchPolicies = useCallback(async () => {
@@ -109,11 +122,13 @@ export function PolicyDashboardView() {
   // Dynamic merged records where "cookies" policy is dynamically powered by CMP
   const activeRecords = useMemo<Record<PolicyId, DomainPolicyRecord>>(() => {
     const cookieStatus = "published"
-    const cookieAgo = cmpCookieData.lastScanDate
+    const cookieAgo = cmpCookieData.lastSyncedDate
+      ? `Synced ${cmpCookieData.lastSyncedDate}`
+      : cmpCookieData.lastScanDate
       ? `Scanned ${cmpCookieData.lastScanDate}`
       : cmpCookieData.totalCookiesCount > 0
       ? `${cmpCookieData.totalCookiesCount} cookies linked`
-      : "3 months ago"
+      : "Just now"
 
     return {
       ...records,
@@ -121,7 +136,7 @@ export function PolicyDashboardView() {
         policyId: "cookies",
         status: cookieStatus,
         publishedAgo: cookieAgo,
-        publishedAt: cmpCookieData.lastScanDate || undefined,
+        publishedAt: cmpCookieData.lastSyncedDate || cmpCookieData.lastScanDate || undefined,
         customTitle: "Cookie Policy",
         contentMarkdown: cmpCookieData.generatedMarkdown,
         contentHtml: cmpCookieData.generatedHtml,
@@ -172,6 +187,7 @@ export function PolicyDashboardView() {
           policy={stagedEditingPolicy}
           record={activeRecords[stagedEditingPolicy.id]}
           domain={cleanDomain}
+          sharedCompanyName={sharedCompanyName}
           onBack={() => {
             setViewMode("dashboard")
             setStagedEditingPolicy(null)
@@ -198,6 +214,7 @@ export function PolicyDashboardView() {
         <div className="max-w-[1400px] w-full mx-auto px-6 sm:px-10 py-6">
           <CookiePolicyGenerator
             initialViewMode="editor"
+            companyName={sharedCompanyName}
             onBack={() => {
               setViewMode("details")
               fetchPolicies()
@@ -283,6 +300,7 @@ export function PolicyDashboardView() {
         policy={previewPolicy}
         record={previewPolicy ? activeRecords[previewPolicy.id] : null}
         domain={cleanDomain}
+        sharedCompanyName={sharedCompanyName}
         onEdit={handleOpenEdit}
       />
 

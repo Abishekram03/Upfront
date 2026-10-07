@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react"
 import {
-  Globe,
   Cookie,
   Scale,
   Database,
@@ -31,15 +30,6 @@ interface DiscoveredCookie {
   duration?: string
   description?: string
 }
-
-const LANGUAGES = [
-  { code: "en", name: "English", flag: "🇬🇧" },
-  { code: "fr", name: "Français", flag: "🇫🇷" },
-  { code: "de", name: "Deutsch", flag: "🇩🇪" },
-  { code: "it", name: "Italiano", flag: "🇮🇹" },
-  { code: "es", name: "Español", flag: "🇪🇸" },
-  { code: "nl", name: "Nederlands", flag: "🇳🇱" },
-]
 
 const DEFAULT_COOKIES: DiscoveredCookie[] = [
   {
@@ -82,17 +72,19 @@ const DEFAULT_COOKIES: DiscoveredCookie[] = [
 interface CookiePolicyGeneratorProps {
   onBack?: () => void
   initialViewMode?: "card" | "editor"
+  companyName?: string
 }
 
-export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: CookiePolicyGeneratorProps = {}) {
+export function CookiePolicyGenerator({ onBack, initialViewMode = "card", companyName }: CookiePolicyGeneratorProps = {}) {
   const { activeDomain } = useDomain()
   const domain = activeDomain || "onconnect.one"
+  const effectiveCompany = companyName?.trim() || domain
 
-  // View state: "card" (Clean Status Card) | "editor" (5-Step Customization Wizard)
+  // View state: "card" (Clean Status Card) | "editor" (4-Step Customization Wizard)
   const [viewMode, setViewMode] = useState<"card" | "editor">(initialViewMode)
 
-  // Wizard Step
-  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | 5>(1)
+  // Wizard Step (1: About Cookies, 2: Use of Cookies, 3: Types of Cookies, 4: Preferences)
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -101,26 +93,22 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
   const [lastScanDate, setLastScanDate] = useState<string | null>(null)
   const [isLoadingCookies, setIsLoadingCookies] = useState(true)
 
-  // Policy Form State
-  const [primaryLanguage, setPrimaryLanguage] = useState("en")
-  const [multiLanguageEnabled, setMultiLanguageEnabled] = useState(false)
-
-  // Step 2: About cookies
+  // Step 1: About cookies
   const [aboutHeading, setAboutHeading] = useState("What are cookies?")
   const [aboutDescription, setAboutDescription] = useState(
     `This Cookie Policy explains what cookies are, how we use them, the types of cookies we use (i.e., the information we collect using cookies and how that information is used), and how to manage your cookie settings.\n\nCookies are small text files used to store small pieces of information. They are stored on your device when a website loads in your browser. These cookies help ensure that the website functions properly, enhance security, provide a better user experience, and analyse performance to identify what works and where improvements are needed.`
   )
 
-  // Step 3: Use of cookies
+  // Step 2: Use of cookies
   const [useHeading, setUseHeading] = useState("How do we use cookies?")
   const [useDescription, setUseDescription] = useState(
     `Like most online services, our website uses both first-party and third-party cookies for various purposes. First-party cookies are primarily necessary for the website to function properly and do not collect any personally identifiable data.\n\nThe third-party cookies used on our website primarily help us understand how the website performs, track how you interact with it, keep our services secure, deliver relevant advertisements, and enhance your overall user experience while improving the speed of your future interactions with our website.`
   )
 
-  // Step 4: Types of cookies
+  // Step 3: Types of cookies
   const [typesHeading, setTypesHeading] = useState("Types of cookies we use")
 
-  // Step 5: Cookie preferences
+  // Step 4: Cookie preferences
   const [prefHeading, setPrefHeading] = useState("Manage cookie preferences")
   const [prefDescription, setPrefDescription] = useState(
     `You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.\n\nAdditionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:\n\nChrome: https://support.google.com/accounts/answer/32050\nSafari: https://support.apple.com/en-in/guide/safari/sfri11471/mac\nFirefox: https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox\nMicrosoft Edge: https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09\n\nIf you are using a different web browser, please refer to its official support documentation.`
@@ -162,7 +150,7 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
             const date = new Date(scanDate)
             setLastScanDate(
               date.toLocaleDateString("en-US", {
-                month: "short",
+                month: "long",
                 day: "numeric",
                 year: "numeric",
               })
@@ -200,30 +188,43 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
     setTimeout(() => setCopiedType(null), 2000)
   }
 
-  // Calculate Progress Percentage in Editor
-  const progressPct = (activeStep - 1) * 20
+  // Calculate Progress Percentage in Editor (4 steps: 0%, 33%, 66%, 100%)
+  const progressPct = Math.round(((activeStep - 1) / 3) * 100)
 
   // Generated Dynamic Snippet
   const dynamicEmbedCode = `<div id="usrly-cookie-declaration" data-domain="${domain}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
 
   // Generated Full HTML Document
   const fullHtml = `<!DOCTYPE html>
-<html lang="${primaryLanguage}">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Cookie Policy - ${domain}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 840px; margin: 0 auto; padding: 32px 16px; }
-    h1, h2, h3 { color: #0f172a; font-weight: 700; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
-    th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; }
-    th { background-color: #f8fafc; font-weight: 600; }
-    .btn-revisit { display: inline-block; padding: 8px 16px; background: #1868db; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; margin: 12px 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.65; color: #475569; max-width: 768px; margin: 0 auto; padding: 48px 24px; -webkit-font-smoothing: antialiased; }
+    .hero { text-align: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 36px; margin-bottom: 36px; }
+    .eyebrow { font-size: 13px; font-weight: 600; color: #1868db; margin-bottom: 10px; }
+    h1 { font-size: 36px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; letter-spacing: -0.02em; }
+    .subtitle { font-size: 16px; color: #64748b; max-width: 580px; margin: 0 auto; line-height: 1.6; }
+    .last-updated { font-size: 13.5px; color: #64748b; margin-bottom: 32px; }
+    h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 36px; margin-bottom: 14px; letter-spacing: -0.01em; }
+    p, li { font-size: 15px; color: #475569; margin-bottom: 14px; line-height: 1.65; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
+    th, td { border: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; }
+    th { background-color: #f8fafc; font-weight: 600; color: #0f172a; }
+    td { color: #475569; }
+    .btn-revisit { display: inline-flex; align-items: center; padding: 8px 16px; background: #1868db; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; margin: 12px 0; }
+    .btn-revisit:hover { background: #1559be; }
   </style>
 </head>
 <body>
-  <h1>Cookie Policy for ${domain}</h1>
-  <p><em>Last updated: ${lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</em></p>
+  <div class="hero">
+    <div class="eyebrow">Legal</div>
+    <h1>Cookie Policy</h1>
+    <div class="subtitle">How ${effectiveCompany} uses cookies and tracking technologies across the ${domain} website.</div>
+  </div>
+
+  <div class="last-updated">Last updated: ${lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
 
   <h2>${aboutHeading}</h2>
   ${aboutDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
@@ -370,52 +371,79 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
               </div>
 
               {/* Modal Body */}
-              <div className="p-6 overflow-y-auto flex-1 text-xs space-y-4 leading-relaxed">
+              <div className="p-6 sm:p-8 overflow-y-auto flex-1 text-xs sm:text-sm space-y-6 leading-relaxed bg-slate-50/50">
                 {previewTab === "rendered" && (
-                  <div className="space-y-4 max-w-2xl mx-auto text-slate-800">
-                    <h1 className="text-xl font-bold text-slate-900">Cookie Policy for {domain}</h1>
-                    <p className="text-slate-500 italic">
-                      Last updated: {lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                    </p>
-
-                    <div className="space-y-2 pt-2">
-                      <h2 className="text-sm font-bold text-slate-900">{aboutHeading}</h2>
-                      {aboutDescription.split("\n\n").map((p, i) => (
-                        <p key={i} className="text-slate-600">{p}</p>
-                      ))}
-                    </div>
-
-                    <div className="space-y-2 pt-2">
-                      <h2 className="text-sm font-bold text-slate-900">{useHeading}</h2>
-                      {useDescription.split("\n\n").map((p, i) => (
-                        <p key={i} className="text-slate-600">{p}</p>
-                      ))}
-                    </div>
-
-                    <div className="space-y-2 pt-2">
-                      <h2 className="text-sm font-bold text-slate-900">{typesHeading}</h2>
-                      <div className="p-3 bg-slate-50 border border-slate-200 rounded text-[11px] text-slate-600 space-y-1">
-                        <div className="flex items-center justify-between font-bold text-slate-800">
-                          <span>Live Cookie Table</span>
-                          <span className="text-[#1868db]">{cookies.length} active cookies</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500">
-                          Automatically rendered and synchronized from your website scans.
+                  <div className="max-w-3xl mx-auto rounded-xl border border-slate-200/90 bg-white shadow-xs text-slate-700 overflow-hidden">
+                    {/* Landing Page Style PageHero Header */}
+                    <div className="relative overflow-hidden border-b border-slate-200/80 bg-slate-50/50 px-6 py-12 sm:py-16 text-center">
+                      <div className="bg-grid bg-grid-fade absolute inset-0" aria-hidden="true" />
+                      <div className="relative max-w-2xl mx-auto space-y-3">
+                        <p className="text-xs sm:text-sm font-medium text-primary">Legal</p>
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-normal text-slate-900 text-balance">
+                          Cookie Policy
+                        </h1>
+                        <p className="text-sm sm:text-base leading-relaxed text-muted-foreground">
+                          How {effectiveCompany} uses cookies and tracking technologies across the {domain} website.
                         </p>
                       </div>
                     </div>
 
-                    <div className="space-y-2 pt-2">
-                      <h2 className="text-sm font-bold text-slate-900">{prefHeading}</h2>
-                      <button
-                        type="button"
-                        className="px-3 py-1.5 rounded bg-[#1868db] text-white font-bold text-xs shadow-2xs"
-                      >
-                        Consent Preferences
-                      </button>
-                      {prefDescription.split("\n\n").map((p, i) => (
-                        <p key={i} className="text-slate-600">{p}</p>
-                      ))}
+                    <div className="p-6 sm:p-10 space-y-8">
+                      <p className="text-sm text-muted-foreground">
+                        Last updated: {lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                      </p>
+
+                      {/* Section 1 */}
+                      <div>
+                        <h2 className="text-xl font-medium tracking-normal text-slate-900 mb-3">{aboutHeading}</h2>
+                        <div className="space-y-4 text-[15px] leading-relaxed text-slate-600">
+                          {aboutDescription.split("\n\n").map((p, i) => (
+                            <p key={i}>{p}</p>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section 2 */}
+                      <div>
+                        <h2 className="text-xl font-medium tracking-normal text-slate-900 mb-3">{useHeading}</h2>
+                        <div className="space-y-4 text-[15px] leading-relaxed text-slate-600">
+                          {useDescription.split("\n\n").map((p, i) => (
+                            <p key={i}>{p}</p>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Section 3: Cookie Table */}
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-medium tracking-normal text-slate-900">{typesHeading}</h2>
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 space-y-1.5 shadow-2xs">
+                          <div className="flex items-center justify-between font-semibold text-slate-800">
+                            <span>Live Cookie Table</span>
+                            <span className="text-primary font-bold">{cookies.length} active cookies</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Automatically rendered and synchronized from your website scans.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Section 4: Preferences */}
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-medium tracking-normal text-slate-900 mb-3">{prefHeading}</h2>
+                        <div>
+                          <button
+                            type="button"
+                            className="px-4 py-2 rounded-md bg-primary hover:bg-brand-dark text-white font-medium text-xs shadow-2xs transition-colors cursor-pointer"
+                          >
+                            Consent Preferences
+                          </button>
+                        </div>
+                        <div className="space-y-4 text-[15px] leading-relaxed text-slate-600">
+                          {prefDescription.split("\n\n").map((p, i) => (
+                            <p key={i}>{p}</p>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -538,14 +566,13 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
                 </p>
               </div>
 
-              {/* 5 Navigation Steps */}
+              {/* 4 Navigation Steps */}
               <nav className="space-y-1">
                 {[
-                  { step: 1, label: "Language settings", icon: Globe },
-                  { step: 2, label: "About cookies", icon: Cookie },
-                  { step: 3, label: "Use of cookies", icon: Scale },
-                  { step: 4, label: "Types of cookies", icon: Database },
-                  { step: 5, label: "Cookie preferences", icon: Sliders },
+                  { step: 1, label: "About cookies", icon: Cookie },
+                  { step: 2, label: "Use of cookies", icon: Scale },
+                  { step: 3, label: "Types of cookies", icon: Database },
+                  { step: 4, label: "Cookie preferences", icon: Sliders },
                 ].map((item) => {
                   const Icon = item.icon
                   const isActive = activeStep === item.step
@@ -590,42 +617,8 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
           {/* MAIN STEP FORM CONTENT AREA */}
           <div className="flex-1 flex flex-col justify-between overflow-y-auto p-6 min-h-0 bg-white">
             <div className="max-w-2xl space-y-5">
-              {/* STEP 1: LANGUAGE SETTINGS */}
+              {/* STEP 1: ABOUT COOKIES */}
               {activeStep === 1 && (
-                <div className="space-y-4 animate-in fade-in duration-150">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Language settings</h3>
-                    <p className="text-xs text-slate-500">
-                      Select the primary language for your cookie policy.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-1">
-                    {LANGUAGES.map((lang) => {
-                      const isSelected = primaryLanguage === lang.code
-                      return (
-                        <button
-                          key={lang.code}
-                          type="button"
-                          onClick={() => setPrimaryLanguage(lang.code)}
-                          className={cn(
-                            "p-2.5 rounded-md border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none",
-                            isSelected
-                              ? "border-[#1868db] bg-blue-50/70 text-[#1868db] shadow-2xs ring-1 ring-[#1868db]"
-                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                          )}
-                        >
-                          {isSelected && <Check className="size-3 text-[#1868db] stroke-[3]" />}
-                          <span>{lang.name}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 2: ABOUT COOKIES */}
-              {activeStep === 2 && (
                 <div className="space-y-4 animate-in fade-in duration-150">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">About cookies</h3>
@@ -658,8 +651,8 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
                 </div>
               )}
 
-              {/* STEP 3: USE OF COOKIES */}
-              {activeStep === 3 && (
+              {/* STEP 2: USE OF COOKIES */}
+              {activeStep === 2 && (
                 <div className="space-y-4 animate-in fade-in duration-150">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">How do we use cookies?</h3>
@@ -692,8 +685,8 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
                 </div>
               )}
 
-              {/* STEP 4: TYPES OF COOKIES */}
-              {activeStep === 4 && (
+              {/* STEP 3: TYPES OF COOKIES */}
+              {activeStep === 3 && (
                 <div className="space-y-4 animate-in fade-in duration-150">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Types of cookies we use</h3>
@@ -726,8 +719,8 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
                 </div>
               )}
 
-              {/* STEP 5: PREFERENCES */}
-              {activeStep === 5 && (
+              {/* STEP 4: PREFERENCES */}
+              {activeStep === 4 && (
                 <div className="space-y-4 animate-in fade-in duration-150">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Manage cookie preferences</h3>
@@ -777,7 +770,7 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card" }: Cook
               </div>
 
               <div className="flex items-center gap-2">
-                {activeStep < 5 ? (
+                {activeStep < 4 ? (
                   <Button
                     type="button"
                     onClick={() => setActiveStep((prev) => (prev + 1) as any)}

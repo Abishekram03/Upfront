@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import { useEntitlements } from "@/lib/entitlements-context"
+import { toast } from "@/components/ui/sonner"
 
 export interface CMPCookieItem {
   id?: string
@@ -14,9 +16,17 @@ export interface CMPCookieItem {
 
 export interface CMPCookiePolicyData {
   cookies: CMPCookieItem[]
+  discoveredCookies: CMPCookieItem[]
   isLoading: boolean
+  isSyncing: boolean
   lastScanDate: string | null
+  lastSyncedDate: string | null
   totalCookiesCount: number
+  hasPendingSync: boolean
+  pendingCount: number
+  isAutoSyncActive: boolean
+  isGrowthPlus: boolean
+  syncCookies: () => void
   categorizedCount: {
     necessary: number
     analytics: number
@@ -37,10 +47,32 @@ export interface CMPCookiePolicyData {
   generatedHtml: string
 }
 
-export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
-  const [cookies, setCookies] = useState<CMPCookieItem[]>([])
+const DEFAULT_BASELINE_COOKIES: CMPCookieItem[] = [
+  { name: "_ga", category: "analytics", service_name: "Google Analytics", duration: "2 years" },
+  { name: "_gid", category: "analytics", service_name: "Google Analytics", duration: "24 hours" },
+  { name: "upfront_test_functional", category: "functional", service_name: "Uncatalogued Provider", duration: "12 months" },
+  { name: "upfront_cookie", category: "necessary", service_name: "Consent Management", duration: "12 months" },
+  { name: "session", category: "necessary", service_name: "Session Management", duration: "Session" },
+]
+
+export function useCMPCookiePolicy(domain: string, companyName?: string): CMPCookiePolicyData {
+  const [discoveredCookies, setDiscoveredCookies] = useState<CMPCookieItem[]>([])
+  const [syncedCookies, setSyncedCookies] = useState<CMPCookieItem[]>([])
+  const [hasLoadedSavedSync, setHasLoadedSavedSync] = useState(false)
   const [lastScanDate, setLastScanDate] = useState<string | null>(null)
+  const [lastSyncedDate, setLastSyncedDate] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  // Safe Entitlements hook check
+  let isGrowthPlus = false
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const entitlements = useEntitlements()
+    isGrowthPlus = entitlements.plan === "growth" || entitlements.plan === "business" || Boolean(entitlements.isPaid)
+  } catch {
+    isGrowthPlus = false
+  }
 
   const cleanDomain = useMemo(() => {
     const raw = (domain || "").replace("https://", "").replace("http://", "")
@@ -48,6 +80,29 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
     return firstPart.trim().toLowerCase()
   }, [domain])
 
+  // 1. Load local synced cookies snapshot on Free Tier
+  useEffect(() => {
+    if (typeof window === "undefined" || !cleanDomain) return
+    try {
+      const stored = localStorage.getItem(`usrly_synced_cookies_${cleanDomain}`)
+      const storedDate = localStorage.getItem(`usrly_synced_date_${cleanDomain}`)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed)) {
+          setSyncedCookies(parsed)
+        }
+      }
+      if (storedDate) {
+        setLastSyncedDate(storedDate)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setHasLoadedSavedSync(true)
+    }
+  }, [cleanDomain])
+
+  // 2. Fetch live discovered cookies from scanner API
   useEffect(() => {
     if (!cleanDomain) {
       setIsLoading(false)
@@ -66,27 +121,17 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
 
         if (cookiesRes.ok && isMounted) {
           const cookieData = await cookiesRes.json()
+          let fetchedList: CMPCookieItem[] = []
           if (Array.isArray(cookieData) && cookieData.length > 0) {
-            setCookies(cookieData)
+            fetchedList = cookieData
           } else if (cookieData?.cookies && Array.isArray(cookieData.cookies) && cookieData.cookies.length > 0) {
-            setCookies(cookieData.cookies)
+            fetchedList = cookieData.cookies
           } else {
-            setCookies([
-              { name: "_ga", category: "analytics", service_name: "Google Analytics", duration: "2 years" },
-              { name: "_gid", category: "analytics", service_name: "Google Analytics", duration: "24 hours" },
-              { name: "upfront_test_functional", category: "functional", service_name: "Uncatalogued Provider", duration: "12 months" },
-              { name: "upfront_cookie", category: "necessary", service_name: "Consent Management", duration: "12 months" },
-              { name: "session", category: "necessary", service_name: "Session Management", duration: "Session" },
-            ])
+            fetchedList = DEFAULT_BASELINE_COOKIES
           }
+          setDiscoveredCookies(fetchedList)
         } else if (isMounted) {
-          setCookies([
-            { name: "_ga", category: "analytics", service_name: "Google Analytics", duration: "2 years" },
-            { name: "_gid", category: "analytics", service_name: "Google Analytics", duration: "24 hours" },
-            { name: "upfront_test_functional", category: "functional", service_name: "Uncatalogued Provider", duration: "12 months" },
-            { name: "upfront_cookie", category: "necessary", service_name: "Consent Management", duration: "12 months" },
-            { name: "session", category: "necessary", service_name: "Session Management", duration: "Session" },
-          ])
+          setDiscoveredCookies(DEFAULT_BASELINE_COOKIES)
         }
 
         if (scanRes.ok && isMounted) {
@@ -96,7 +141,7 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
             const date = new Date(scanDate)
             setLastScanDate(
               date.toLocaleDateString("en-US", {
-                month: "short",
+                month: "long",
                 day: "numeric",
                 year: "numeric",
               })
@@ -117,6 +162,63 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
     }
   }, [cleanDomain])
 
+  // Manual sync function for Free tier
+  const syncCookies = useCallback(() => {
+    if (!cleanDomain) return
+    setIsSyncing(true)
+    const targetCookies = discoveredCookies.length > 0 ? discoveredCookies : DEFAULT_BASELINE_COOKIES
+    const dateStr = new Date().toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })
+
+    setSyncedCookies(targetCookies)
+    setLastSyncedDate(dateStr)
+
+    try {
+      localStorage.setItem(`usrly_synced_cookies_${cleanDomain}`, JSON.stringify(targetCookies))
+      localStorage.setItem(`usrly_synced_date_${cleanDomain}`, dateStr)
+    } catch {
+      // ignore
+    }
+
+    setTimeout(() => {
+      setIsSyncing(false)
+      toast.success(`Cookie policy synchronized with ${targetCookies.length} active cookies!`)
+    }, 400)
+  }, [cleanDomain, discoveredCookies])
+
+  // Check if there are pending cookies from recent scan to sync
+  const hasPendingSync = useMemo(() => {
+    if (isGrowthPlus) return false // Growth+ auto-syncs live
+    if (!hasLoadedSavedSync) return false
+    if (discoveredCookies.length === 0) return false
+    if (syncedCookies.length === 0) return true
+
+    const syncedNames = new Set(syncedCookies.map((c) => c.name.toLowerCase()))
+    const hasUnsynced = discoveredCookies.some((c) => !syncedNames.has(c.name.toLowerCase()))
+    return hasUnsynced || syncedCookies.length !== discoveredCookies.length
+  }, [isGrowthPlus, hasLoadedSavedSync, discoveredCookies, syncedCookies])
+
+  const pendingCount = useMemo(() => {
+    if (!hasPendingSync) return 0
+    const syncedNames = new Set(syncedCookies.map((c) => c.name.toLowerCase()))
+    const count = discoveredCookies.filter((c) => !syncedNames.has(c.name.toLowerCase())).length
+    return count > 0 ? count : Math.abs(discoveredCookies.length - syncedCookies.length)
+  }, [hasPendingSync, discoveredCookies, syncedCookies])
+
+  // Active cookies to display: Growth+ uses discovered cookies in real-time, Free uses synced snapshot
+  const activeCookies = useMemo(() => {
+    if (isGrowthPlus) {
+      return discoveredCookies.length > 0 ? discoveredCookies : DEFAULT_BASELINE_COOKIES
+    }
+    if (syncedCookies.length > 0) {
+      return syncedCookies
+    }
+    return discoveredCookies.length > 0 ? discoveredCookies : DEFAULT_BASELINE_COOKIES
+  }, [isGrowthPlus, discoveredCookies, syncedCookies])
+
   // Count by categories
   const categorizedCount = useMemo(() => {
     const counts = {
@@ -128,7 +230,7 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
       uncategorized: 0,
     }
 
-    cookies.forEach((c) => {
+    activeCookies.forEach((c) => {
       const cat = (c.category || "uncategorized").toLowerCase()
       if (cat in counts) {
         counts[cat as keyof typeof counts]++
@@ -142,9 +244,9 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
     })
 
     return counts
-  }, [cookies])
+  }, [activeCookies])
 
-  // Exact standard texts matching CMP tool
+  // Standard headings and descriptions
   const aboutHeading = "What are cookies?"
   const aboutDescription = `This Cookie Policy explains what cookies are, how we use them, the types of cookies we use (i.e., the information we collect using cookies and how that information is used), and how to manage your cookie settings.\n\nCookies are small text files used to store small pieces of information. They are stored on your device when a website loads in your browser. These cookies help ensure that the website functions properly, enhance security, provide a better user experience, and analyse performance to identify what works and where improvements are needed.`
 
@@ -165,7 +267,8 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
 
   // Generated Markdown perfectly matching CMP
   const generatedMarkdown = useMemo(() => {
-    const updatedDate = lastScanDate || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    const updatedDate = lastSyncedDate || lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    const effectiveCompany = companyName?.trim() || cleanDomain || "example.com"
     
     let md = `# Cookie Policy for ${cleanDomain || "example.com"}\n\n`
     md += `*Last updated: ${updatedDate}*\n\n`
@@ -177,13 +280,13 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
     md += `${useDescription}\n\n`
     
     md += `## ${typesHeading}\n`
-    md += `**Live Cookie Table (${cookies.length} active cookies)**\n\n`
+    md += `**Live Cookie Table (${activeCookies.length} active cookies)**\n\n`
     md += `*Automatically rendered and synchronized from your website scans.*\n\n`
 
-    if (cookies.length > 0) {
+    if (activeCookies.length > 0) {
       md += `| Cookie Name | Category | Service Provider | Expiration |\n`
       md += `| :--- | :--- | :--- | :--- |\n`
-      cookies.forEach((c) => {
+      activeCookies.forEach((c) => {
         md += `| \`${c.name}\` | ${c.category} | ${c.service_name || cleanDomain} | ${c.duration || "Session"} |\n`
       })
       md += `\n`
@@ -194,11 +297,12 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
     md += `${prefDescription}\n`
 
     return md
-  }, [cleanDomain, cookies, lastScanDate])
+  }, [cleanDomain, companyName, activeCookies, lastSyncedDate, lastScanDate])
 
   // Generated HTML perfectly matching CMP
   const generatedHtml = useMemo(() => {
-    const updatedDate = lastScanDate || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    const updatedDate = lastSyncedDate || lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    const effectiveCompany = companyName?.trim() || cleanDomain || "example.com"
     
     return `<!DOCTYPE html>
 <html lang="en">
@@ -206,17 +310,30 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
   <meta charset="utf-8" />
   <title>Cookie Policy - ${cleanDomain}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #1e293b; max-width: 840px; margin: 0 auto; padding: 32px 16px; }
-    h1, h2, h3 { color: #0f172a; font-weight: 700; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; }
-    th, td { border: 1px solid #e2e8f0; padding: 10px 12px; text-align: left; }
-    th { background-color: #f8fafc; font-weight: 600; }
-    .btn-revisit { display: inline-block; padding: 8px 16px; background: #1868db; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; margin: 12px 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.65; color: #475569; max-width: 768px; margin: 0 auto; padding: 48px 24px; -webkit-font-smoothing: antialiased; }
+    .hero { text-align: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 36px; margin-bottom: 36px; }
+    .eyebrow { font-size: 13px; font-weight: 600; color: #1868db; margin-bottom: 10px; }
+    h1 { font-size: 36px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; letter-spacing: -0.02em; }
+    .subtitle { font-size: 16px; color: #64748b; max-width: 580px; margin: 0 auto; line-height: 1.6; }
+    .last-updated { font-size: 13.5px; color: #64748b; margin-bottom: 32px; }
+    h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 36px; margin-bottom: 14px; letter-spacing: -0.01em; }
+    p, li { font-size: 15px; color: #475569; margin-bottom: 14px; line-height: 1.65; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
+    th, td { border: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; }
+    th { background-color: #f8fafc; font-weight: 600; color: #0f172a; }
+    td { color: #475569; }
+    .btn-revisit { display: inline-flex; align-items: center; padding: 8px 16px; background: #1868db; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; margin: 12px 0; }
+    .btn-revisit:hover { background: #1559be; }
   </style>
 </head>
 <body>
-  <h1>Cookie Policy for ${cleanDomain}</h1>
-  <p><em>Last updated: ${updatedDate}</em></p>
+  <div class="hero">
+    <div class="eyebrow">Legal</div>
+    <h1>Cookie Policy</h1>
+    <div class="subtitle">How ${effectiveCompany} uses cookies and tracking technologies across the ${cleanDomain} website.</div>
+  </div>
+
+  <div class="last-updated">Last updated: ${updatedDate}</div>
 
   <h2>${aboutHeading}</h2>
   ${aboutDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
@@ -228,17 +345,27 @@ export function useCMPCookiePolicy(domain: string): CMPCookiePolicyData {
   <div id="usrly-cookie-declaration" data-domain="${cleanDomain}"></div>
 
   <h2>${prefHeading}</h2>
-  <p><a href="javascript:void(0)" class="btn-revisit">Consent Preferences</a></p>
+  <p><a href="javascript:void(0)" onclick="if(window.UserlyCMP)window.UserlyCMP.openPreferences()" class="btn-revisit">Consent Preferences</a></p>
   ${prefDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
+
+  <script defer src="https://usrly-five.vercel.app/script.js"></script>
 </body>
 </html>`
-  }, [cleanDomain, cookies, lastScanDate])
+  }, [cleanDomain, companyName, activeCookies, lastSyncedDate, lastScanDate])
 
   return {
-    cookies,
+    cookies: activeCookies,
+    discoveredCookies,
     isLoading,
+    isSyncing,
     lastScanDate,
-    totalCookiesCount: cookies.length,
+    lastSyncedDate,
+    totalCookiesCount: activeCookies.length,
+    hasPendingSync,
+    pendingCount,
+    isAutoSyncActive: isGrowthPlus,
+    isGrowthPlus,
+    syncCookies,
     categorizedCount,
     aboutHeading,
     aboutDescription,

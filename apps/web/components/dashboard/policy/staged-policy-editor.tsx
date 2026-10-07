@@ -635,11 +635,13 @@ export function StagedPolicyEditor({
       addressLine2,
       city,
       zipCode,
-      policyTitleChoice,
-      customPolicyTitle,
+      policyTitleChoice: isTerms ? termsTitleChoice : policyTitleChoice,
+      customPolicyTitle: isTerms ? customTermsTitle : customPolicyTitle,
+      termsTitleChoice,
+      customTermsTitle,
       effectiveDate:
         effectiveDate ||
-        new Date().toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }),
+        new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
       cookiePlatforms,
       // Terms of Service configurations
       isWebsite,
@@ -682,8 +684,6 @@ export function StagedPolicyEditor({
       updateNotificationDaysAdvance,
       updateImmediateTriggers,
       customUpdateDetails,
-      termsTitleChoice,
-      customTermsTitle,
     }
   }
 

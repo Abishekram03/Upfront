@@ -1141,7 +1141,7 @@ export async function GET(req: Request) {
                 } else if (line.indexOf("# ") === 0) {
                   out.push("<h1 style='font-size:24px;font-weight:700;color:#0f172a;margin-bottom:12px;'>" + line.substring(2) + "</h1>");
                 } else if (line === "---") {
-                  out.push("<hr style='border:0;border-top:1px solid #e2e8f0;margin:24px 0;'/>");
+                  out.push("<div style='height:8px;'></div>");
                 } else {
                   var parts = line.split("**");
                   var formatted = "";
