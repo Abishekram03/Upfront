@@ -244,11 +244,26 @@ export class ScheduleService {
     const maxJobs = options.maxJobs || 20
     const executeInline = options.executeInline !== false
 
-    const client = await pool.connect()
     const dueSchedules: ScanScheduleRecord[] = []
+    let client: any = null
     let hasError = false
 
     try {
+      // Acquire client with automatic retry for idle pooler disconnects (ECONNRESET)
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          client = await pool.connect()
+          break
+        } catch (connErr: any) {
+          if (attempt === 2) throw connErr
+          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+        }
+      }
+
+      if (!client) {
+        return { processed: 0, skipped: 0, failed: 0, results: [] }
+      }
+
       await client.query("BEGIN")
 
       // Atomically select and lock due schedules
@@ -263,12 +278,21 @@ export class ScheduleService {
 
       dueSchedules.push(...(dueRes.rows as ScanScheduleRecord[]))
       await client.query("COMMIT")
-    } catch (err) {
+    } catch (err: any) {
       hasError = true
-      await client.query("ROLLBACK").catch(() => {})
+      if (client) {
+        await client.query("ROLLBACK").catch(() => {})
+      }
+      // If transient connection reset, log non-fatal warning
+      if (err?.code === "ECONNRESET" || err?.message?.includes("Connection terminated")) {
+        console.warn("[CMP Scheduler Daemon] Transient pooler reconnect notice:", err?.message || err)
+        return { processed: 0, skipped: 0, failed: 0, results: [] }
+      }
       throw err
     } finally {
-      client.release(hasError)
+      if (client) {
+        client.release(hasError)
+      }
     }
 
     const results: Array<{ domain: string; status: "completed" | "skipped" | "failed" | "queued"; message?: string }> = []
@@ -458,15 +482,19 @@ if (typeof window === "undefined" && !(globalThis as any).__cmp_scheduler_daemon
   
   // Initial check 3 seconds after server starts/loads
   setTimeout(() => {
-    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err) => {
-      console.warn("[CMP Scheduler Daemon] Initial check error:", err)
+    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err: any) => {
+      if (err?.code !== "ECONNRESET" && !err?.message?.includes("Connection terminated")) {
+        console.warn("[CMP Scheduler Daemon] Initial check notice:", err?.message || err)
+      }
     })
   }, 3000)
 
   // Recurring check every 30 seconds
   setInterval(() => {
-    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err) => {
-      console.warn("[CMP Scheduler Daemon] Periodic check error:", err)
+    ScheduleService.processDueSchedules({ maxJobs: 5, executeInline: true }).catch((err: any) => {
+      if (err?.code !== "ECONNRESET" && !err?.message?.includes("Connection terminated")) {
+        console.warn("[CMP Scheduler Daemon] Periodic check notice:", err?.message || err)
+      }
     })
   }, 30000)
 }

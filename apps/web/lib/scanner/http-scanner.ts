@@ -289,6 +289,19 @@ function inspectPageHtml(
       })
     }
   }
+
+  // UpFront CMP Essential Storage
+  if (/(?:script\.js|upfront\.js|consentos\.js|data-domain)/i.test(html)) {
+    if (!seenCookieNames.has("upfront_consent")) {
+      seenCookieNames.add("upfront_consent")
+      cookies.push({
+        name: "upfront_consent",
+        domain,
+        duration: "1 year",
+        discoverySource: "script_signature",
+      })
+    }
+  }
 }
 
 /**

@@ -170,6 +170,15 @@ export async function POST(req: Request) {
       if (!entitlements.capabilities["cmp.google_consent_mode_v2"]) {
         body.enable_consent_mode_v2 = false
       }
+      if (!entitlements.capabilities["cmp.multilingual"]) {
+        body.enable_auto_language = false
+        const fallbackLang = typeof body.default_language === "string" && body.default_language.trim().length > 0 ? body.default_language : "en"
+        body.supported_languages = [fallbackLang]
+      }
+      if (!entitlements.capabilities["cmp.whitelabel"]) {
+        body.show_branding = true
+        body.hide_branding = false
+      }
       if (!entitlements.capabilities["cmp.box_layout"] && (typeof body.layout === "string" && (body.layout.startsWith("floating_") || body.layout === "box"))) {
         body.layout = "bottom_bar"
       }

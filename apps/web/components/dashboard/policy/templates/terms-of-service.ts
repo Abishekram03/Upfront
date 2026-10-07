@@ -67,7 +67,7 @@ export function generateTermsOfServiceMarkdown(data: TermsOfServiceData, domain:
   
   const title = data.policyTitleChoice === "custom" && data.customPolicyTitle 
     ? data.customPolicyTitle 
-    : (data.policyTitleChoice || "TERMS OF USE").toUpperCase()
+    : (data.policyTitleChoice || "Terms Of Service")
 
   const addressString = [data.addressLine1, data.addressLine2, data.city, data.zipCode, data.country].filter(Boolean).join(", ") || governing
 

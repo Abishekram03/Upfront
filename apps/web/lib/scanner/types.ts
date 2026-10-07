@@ -11,7 +11,7 @@ export type DiscoverySource =
   | "open_cookie_db"
   | "manual"
 
-export type ScanStatus = "queued" | "running" | "completed" | "failed"
+export type ScanStatus = "queued" | "running" | "completed" | "partial" | "failed"
 
 export type FindingSeverity = "critical" | "medium" | "low"
 export type FindingType = "leak" | "info" | "warning"
@@ -65,6 +65,7 @@ export interface ScannerOptions {
   allowInsecureHttp?: boolean
   executionDelayMs?: number
   skipBrowser?: boolean
+  allowDegradedPartial?: boolean
   triggerSource?: "manual" | "scheduled"
   scheduleId?: string
   scheduledOccurrence?: string
@@ -87,6 +88,14 @@ export interface ScanScheduleRecord {
   last_error?: string | null
   created_at: string
   updated_at: string
+}
+
+export interface BrowserScanResult {
+  cookies: DiscoveredCookieRaw[]
+  scripts: string[]
+  findings: FindingItem[]
+  browserAvailable: boolean
+  durationMs?: number
 }
 
 export interface ScanExecutionResult {

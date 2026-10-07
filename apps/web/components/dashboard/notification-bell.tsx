@@ -34,17 +34,39 @@ export interface AppNotification {
   priority?: "high" | "medium" | "low"
 }
 
-function formatRelativeTime(dateString: string | null | undefined): string {
-  if (!dateString) return "Just now"
+function formatRelativeTime(dateInput: string | Date | number | null | undefined): string {
+  if (!dateInput) return "Just now"
   try {
-    const d = new Date(dateString)
+    let d: Date
+    if (dateInput instanceof Date) {
+      d = dateInput
+    } else if (typeof dateInput === "number") {
+      d = new Date(dateInput)
+    } else {
+      let dateStr = String(dateInput).trim()
+      if (!dateStr) return "Just now"
+
+      // Handle space-separated SQL timestamp or ISO missing UTC 'Z' / offset.
+      // Without 'Z', JS new Date() treats the string as local time, causing multi-hour
+      // offset shifts (e.g. +5:30h in IST timezone) against UTC timestamps.
+      if (!dateStr.endsWith("Z") && !/[+-]\d{2}(?::?\d{2})?$/.test(dateStr)) {
+        dateStr = dateStr.replace(" ", "T") + "Z"
+      }
+      d = new Date(dateStr)
+    }
+
+    if (isNaN(d.getTime())) return "Recently"
+
     const now = new Date()
     const diffMs = now.getTime() - d.getTime()
+
+    // If diff is negative (clock skew) or under 60 seconds
+    if (diffMs < 60 * 1000) return "Just now"
+
     const diffMins = Math.floor(diffMs / (1000 * 60))
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-    if (diffMins < 1) return "Just now"
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     if (diffDays === 1) return "Yesterday"

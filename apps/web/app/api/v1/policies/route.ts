@@ -8,20 +8,40 @@ function sanitizeDomain(input?: string | null): string {
   return (first || "").trim().toLowerCase()
 }
 
-function formatAgo(dateStr?: string | null): string {
-  if (!dateStr) return "Just now"
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  if (diffMins < 1) return "Just now"
-  if (diffMins < 60) return `${diffMins}m ago`
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 30) return `${diffDays}d ago`
-  const diffMonths = Math.floor(diffDays / 30)
-  return `${diffMonths} month${diffMonths > 1 ? "s" : ""} ago`
+function formatAgo(dateInput?: string | Date | number | null): string {
+  if (!dateInput) return "Just now"
+  try {
+    let date: Date
+    if (dateInput instanceof Date) {
+      date = dateInput
+    } else if (typeof dateInput === "number") {
+      date = new Date(dateInput)
+    } else {
+      let str = String(dateInput).trim()
+      if (!str) return "Just now"
+      if (!str.endsWith("Z") && !/[+-]\d{2}(?::?\d{2})?$/.test(str)) {
+        str = str.replace(" ", "T") + "Z"
+      }
+      date = new Date(str)
+    }
+
+    if (isNaN(date.getTime())) return "Recently"
+
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    if (diffMs < 60000) return "Just now"
+
+    const diffMins = Math.floor(diffMs / 60000)
+    if (diffMins < 60) return `${diffMins}m ago`
+    const diffHours = Math.floor(diffMins / 60)
+    if (diffHours < 24) return `${diffHours}h ago`
+    const diffDays = Math.floor(diffHours / 24)
+    if (diffDays < 30) return `${diffDays}d ago`
+    const diffMonths = Math.floor(diffDays / 30)
+    return `${diffMonths} month${diffMonths > 1 ? "s" : ""} ago`
+  } catch {
+    return "Recently"
+  }
 }
 
 function mapPolicyRow(row: any) {

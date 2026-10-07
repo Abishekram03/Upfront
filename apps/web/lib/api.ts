@@ -108,11 +108,11 @@ export async function fetchSites(): Promise<Site[]> {
   return await res.json()
 }
 
-export async function createSite(domain: string, timezone: string = "UTC"): Promise<Site> {
+export async function createSite(domain: string, timezone: string = "UTC", workspaceId?: string): Promise<Site> {
   const res = await fetch(`${API_BASE}/api/v1/sites`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ domain, timezone }),
+    body: JSON.stringify({ domain, timezone, workspace_id: workspaceId }),
   })
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}))

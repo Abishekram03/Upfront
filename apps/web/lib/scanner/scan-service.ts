@@ -2,18 +2,19 @@
  * UpFront CMP Scanner - Hybrid Scan Service & Job Orchestration
  *
  * Implements asynchronous scan job state flow:
- * queued -> running -> completed / failed
+ * queued -> running -> completed / partial / failed
  *
  * Coordinates SSRF validation, HTTP static probing, and Playwright browser runtime execution.
+ * Zero silent error masking: Browser failures produce FAILED status (or PARTIAL if explicitly configured).
  */
 
 import { pool, ensureTables } from "../db"
 import { randomUUID } from "node:crypto"
-import { sanitizeDomain, validateTargetUrl } from "./ssrf-protection"
+import { sanitizeDomain, validateTargetUrl, SSRFValidationError } from "./ssrf-protection"
 import { runHttpScan } from "./http-scanner"
-import { runBrowserScan } from "./browser-scanner"
+import { runBrowserScan, BrowserExecutionError } from "./browser-scanner"
 import { mergeAndPersistDiscoveredCookies } from "./merger"
-import type { ScanJobRecord, ScannerOptions, ScanStatus, FindingItem } from "./types"
+import type { ScanJobRecord, ScannerOptions, ScanStatus, FindingItem, DiscoveredCookieRaw } from "./types"
 
 export class ScanService {
   /**
@@ -99,39 +100,62 @@ export class ScanService {
 
       await validateTargetUrl(targetUrl, Boolean(options.allowInsecureHttp))
 
-      // 2. Parallel / Hybrid scan execution
-      const [httpResult, browserResult] = await Promise.all([
-        runHttpScan(domain, options).catch((err) => ({
-          cookies: [],
-          scripts: [],
-          findings: [
-            {
-              type: "warning" as const,
-              message: `HTTP scan issue: ${err.message}`,
-              severity: "medium" as const,
-            },
-          ],
-        })),
-        options.skipBrowser
-          ? Promise.resolve({
-              cookies: [],
-              scripts: [],
-              findings: [],
-              browserAvailable: false,
-            })
-          : runBrowserScan(domain, options).catch((err) => ({
+      // 2. Scan Execution Pipeline
+      let httpResult = { cookies: [] as DiscoveredCookieRaw[], scripts: [] as string[], findings: [] as FindingItem[] }
+      let browserResult = { cookies: [] as DiscoveredCookieRaw[], scripts: [] as string[], findings: [] as FindingItem[], browserAvailable: false }
+      let browserError: Error | null = null
+
+      if (options.skipBrowser) {
+        // Explicit HTTP-only scan request
+        httpResult = await runHttpScan(domain, options)
+      } else {
+        // Run HTTP spider and Playwright browser scan
+        const httpPromise = runHttpScan(domain, options).catch((err) => {
+          return {
+            cookies: [] as DiscoveredCookieRaw[],
+            scripts: [] as string[],
+            findings: [
+              {
+                type: "warning" as const,
+                message: `HTTP scan issue: ${err.message}`,
+                severity: "medium" as const,
+              },
+            ],
+          }
+        })
+
+        const browserPromise = runBrowserScan(domain, options).catch((err) => {
+          browserError = err
+          return null
+        })
+
+        const [hRes, bRes] = await Promise.all([httpPromise, browserPromise])
+        httpResult = hRes
+
+        if (bRes) {
+          browserResult = bRes
+        } else if (browserError) {
+          // Check if degraded execution is explicitly permitted
+          if (options.allowDegradedPartial) {
+            // Degraded partial execution
+            browserResult = {
               cookies: [],
               scripts: [],
               findings: [
                 {
-                  type: "warning" as const,
-                  message: `Browser scan issue: ${err.message}`,
-                  severity: "medium" as const,
+                  type: "warning",
+                  message: `Browser runtime unavailable: ${(browserError as Error).message}. Degraded scan completed with HTTP static crawler only.`,
+                  severity: "medium",
                 },
               ],
               browserAvailable: false,
-            })),
-      ])
+            }
+          } else {
+            // Browser failure MUST fail the scan. NEVER return an empty scan as completed!
+            throw browserError
+          }
+        }
+      }
 
       // 3. Aggregate all findings & scripts
       const combinedFindings: FindingItem[] = [
@@ -149,22 +173,25 @@ export class ScanService {
         siteId,
         httpResult.cookies,
         browserResult.cookies,
-        combinedFindings
+        combinedFindings,
+        combinedScripts
       )
 
       const leaksCount = combinedFindings.filter((f) => f.type === "leak").length
+      const finalStatus: ScanStatus = browserError && options.allowDegradedPartial ? "partial" : "completed"
 
-      // 5. Mark scan as completed
+      // 5. Update scan record with final status
       await pool.query(
         `UPDATE scans 
-         SET status = 'completed',
-             cookies_found = $1,
-             scripts_found = $2,
-             leaks_found = $3,
-             findings = $4::jsonb,
+         SET status = $1,
+             cookies_found = $2,
+             scripts_found = $3,
+             leaks_found = $4,
+             findings = $5::jsonb,
              completed_at = NOW()
-         WHERE id = $5`,
+         WHERE id = $6`,
         [
+          finalStatus,
           persistedCookies.length,
           combinedScripts.length,
           leaksCount,
@@ -177,7 +204,7 @@ export class ScanService {
         id: scanId,
         site_id: siteId,
         domain,
-        status: "completed",
+        status: finalStatus,
         scan_type: job.scan_type || "hybrid",
         cookies_found: persistedCookies.length,
         scripts_found: combinedScripts.length,
@@ -188,14 +215,16 @@ export class ScanService {
         completed_at: new Date().toISOString(),
       }
     } catch (err: any) {
-      // Mark scan as failed
+      // Mark scan as failed - NEVER mask or return empty success
+      const errorMessage = err.message || "Scan execution failed"
+      
       await pool.query(
         `UPDATE scans 
          SET status = 'failed',
              error_message = $1,
              completed_at = NOW()
          WHERE id = $2`,
-        [err.message || "Scan execution failed", scanId]
+        [errorMessage, scanId]
       )
 
       return {
@@ -211,11 +240,11 @@ export class ScanService {
         findings: [
           {
             type: "warning",
-            message: err.message || "Scan execution failed",
+            message: errorMessage,
             severity: "critical",
           },
         ],
-        error_message: err.message,
+        error_message: errorMessage,
         created_at: job.created_at,
         completed_at: new Date().toISOString(),
       }

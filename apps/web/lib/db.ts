@@ -1,4 +1,19 @@
-import { Pool } from "pg"
+import { Pool, types } from "pg"
+
+// Ensure TIMESTAMP without time zone (OID 1114) from Postgres (which stores UTC timestamps from NOW())
+// is serialized as an ISO 8601 UTC string (ending in 'Z') rather than parsed into local Node server timezone.
+types.setTypeParser(1114, (stringValue: string) => {
+  if (!stringValue) return null
+  const clean = stringValue.replace(" ", "T")
+  return clean.endsWith("Z") ? clean : clean + "Z"
+})
+
+// Ensure TIMESTAMPTZ (OID 1184) is serialized as standard ISO 8601 UTC string
+types.setTypeParser(1184, (stringValue: string) => {
+  if (!stringValue) return null
+  const d = new Date(stringValue)
+  return isNaN(d.getTime()) ? stringValue : d.toISOString()
+})
 
 const rawConnectionString = process.env.DATABASE_URL || ""
 
@@ -341,6 +356,17 @@ export async function ensureTables() {
         ALTER TABLE scans ADD COLUMN IF NOT EXISTS scan_type VARCHAR(50) DEFAULT 'hybrid';
         ALTER TABLE scans ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITHOUT TIME ZONE;
         ALTER TABLE scans ADD COLUMN IF NOT EXISTS error_message TEXT;
+
+        -- Consolidate legacy CMP cookies and ensure upfront_cookie / upfront_consent are always categorized as Necessary
+        DELETE FROM discovered_cookies WHERE name = 'usrly_consent';
+        UPDATE discovered_cookies 
+        SET category = 'necessary', 
+            service_name = 'UpFront Consent Management', 
+            description = 'Stores the user''s cookie consent choices and preferences for the domain.', 
+            duration = '1 year',
+            confidence = 'high',
+            status = 'detected'
+        WHERE name IN ('upfront_cookie', 'upfront_consent') AND (category = 'uncategorised' OR category = 'unknown' OR service_name = 'Uncatalogued Provider');
 
         -- Discovered Cookies from Scanner
         CREATE TABLE IF NOT EXISTS discovered_cookies (

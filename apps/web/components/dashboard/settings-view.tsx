@@ -378,8 +378,14 @@ export function SettingsView() {
     return () => { isMounted = false }
   }, [selectedDomainForLang])
 
+  const hasMultilingual = Boolean(entitlements?.capabilities?.["cmp.multilingual"])
+
   const handleSaveLangConfig = async () => {
     if (!selectedDomainForLang) return
+    if (!hasMultilingual) {
+      openUpgradeModal("business", "Multi-Language Translations Suite")
+      return
+    }
     try {
       setIsSavingLangConfig(true)
       setLangConfigMessage(null)
@@ -411,6 +417,10 @@ export function SettingsView() {
   }
 
   const toggleLanguage = (code: string) => {
+    if (!hasMultilingual && code !== "en") {
+      openUpgradeModal("business", "Multi-Language Translations Suite")
+      return
+    }
     setSupportedLanguages((prev) => {
       if (prev.includes(code)) {
         if (prev.length <= 1) {
@@ -429,10 +439,18 @@ export function SettingsView() {
   }
 
   const selectAllLanguages = () => {
+    if (!hasMultilingual) {
+      openUpgradeModal("business", "Multi-Language Translations Suite")
+      return
+    }
     setSupportedLanguages(SUPPORTED_LANGUAGES.map((l) => l.code))
   }
 
   const resetToDefaultLanguages = () => {
+    if (!hasMultilingual) {
+      openUpgradeModal("business", "Multi-Language Translations Suite")
+      return
+    }
     setSupportedLanguages(["en", "de", "fr", "es", "pt", "it", "nl", "hi", "ja"])
     setDefaultLanguage("en")
     setEnableAutoLanguage(true)
@@ -756,7 +774,7 @@ export function SettingsView() {
 
     setIsSubmittingSite(true)
     try {
-      const created = await createSite(cleanDomain, newTimezone)
+      const created = await createSite(cleanDomain, newTimezone, activeWorkspace?.id)
       setCreatedSite(created)
       setSites((prev) => [created, ...prev])
       await refreshContextSites()
@@ -802,7 +820,7 @@ export function SettingsView() {
             { id: "workspace", label: "Workspace & Team", icon: Building2 },
             { id: "billing", label: "Billing & Plans", icon: CreditCard },
             { id: "sites", label: "Sites & Domains", icon: Globe },
-            { id: "languages", label: "Languages & Localization", icon: Languages },
+            { id: "languages", label: "Languages & Localization", icon: Languages, isBusiness: true },
           ].map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -818,7 +836,17 @@ export function SettingsView() {
                 )}
               >
                 <Icon className="size-3.5 shrink-0" />
-                {tab.label}
+                <span>{tab.label}</span>
+                {tab.isBusiness && !hasMultilingual && (
+                  <span className={cn(
+                    "text-[9px] font-extrabold px-1.5 py-0.2 rounded border",
+                    isActive
+                      ? "bg-white/20 text-white border-white/40"
+                      : "bg-amber-100 text-amber-800 border-amber-300"
+                  )}>
+                    Business
+                  </span>
+                )}
               </button>
             )
           })}
@@ -1604,15 +1632,15 @@ export function SettingsView() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span>Full Multi-language & Translations</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                       <span>Monthly Scheduled Scans</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                       <span>Version History & Rollback</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Remove Upfront Branding</span>
                     </li>
                   </ul>
                 </div>
@@ -1672,7 +1700,7 @@ export function SettingsView() {
                     <span className="text-xs text-slate-500 ml-1">/month</span>
                   </div>
                   <p className="text-xs text-slate-500">
-                    Advanced compliance and custom brand styling.
+                    Advanced compliance and enterprise customization.
                   </p>
                   <ul className="space-y-2.5 text-xs text-slate-700 pt-4 border-t border-slate-100">
                     <li className="flex items-center gap-2">
@@ -1690,6 +1718,14 @@ export function SettingsView() {
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>Full Scanner (5,000 pages/scan)</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span><strong>Multi-Language Translations Suite</strong> (9+ Languages & Auto-detect)</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span><strong>Disable Banner</strong> (CMP Killswitch / Headless Mode)</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3.5 h-3.5 text-amber-600 shrink-0" />
@@ -1882,6 +1918,36 @@ export function SettingsView() {
       {/* ========================================================================= */}
       {activeTab === "languages" && (
         <div className="space-y-6 animate-in fade-in duration-150">
+          {/* Business Tier Upgrade Banner (When on Free or Growth) */}
+          {!hasMultilingual && (
+            <div className="p-4.5 rounded-lg bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-white border border-amber-300 bg-white shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+              <div className="flex items-start gap-3">
+                <div className="size-10 rounded-md bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Sparkles className="size-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                    <span>Multi-Language Translation Suite is a Business Tier Feature</span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wider">
+                      Business Tier
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed max-w-2xl">
+                    Upgrade to the <strong>Business Plan ($49/month)</strong> to unlock automated visitor locale detection, multi-language banner switching, and live translation across all 9 languages for your notice banners, preference centers, and legal policies.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                onClick={() => openUpgradeModal("business", "Multi-Language Translations Suite")}
+                className="h-9 text-xs font-bold bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white shrink-0 shadow-xs cursor-pointer px-4"
+              >
+                Upgrade to Business
+              </Button>
+            </div>
+          )}
+
           {/* Domain Binding Bar */}
           <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1948,9 +2014,20 @@ export function SettingsView() {
                 type="button"
                 onClick={handleSaveLangConfig}
                 disabled={isSavingLangConfig || !selectedDomainForLang}
-                className="h-9 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white px-5 cursor-pointer shrink-0 shadow-xs"
+                className={cn(
+                  "h-9 text-xs font-bold px-5 cursor-pointer shrink-0 shadow-xs",
+                  hasMultilingual
+                    ? "bg-[#1868db] hover:bg-[#1559be] text-white"
+                    : "bg-amber-600 hover:bg-amber-700 text-white"
+                )}
               >
-                {isSavingLangConfig ? <Loader2 className="size-3.5 animate-spin" /> : "Save & Deploy Languages"}
+                {isSavingLangConfig ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : hasMultilingual ? (
+                  "Save & Deploy Languages"
+                ) : (
+                  "Upgrade to Business to Save"
+                )}
               </Button>
             </div>
 
@@ -2308,9 +2385,20 @@ export function SettingsView() {
               type="button"
               onClick={handleSaveLangConfig}
               disabled={isSavingLangConfig || !selectedDomainForLang}
-              className="h-8.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white px-5 cursor-pointer shadow-xs"
+              className={cn(
+                "h-8.5 text-xs font-bold px-5 cursor-pointer shadow-xs",
+                hasMultilingual
+                  ? "bg-[#1868db] hover:bg-[#1559be] text-white"
+                  : "bg-amber-600 hover:bg-amber-700 text-white"
+              )}
             >
-              {isSavingLangConfig ? <Loader2 className="size-3.5 animate-spin" /> : "Save Changes"}
+              {isSavingLangConfig ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : hasMultilingual ? (
+                "Save Changes"
+              ) : (
+                "Upgrade to Business to Save"
+              )}
             </Button>
           </div>
         </div>

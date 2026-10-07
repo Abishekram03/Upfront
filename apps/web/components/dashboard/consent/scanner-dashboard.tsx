@@ -41,7 +41,6 @@ export function ScannerDashboard() {
   const [leaks, setLeaks] = useState<any[]>([])
   const [isScanning, setIsScanning] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [scanProgress, setScanProgress] = useState<string>("")
 
   useEffect(() => {
     if (!activeDomain) {
@@ -72,13 +71,8 @@ export function ScannerDashboard() {
   const triggerScan = async () => {
     if (!activeDomain || isScanning) return
     setIsScanning(true)
-    setScanProgress("Connecting to crawler service...")
 
     try {
-      setTimeout(() => setScanProgress("Visiting URLs & executing DOM..."), 1200)
-      setTimeout(() => setScanProgress("Matching against Open Cookie Database (2,200+ signatures)..."), 2500)
-      setTimeout(() => setScanProgress("Analyzing pre-consent network leaks & cookies..."), 4000)
-
       const res = await fetch("/api/v1/consent/scanner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -96,7 +90,6 @@ export function ScannerDashboard() {
       console.error("Scan trigger error:", err)
     } finally {
       setIsScanning(false)
-      setScanProgress("")
     }
   }
 
@@ -125,21 +118,10 @@ export function ScannerDashboard() {
             className="rounded-[4px] bg-[#1868db] hover:bg-[#1559be] text-white text-xs font-bold px-4 py-2 h-9 flex items-center gap-2 cursor-pointer shadow-xs"
           >
             <RefreshCw className={cn("size-3.5", isScanning && "animate-spin")} />
-            {isScanning ? "Scanning Site..." : "Run New Scan"}
+            {isScanning ? "Scanning..." : "Run New Scan"}
           </Button>
         </div>
       </div>
-
-      {/* Live Scan Status Banner */}
-      {isScanning && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3 animate-pulse">
-          <Radar className="size-5 text-[#1868db] animate-spin" />
-          <div className="flex-1">
-            <h4 className="text-xs font-bold text-blue-900">Deep Scanner Active</h4>
-            <p className="text-[11px] text-blue-700">{scanProgress}</p>
-          </div>
-        </div>
-      )}
 
       {/* Scanner Metric Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -11,6 +11,7 @@
 
 import { pool } from "../db"
 import { classifyCookieName } from "../consentos/open-cookie-db"
+import { getKnownCookiesForScript } from "../cookie-signatures"
 import { randomUUID } from "node:crypto"
 import type { DiscoveredCookieRaw, FindingItem } from "./types"
 
@@ -37,20 +38,42 @@ export async function mergeAndPersistDiscoveredCookies(
   siteId: string | null,
   httpCookies: DiscoveredCookieRaw[],
   browserCookies: DiscoveredCookieRaw[],
-  findings: FindingItem[]
+  findings: FindingItem[],
+  detectedScripts: string[] = []
 ): Promise<{
   persistedCookies: MergedCookieResult[]
   totalUniqueCookies: number
 }> {
+  // Clean up any legacy usrly_consent records so only upfront_cookie is kept
+  await pool.query(
+    `DELETE FROM discovered_cookies WHERE domain = $1 AND name = 'usrly_consent'`,
+    [domain]
+  ).catch(() => {})
+
   // 1. Deduplicate by lowercased cookie name
   const cookieMap = new Map<string, DiscoveredCookieRaw>()
 
-  // HTTP cookies first
+  // A. Script Tag Signatures First (Guarantees script-associated cookies are always registered)
+  for (const scriptUrl of detectedScripts) {
+    const knownScriptCookies = getKnownCookiesForScript(scriptUrl, domain)
+    for (const sc of knownScriptCookies) {
+      const key = sc.name.trim()
+      if (!key) continue
+      cookieMap.set(key, { ...sc, name: key } as DiscoveredCookieRaw)
+    }
+  }
+
+  // B. HTTP Set-Cookie headers
   for (const c of httpCookies) {
     if (!c.name || typeof c.name !== "string") continue
     const key = c.name.trim()
     if (!key) continue
-    cookieMap.set(key, { ...c, name: key })
+    const existing = cookieMap.get(key)
+    if (existing) {
+      cookieMap.set(key, { ...existing, ...c, name: key })
+    } else {
+      cookieMap.set(key, { ...c, name: key })
+    }
   }
 
   // Browser cookies merge (override with runtime metadata like path/secure if available)

@@ -5,8 +5,11 @@ import { randomUUID } from "node:crypto"
 
 function sanitizeDomain(input?: string | null): string {
   if (!input) return ""
-  const first = input.replace("https://", "").replace("http://", "").split("/")[0]
-  return (first || "").trim().toLowerCase()
+  let clean = input.trim().toLowerCase()
+  clean = clean.replace(/^(https?:\/\/)/i, "")
+  clean = clean.split("/")[0] || ""
+  clean = clean.split(":")[0] || ""
+  return clean.trim()
 }
 
 export async function GET(req: Request) {
@@ -49,13 +52,13 @@ export async function POST(req: Request) {
     const siteName = (body.name || "").trim() || cleanDomain
 
     if (!cleanDomain) {
-      return NextResponse.json({ detail: "Domain is required" }, { status: 400 })
+      return NextResponse.json({ detail: "A valid website domain name is required (e.g. example.com)" }, { status: 400 })
     }
 
     // Determine target workspace
     let workspaceId = body.workspace_id || null
     if (!workspaceId) {
-      // Find default or first workspace for this user
+      // Find workspace member of
       const wsRes = await pool.query(
         `SELECT w.id FROM workspaces w
          INNER JOIN workspace_members wm ON w.id = wm.workspace_id
@@ -65,6 +68,38 @@ export async function POST(req: Request) {
       )
       if (wsRes.rows.length > 0) {
         workspaceId = wsRes.rows[0]?.id || null
+      } else {
+        // Check if owner of any workspace
+        const ownerWsRes = await pool.query(
+          `SELECT id FROM workspaces WHERE owner_id = $1 ORDER BY created_at ASC LIMIT 1`,
+          [user.id]
+        )
+        if (ownerWsRes.rows.length > 0) {
+          workspaceId = ownerWsRes.rows[0]?.id
+          await pool.query(
+            `INSERT INTO workspace_members (id, workspace_id, user_id, role, created_at)
+             VALUES ($1, $2, $3, 'owner', NOW())
+             ON CONFLICT (workspace_id, user_id) DO NOTHING`,
+            [randomUUID(), workspaceId, user.id]
+          )
+        } else {
+          // Auto create default workspace
+          const newWsId = randomUUID()
+          const userSlug = `ws-${user.id.slice(0, 8)}-${Date.now().toString(36)}`
+          await pool.query(
+            `INSERT INTO workspaces (id, name, slug, owner_id, onboarding_completed, onboarding_step, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, TRUE, 'install', NOW(), NOW())
+             ON CONFLICT (slug) DO UPDATE SET updated_at = NOW()`,
+            [newWsId, `${user.name || "My"} Workspace`, userSlug, user.id]
+          )
+          await pool.query(
+            `INSERT INTO workspace_members (id, workspace_id, user_id, role, created_at)
+             VALUES ($1, $2, $3, 'owner', NOW())
+             ON CONFLICT (workspace_id, user_id) DO NOTHING`,
+            [randomUUID(), newWsId, user.id]
+          )
+          workspaceId = newWsId
+        }
       }
     }
 
@@ -77,22 +112,25 @@ export async function POST(req: Request) {
     if (existing.rows.length > 0) {
       const site = existing.rows[0]
       if (site) {
-        // If site exists in this workspace, return it idempotently
-        if (site.workspace_id === workspaceId) {
-          return NextResponse.json(site)
-        }
-        // If site exists but has no user_id (legacy), assign it to this user & workspace
-        if (!site.user_id) {
+        // If site exists and belongs to current user or has no owner, reassign and return it
+        if (!site.user_id || site.user_id === user.id) {
           await pool.query(
             "UPDATE sites SET user_id = $1, workspace_id = COALESCE($2, workspace_id), name = COALESCE(name, $3) WHERE id = $4",
             [user.id, workspaceId, siteName, site.id]
           )
-          return NextResponse.json({ id: site.id, domain: cleanDomain, name: siteName, timezone, public: false, workspace_id: workspaceId, installation_status: site.installation_status || "not_started" })
+          return NextResponse.json({
+            id: site.id,
+            domain: cleanDomain,
+            name: siteName,
+            timezone,
+            public: false,
+            workspace_id: workspaceId || site.workspace_id,
+            installation_status: site.installation_status || "not_started",
+            created_at: site.created_at,
+          })
         }
-        if (site.user_id !== user.id) {
-          return NextResponse.json({ detail: "Domain is already registered by another account." }, { status: 400 })
-        }
-        return NextResponse.json(site)
+
+        return NextResponse.json({ detail: `Domain '${cleanDomain}' is already registered.` }, { status: 400 })
       }
     }
 
@@ -106,7 +144,40 @@ export async function POST(req: Request) {
 
     const newSite = insertRes.rows[0]
 
-    // If workspace exists and has no first_site_id, update workspace onboarding state
+    // Initialize default consent configuration if not existing
+    await pool.query(
+      `INSERT INTO consent_configs (
+        id, domain, is_enabled, layout, theme, primary_color, border_radius,
+        title, description, privacy_policy_url, show_close_button, accept_all_label, reject_all_label,
+        preferences_label, preferences_title, preferences_description, save_preferences_label,
+        always_active_label, no_cookies_to_display_label, cookie_column_label,
+        duration_column_label, description_column_label,
+        enable_necessary_category, enable_functional_category,
+        enable_analytics_category, enable_performance_category, enable_advertisement_category,
+        show_revisit_button, revisit_button_position, enable_consent_mode_v2, enable_iab_tcf,
+        enable_auto_language, default_language, supported_languages, geo_targeting,
+        enable_gpc, consent_version, custom_css, law_template,
+        created_at, updated_at
+      ) VALUES (
+        $1, $2, TRUE, 'bottom_bar', 'light', '#1868db', 'rounded-md',
+        'We value your privacy',
+        'We use cookies to enhance your browsing experience, serve personalized ads or content, and analyze our traffic. By clicking ''Accept All'', you consent to our use of cookies.',
+        '/privacy', FALSE, 'Accept All', 'Reject All',
+        'Customise', 'Customise Consent Preferences', 'We use cookies to help you navigate efficiently and perform certain functions. You will find detailed information about all cookies under each consent category below.', 'Save My Preferences',
+        'Always Active', 'No cookies to display', 'Cookie',
+        'Duration', 'Description',
+        TRUE, TRUE,
+        TRUE, TRUE, TRUE,
+        TRUE, 'bottom_left', TRUE, TRUE,
+        FALSE, 'en', ARRAY['en'], 'all',
+        TRUE, '1.0', '', 'gdpr',
+        NOW(), NOW()
+      )
+      ON CONFLICT (domain) DO NOTHING`,
+      [randomUUID(), cleanDomain]
+    ).catch((e) => console.error("Auto consent config initialization error:", e))
+
+    // If workspace exists, update workspace onboarding state
     if (workspaceId) {
       await pool.query(
         `UPDATE workspaces

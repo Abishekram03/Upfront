@@ -50,6 +50,11 @@ interface CookieRecord {
   confidence?: string
   status?: string
   script_pattern_regex?: string
+  discovery_source?: string
+  path?: string
+  is_secure?: boolean
+  is_http_only?: boolean
+  same_site?: string
   last_detected_at?: string
   first_detected_at?: string
 }
@@ -249,7 +254,6 @@ export function CookieManager() {
 
   // Scanning trigger states
   const [isScanning, setIsScanning] = useState(false)
-  const [scanProgress, setScanProgress] = useState<string>("")
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("")
@@ -453,13 +457,8 @@ export function CookieManager() {
   const handleTriggerScan = async () => {
     if (!activeDomain || isScanning) return
     setIsScanning(true)
-    setScanProgress("Connecting to crawler engine...")
 
     try {
-      setTimeout(() => setScanProgress("Visiting URLs & analyzing DOM cookies..."), 1000)
-      setTimeout(() => setScanProgress("Matching against Open Cookie Database (2,200+ signatures)..."), 2200)
-      setTimeout(() => setScanProgress("Classifying scripts and tracker patterns..."), 3500)
-
       const res = await fetch("/api/v1/consent/scanner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -486,7 +485,6 @@ export function CookieManager() {
       console.error("Scan error:", err)
     } finally {
       setIsScanning(false)
-      setScanProgress("")
     }
   }
 
@@ -841,13 +839,6 @@ export function CookieManager() {
                 ) : (
                   <p className="text-xs text-slate-500 font-medium">
                     No successful scan recorded yet
-                  </p>
-                )}
-
-                {isScanning && (
-                  <p className="text-[11px] text-[#1868db] font-semibold mt-1 animate-pulse flex items-center gap-1">
-                    <RefreshCw className="size-3 animate-spin" />
-                    {scanProgress || "Crawler in progress..."}
                   </p>
                 )}
 
@@ -1220,19 +1211,27 @@ export function CookieManager() {
                             </p>
                           </div>
 
-                          {/* Bottom Row: Script URL Pattern (Auto-Blocking Regex) */}
+                          {/* Bottom Row: Initiator / Script Pattern */}
                           <div className="pt-1">
                             <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
-                              Script URL pattern
+                              Initiator / Script Pattern
                             </span>
-                            <div className="mt-0.5 flex items-center gap-1.5">
+                            <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
                               {displayScript ? (
                                 <code className="text-[11px] font-mono font-semibold bg-blue-50 text-[#1868db] border border-blue-200 px-2 py-0.5 rounded break-all">
                                   {displayScript}
                                 </code>
+                              ) : cookie.discovery_source === "http_set_cookie" || /^(session|sid|phpsessid|csrf|jwt|auth|token|sb-.*-auth-token|next-auth)/i.test(cookie.name) ? (
+                                <span className="inline-flex items-center text-[11px] font-medium text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-sans">
+                                  HTTP Response Header (Set-Cookie)
+                                </span>
+                              ) : /^(upfront_cookie|upfront_consent|consentos_consent)/i.test(cookie.name) ? (
+                                <code className="text-[11px] font-mono font-semibold bg-blue-50 text-[#1868db] border border-blue-200 px-2 py-0.5 rounded break-all">
+                                  script.js (UpFront CMP Runtime)
+                                </code>
                               ) : (
-                                <span className="text-xs text-slate-400 italic">
-                                  None (Cookie managed via browser headers or direct JS)
+                                <span className="inline-flex items-center text-[11px] font-medium text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-sans">
+                                  1st-Party Client Runtime (Direct JS / DOM)
                                 </span>
                               )}
                             </div>

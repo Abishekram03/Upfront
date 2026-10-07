@@ -73,7 +73,7 @@ export const OPEN_COOKIE_DATABASE: CookieDefinition[] = [
     category: "necessary",
     duration: "Session",
     description: "This cookie is associated with web application security to prevent Cross-Site Request Forgery (CSRF) attacks.",
-    script_pattern: "None (HTTP Header)",
+    script_pattern: "HTTP Response Header (Set-Cookie)",
   },
   {
     pattern: /^(session|sid|phpsessid|jsessionid|connect\.sid|auth_token|jwt|token|sb-.*-auth-token|next-auth\.session-token)$/i,
@@ -81,15 +81,16 @@ export const OPEN_COOKIE_DATABASE: CookieDefinition[] = [
     category: "necessary",
     duration: "Session",
     description: "Maintains the authenticated visitor's session across page navigation.",
-    script_pattern: "None (HTTP Header)",
+    script_pattern: "HTTP Response Header (Set-Cookie)",
   },
   {
-    pattern: /^(upfront_cookie|consentos_consent|usrly_consent|cookieyes-consent|OptanonConsent|OptanonAlertBoxClosed)$/i,
+    pattern: /^(upfront_cookie|upfront_consent|consentos_consent|cookieyes-consent|OptanonConsent|OptanonAlertBoxClosed)$/i,
     service: "UpFront Consent Management",
     category: "necessary",
     duration: "1 year",
     description: "Stores the user's cookie consent choices and preferences for the domain.",
-    script_pattern: "None (Direct JS)",
+    script_pattern: "script.js (UpFront CMP Runtime)",
+    scriptPattern: /(?:script|upfront|tracker|consentos)\.js/i,
   },
 
   // =========================================================================
@@ -173,7 +174,7 @@ export const OPEN_COOKIE_DATABASE: CookieDefinition[] = [
     category: "functional",
     duration: "1 year",
     description: "Stores chosen interface language and localized content preferences.",
-    script_pattern: "None (Direct JS)",
+    script_pattern: "1st-Party Client Runtime (Direct JS / DOM)",
   },
 
   // =========================================================================

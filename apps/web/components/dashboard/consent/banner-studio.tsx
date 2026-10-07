@@ -487,6 +487,9 @@ export function BannerStudio() {
     if (!hasCapability("cmp.geo_targeting")) {
       sanitized.geo_targeting = "all"
     }
+    if (!hasCapability("cmp.multilingual")) {
+      sanitized.enable_auto_language = false
+    }
     return sanitized
   }
 
@@ -1111,68 +1114,6 @@ export function BannerStudio() {
                     </div>
                   </UpgradeGate>
                 </div>
-
-                {/* Multi-Language & Localization Layer */}
-                <UpgradeGate capability="cmp.multilingual" featureName="Multi-language Translations">
-                  <div className="space-y-3 pt-2 border-t border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-xs font-bold text-slate-800 block">Languages & Localization</label>
-                        <InfoTooltip
-                          position="top"
-                          text="UpFront automatically serves localized CMP translations matching the visitor's browser language while preserving any custom customer copy overrides."
-                        />
-                      </div>
-                      <UpgradeBadge capability="cmp.multilingual" size="sm" />
-                    </div>
-
-                    <div className="p-3 rounded-md bg-blue-50/70 border border-blue-200/80 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
-                          <Globe className="size-3.5 text-[#1868db]" />
-                          Centralized Language Management
-                        </span>
-                        <a
-                          href="/settings?tab=languages"
-                          className="text-[11px] font-bold text-[#1868db] hover:underline flex items-center gap-1 cursor-pointer"
-                        >
-                          Configure in Settings <ExternalLink className="size-3" />
-                        </a>
-                      </div>
-                      <p className="text-[11px] text-blue-900/80 leading-relaxed">
-                        Translations and supported language checkboxes for Cookie Banner, Preference Centre, and Legal Policies are centralized in Settings.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-xs font-bold text-slate-800">Auto-Detect Browser Language</div>
-                        <div className="text-[11px] text-slate-500">Automatically serve translations matching visitor OS/Browser</div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={config.enable_auto_language !== false}
-                        onChange={(e) => setConfig({ ...config, enable_auto_language: e.target.checked })}
-                        className="size-4 rounded text-[#1868db] focus:ring-[#1868db]"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-800 block">Default Language Fallback</label>
-                      <select
-                        value={config.default_language || "en"}
-                        onChange={(e) => setConfig({ ...config, default_language: e.target.value })}
-                        className="w-full px-3 py-1.5 text-xs font-semibold rounded-[4px] border border-slate-300 bg-white text-slate-900 shadow-2xs focus:border-[#1868db]"
-                      >
-                        {SUPPORTED_LANGUAGES.map((l) => (
-                          <option key={l.code} value={l.code}>
-                            {l.flag} {l.name} ({l.nativeName}) [{l.code}]
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </UpgradeGate>
               </div>
             )}
 
@@ -1498,60 +1439,6 @@ export function BannerStudio() {
                       )}
                     />
                   </button>
-                </div>
-
-                {/* 6. Disable Banner / Killswitch (Business Tier Feature) */}
-                <div className="pt-3 border-t border-slate-100">
-                  <UpgradeGate capability="cmp.disable_banner" featureName="Disable Banner">
-                    <div className={cn(
-                      "p-3 rounded-lg border transition-all flex items-center justify-between gap-3",
-                      config.is_enabled === false
-                        ? "bg-rose-50/70 border-rose-200"
-                        : "bg-slate-50/70 border-slate-200/90"
-                    )}>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-800">Disable Cookie Banner</span>
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 border border-purple-200">
-                            Business
-                          </span>
-                          <InfoTooltip
-                            position="top"
-                            text="Completely hide the cookie banner on your website without removing the embed script. Cookieless analytics remains operational."
-                          />
-                        </div>
-                        <p className="text-[11px] text-slate-500">
-                          {config.is_enabled === false
-                            ? "Banner is disabled — it will not appear on your live site."
-                            : "Banner is currently active and visible to your visitors."}
-                        </p>
-                      </div>
-
-                      {/* iOS Style Switch Toggle */}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={config.is_enabled === false}
-                        onClick={() => {
-                          setConfig((prev) => ({
-                            ...prev,
-                            is_enabled: prev.is_enabled === false ? true : false,
-                          }))
-                        }}
-                        className={cn(
-                          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                          config.is_enabled === false ? "bg-rose-600" : "bg-slate-200"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                            config.is_enabled === false ? "translate-x-4" : "translate-x-0"
-                          )}
-                        />
-                      </button>
-                    </div>
-                  </UpgradeGate>
                 </div>
               </div>
             )}

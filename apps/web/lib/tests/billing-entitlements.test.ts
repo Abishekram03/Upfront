@@ -65,8 +65,8 @@ async function runAllTests() {
   assert(PLANS.growth.capabilities["cmp.gpc"] === true, "Growth plan cmp.gpc is unlocked (true)")
   assert(PLANS.growth.capabilities["cmp.geo_targeting"] === true, "Growth plan cmp.geo_targeting is unlocked (true)")
   assert(PLANS.growth.capabilities["cmp.google_consent_mode_v2"] === true, "Growth plan cmp.google_consent_mode_v2 is unlocked (true)")
-  assert(PLANS.growth.capabilities["cmp.multilingual"] === true, "Growth plan cmp.multilingual is unlocked (true)")
-  assert(PLANS.growth.capabilities["cmp.scheduled_scans"] === "monthly", "Growth plan has monthly scheduled scans")
+  assert(PLANS.growth.capabilities["cmp.multilingual"] === false, "Growth plan cmp.multilingual is locked (false)")
+  assert(PLANS.growth.capabilities["cmp.scheduled_scans"] === true, "Growth plan has monthly scheduled scans")
   assert(PLANS.growth.capabilities["cmp.version_history"] === true, "Growth plan has version history & rollback")
   assert(PLANS.growth.capabilities["cmp.tcf_v23"] === false, "Growth plan cmp.tcf_v23 is locked (false)")
   assert(PLANS.growth.capabilities["cmp.custom_css"] === false, "Growth plan cmp.custom_css is locked (false)")
@@ -78,13 +78,15 @@ async function runAllTests() {
   assert(PLANS.business.limits.consentHistoryDays === 730, "Business plan has 730 days (24 mo) consent history")
   assert(PLANS.business.capabilities["cmp.tcf_v23"] === true, "Business plan cmp.tcf_v23 is unlocked (true)")
   assert(PLANS.business.capabilities["cmp.custom_css"] === true, "Business plan cmp.custom_css is unlocked (true)")
-  assert(PLANS.business.capabilities["cmp.scheduled_scans"] === "daily", "Business plan has daily/weekly scheduled scans")
+  assert(PLANS.business.capabilities["cmp.multilingual"] === true, "Business plan cmp.multilingual is unlocked (true)")
+  assert(PLANS.business.capabilities["cmp.scheduled_scans"] === true, "Business plan has daily/weekly scheduled scans")
   assert(PLANS.business.capabilities["cmp.gpc"] === true, "Business plan has all Growth capabilities")
 
   // Required plan resolution
   assert(getRequiredPlanForCapability("cmp.gpc") === "growth", "getRequiredPlanForCapability(cmp.gpc) -> growth")
   assert(getRequiredPlanForCapability("cmp.tcf_v23") === "business", "getRequiredPlanForCapability(cmp.tcf_v23) -> business")
   assert(getRequiredPlanForCapability("cmp.custom_css") === "business", "getRequiredPlanForCapability(cmp.custom_css) -> business")
+  assert(getRequiredPlanForCapability("cmp.multilingual") === "business", "getRequiredPlanForCapability(cmp.multilingual) -> business")
 
   // -------------------------------------------------------------------------
   // 2. SERVER-SIDE ENTITLEMENT RESOLVER & ASSERTIONS

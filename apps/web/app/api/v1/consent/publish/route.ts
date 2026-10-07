@@ -163,6 +163,15 @@ export async function POST(req: Request) {
       if (!entitlements.capabilities["cmp.google_consent_mode_v2"]) {
         draftConfig.enable_consent_mode_v2 = false
       }
+      if (!entitlements.capabilities["cmp.multilingual"]) {
+        draftConfig.enable_auto_language = false
+        const fallbackLang = typeof draftConfig.default_language === "string" && draftConfig.default_language.trim().length > 0 ? draftConfig.default_language : "en"
+        draftConfig.supported_languages = [fallbackLang]
+      }
+      if (!entitlements.capabilities["cmp.whitelabel"]) {
+        draftConfig.show_branding = true
+        draftConfig.hide_branding = false
+      }
       if (!entitlements.capabilities["cmp.box_layout"] && (typeof draftConfig.layout === "string" && (draftConfig.layout.startsWith("floating_") || draftConfig.layout === "box"))) {
         draftConfig.layout = "bottom_bar"
       }
