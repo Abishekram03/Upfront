@@ -1,3 +1,5 @@
+import { formatLegalDate } from "./privacy-policy"
+
 export interface TermsOfServiceData {
   companyName?: string
   isDba?: boolean
@@ -53,21 +55,6 @@ export interface TermsOfServiceData {
   policyTitleChoice?: "Terms of Use" | "Terms of Service" | "Terms and Conditions" | "custom"
   customPolicyTitle?: string
   effectiveDate?: string
-}
-
-export function formatLegalDate(rawDate?: string): string {
-  if (!rawDate) {
-    return new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-  }
-  try {
-    const d = new Date(rawDate)
-    if (!isNaN(d.getTime())) {
-      return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-    }
-  } catch {
-    // fallback
-  }
-  return rawDate
 }
 
 export function generateTermsOfServiceMarkdown(data: TermsOfServiceData, domain: string): string {
