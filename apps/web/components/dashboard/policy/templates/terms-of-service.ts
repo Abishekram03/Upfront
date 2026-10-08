@@ -369,56 +369,204 @@ export function generateTermsOfServiceHtml(data: TermsOfServiceData, domain: str
     }
   }
 
+  const subtitle = `The agreement between you and ${company} for use of the ${domain} service.`
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title} - ${domain}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 400; line-height: 1.65; color: #475569; max-width: 768px; margin: 0 auto; padding: 48px 24px; -webkit-font-smoothing: antialiased; }
-    .hero { text-align: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 36px; margin-bottom: 36px; }
-    .eyebrow { font-size: 13px; font-weight: 600; color: #1868db; margin-bottom: 10px; }
-    h1 { font-size: 36px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; letter-spacing: -0.02em; }
-    .subtitle { font-size: 16px; color: #64748b; max-width: 580px; margin: 0 auto; line-height: 1.6; }
-    .last-updated { font-size: 13.5px; color: #64748b; margin-bottom: 32px; }
-    h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 36px; margin-bottom: 14px; letter-spacing: -0.01em; }
-    h3 { font-size: 16px; font-weight: 600; color: #1e293b; margin-top: 24px; margin-bottom: 10px; }
-    p, li { font-size: 15px; font-weight: 400; color: #475569; margin-bottom: 14px; line-height: 1.65; }
-    ul, ol { padding-left: 24px; margin-bottom: 20px; }
-    strong { font-weight: 600; color: #0f172a; }
-    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #1868db; font-family: monospace; }
-    a { color: #1868db; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; }
+    
+    body, .legal-page-container {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-weight: 400;
+      line-height: 1.7;
+      color: #475569;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .legal-hero {
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid #e2e8f0;
+      background-color: #f8fafc;
+      padding: 64px 24px 56px 24px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .legal-hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 55%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 55%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .legal-hero-content {
+      position: relative;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .legal-eyebrow {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #1868db;
+      margin: 0 0 10px 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legal-hero-title {
+      font-size: 38px;
+      font-weight: 500;
+      color: #0f172a;
+      margin: 0 0 14px 0;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    @media (max-width: 640px) {
+      .legal-hero-title { font-size: 28px; }
+      .legal-hero { padding: 48px 16px 40px 16px; }
+    }
+
+    .legal-subtitle {
+      font-size: 15.5px;
+      color: #64748b;
+      margin: 0 auto;
+      line-height: 1.6;
+      max-width: 580px;
+    }
+
+    .legal-body {
+      max-width: 768px;
+      margin: 0 auto;
+      padding: 0 24px 64px 24px;
+    }
+
+    .legal-last-updated {
+      font-size: 13.5px;
+      color: #64748b;
+      margin-bottom: 32px;
+    }
+
+    h1, .legal-h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 36px 0 14px 0;
+      letter-spacing: -0.01em;
+    }
+
+    h2, .legal-h2 {
+      font-size: 20px;
+      font-weight: 500;
+      color: #0f172a;
+      margin: 36px 0 14px 0;
+      letter-spacing: -0.01em;
+    }
+
+    h3, .legal-h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 24px 0 10px 0;
+    }
+
+    p, li {
+      font-size: 15px;
+      font-weight: 400;
+      color: #475569;
+      margin: 0 0 16px 0;
+      line-height: 1.7;
+    }
+
+    ul, ol {
+      padding-left: 24px;
+      margin: 0 0 20px 0;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    strong {
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #1868db;
+      font-family: monospace;
+      border: 1px solid #e2e8f0;
+    }
+
+    a {
+      color: #1868db;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
-  <div class="hero">
-    <div class="eyebrow">Legal</div>
-    <h1>${title}</h1>
-    <div class="subtitle">The agreement between you and ${company} for use of the ${domain} service.</div>
+  <div class="legal-page-container">
+    <div class="legal-hero">
+      <div class="legal-hero-grid" aria-hidden="true"></div>
+      <div class="legal-hero-content">
+        <p class="legal-eyebrow">Legal</p>
+        <h1 class="legal-hero-title">${title}</h1>
+        <p class="legal-subtitle">${subtitle}</p>
+      </div>
+    </div>
+
+    <div class="legal-body">
+      <div class="legal-last-updated">Last updated: ${effective}</div>
+
+      ${rawSections
+        .slice(startIdx)
+        .map((chunk) => {
+          const trimmed = chunk.trim()
+          if (!trimmed || trimmed === "---") return ""
+          if (trimmed.startsWith("# ")) return `<h1>${trimmed.replace("# ", "")}</h1>`
+          if (trimmed.startsWith("## ")) return `<h2>${trimmed.replace("## ", "")}</h2>`
+          if (trimmed.startsWith("### ")) return `<h3>${trimmed.replace("### ", "")}</h3>`
+          if (trimmed.startsWith("- ")) {
+            const items = trimmed
+              .split("\n")
+              .map((line) => `<li>${line.replace(/^- \*\*(.*?)\*\*/, "<strong>$1</strong>").replace(/^- /, "")}</li>`)
+              .join("")
+            return `<ul>${items}</ul>`
+          }
+          return `<p>${trimmed.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>").replace(/\`(.*?)\`/g, "<code>$1</code>")}</p>`
+        })
+        .filter(Boolean)
+        .join("\n      ")}
+    </div>
   </div>
-
-  <div class="last-updated">Last updated: ${effective}</div>
-
-  ${rawSections
-    .slice(startIdx)
-    .map((chunk) => {
-      const trimmed = chunk.trim()
-      if (!trimmed || trimmed === "---") return ""
-      if (trimmed.startsWith("# ")) return `<h1>${trimmed.replace("# ", "")}</h1>`
-      if (trimmed.startsWith("## ")) return `<h2>${trimmed.replace("## ", "")}</h2>`
-      if (trimmed.startsWith("### ")) return `<h3>${trimmed.replace("### ", "")}</h3>`
-      if (trimmed.startsWith("- ")) {
-        const items = trimmed
-          .split("\n")
-          .map((line) => `<li>${line.replace(/^- \*\*(.*?)\*\*/, "<strong>$1</strong>").replace(/^- /, "")}</li>`)
-          .join("")
-        return `<ul>${items}</ul>`
-      }
-      return `<p>${trimmed.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>").replace(/\*(.*?)\*/g, "<em>$1</em>").replace(/\`(.*?)\`/g, "<code>$1</code>")}</p>`
-    })
-    .filter(Boolean)
-    .join("\n  ")}
 </body>
 </html>`
 }

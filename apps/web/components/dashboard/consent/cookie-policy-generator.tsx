@@ -199,45 +199,192 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card", compan
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cookie Policy - ${domain}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.65; color: #475569; max-width: 768px; margin: 0 auto; padding: 48px 24px; -webkit-font-smoothing: antialiased; }
-    .hero { text-align: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 36px; margin-bottom: 36px; }
-    .eyebrow { font-size: 13px; font-weight: 600; color: #1868db; margin-bottom: 10px; }
-    h1 { font-size: 36px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; letter-spacing: -0.02em; }
-    .subtitle { font-size: 16px; color: #64748b; max-width: 580px; margin: 0 auto; line-height: 1.6; }
-    .last-updated { font-size: 13.5px; color: #64748b; margin-bottom: 32px; }
-    h2 { font-size: 20px; font-weight: 600; color: #0f172a; margin-top: 36px; margin-bottom: 14px; letter-spacing: -0.01em; }
-    p, li { font-size: 15px; color: #475569; margin-bottom: 14px; line-height: 1.65; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
-    th, td { border: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; }
-    th { background-color: #f8fafc; font-weight: 600; color: #0f172a; }
-    td { color: #475569; }
-    .btn-revisit { display: inline-flex; align-items: center; padding: 8px 16px; background: #1868db; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; margin: 12px 0; }
-    .btn-revisit:hover { background: #1559be; }
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; }
+    
+    body, .legal-page-container {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-weight: 400;
+      line-height: 1.7;
+      color: #475569;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .legal-hero {
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid #e2e8f0;
+      background-color: #f8fafc;
+      padding: 64px 24px 56px 24px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .legal-hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 55%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, black 55%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .legal-hero-content {
+      position: relative;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .legal-eyebrow {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #1868db;
+      margin: 0 0 10px 0;
+      letter-spacing: 0.02em;
+    }
+
+    .legal-hero-title {
+      font-size: 38px;
+      font-weight: 500;
+      color: #0f172a;
+      margin: 0 0 14px 0;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    @media (max-width: 640px) {
+      .legal-hero-title { font-size: 28px; }
+      .legal-hero { padding: 48px 16px 40px 16px; }
+    }
+
+    .legal-subtitle {
+      font-size: 15.5px;
+      color: #64748b;
+      margin: 0 auto;
+      line-height: 1.6;
+      max-width: 580px;
+    }
+
+    .legal-body {
+      max-width: 768px;
+      margin: 0 auto;
+      padding: 0 24px 64px 24px;
+    }
+
+    .legal-last-updated {
+      font-size: 13.5px;
+      color: #64748b;
+      margin-bottom: 32px;
+    }
+
+    h2, .legal-h2 {
+      font-size: 20px;
+      font-weight: 500;
+      color: #0f172a;
+      margin: 36px 0 14px 0;
+      letter-spacing: -0.01em;
+    }
+
+    p, li {
+      font-size: 15px;
+      font-weight: 400;
+      color: #475569;
+      margin: 0 0 16px 0;
+      line-height: 1.7;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      font-size: 13px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    th {
+      background-color: #f8fafc;
+      font-weight: 600;
+      color: #0f172a;
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+      border-right: 1px solid #e2e8f0;
+    }
+    th:last-child { border-right: none; }
+
+    td {
+      padding: 12px 14px;
+      color: #475569;
+      border-bottom: 1px solid #f1f5f9;
+      border-right: 1px solid #f1f5f9;
+    }
+    td:last-child { border-right: none; }
+    tr:last-child td { border-bottom: none; }
+
+    .btn-revisit {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 18px;
+      background: #1868db;
+      color: #ffffff !important;
+      text-decoration: none !important;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 13px;
+      margin: 12px 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      transition: background 0.15s ease;
+    }
+    .btn-revisit:hover {
+      background: #1559be;
+    }
   </style>
 </head>
 <body>
-  <div class="hero">
-    <div class="eyebrow">Legal</div>
-    <h1>Cookie Policy</h1>
-    <div class="subtitle">How ${effectiveCompany} uses cookies and tracking technologies across the ${domain} website.</div>
+  <div class="legal-page-container">
+    <div class="legal-hero">
+      <div class="legal-hero-grid" aria-hidden="true"></div>
+      <div class="legal-hero-content">
+        <p class="legal-eyebrow">Legal</p>
+        <h1 class="legal-hero-title">Cookie Policy</h1>
+        <p class="legal-subtitle">How ${effectiveCompany} uses cookies and tracking technologies across the ${domain} website.</p>
+      </div>
+    </div>
+
+    <div class="legal-body">
+      <div class="legal-last-updated">Last updated: ${lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
+
+      <h2>${aboutHeading}</h2>
+      ${aboutDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
+
+      <h2>${useHeading}</h2>
+      ${useDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
+
+      <h2>${typesHeading}</h2>
+      <div id="usrly-cookie-declaration" data-domain="${domain}"></div>
+
+      <h2>${prefHeading}</h2>
+      <p><a href="javascript:void(0)" onclick="if(window.UserlyCMP)window.UserlyCMP.openPreferences()" class="btn-revisit">Consent Preferences</a></p>
+      ${prefDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
+    </div>
   </div>
-
-  <div class="last-updated">Last updated: ${lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
-
-  <h2>${aboutHeading}</h2>
-  ${aboutDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
-
-  <h2>${useHeading}</h2>
-  ${useDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
-
-  <h2>${typesHeading}</h2>
-  <div id="usrly-cookie-declaration" data-domain="${domain}"></div>
-
-  <h2>${prefHeading}</h2>
-  <p><a href="javascript:void(0)" onclick="if(window.UserlyCMP)window.UserlyCMP.openPreferences()" class="btn-revisit">Consent Preferences</a></p>
-  ${prefDescription.split("\n\n").map((p) => `<p>${p}</p>`).join("")}
 
   <script defer src="https://usrly-five.vercel.app/script.js"></script>
 </body>

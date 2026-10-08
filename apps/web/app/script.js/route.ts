@@ -2513,6 +2513,13 @@ const TRACKER_SCRIPT = `(function () {
               html = "<div style='font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#475569;max-width:820px;margin:0 auto;padding:24px 16px;'>" + out.join("") + "</div>";
             }
             if (html) {
+              if (!document.getElementById("usrly-legal-font-link") && document.head) {
+                var fontLink = document.createElement("link");
+                fontLink.id = "usrly-legal-font-link";
+                fontLink.rel = "stylesheet";
+                fontLink.href = "https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap";
+                document.head.appendChild(fontLink);
+              }
               container.innerHTML = html;
               container.setAttribute("data-usrly-loaded", "true");
             }
