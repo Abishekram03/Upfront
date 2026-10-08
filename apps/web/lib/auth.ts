@@ -1,6 +1,11 @@
 import { betterAuth } from "better-auth"
 import { twoFactor } from "better-auth/plugins"
 import { pool, ensureTables } from "./db"
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendMfaOtpEmail,
+} from "./email/resend"
 
 const getBaseURL = () => {
   if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL
@@ -33,16 +38,34 @@ export const auth: any = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
-    async sendResetPassword({ user, url }) {
-      console.log(`[Better Auth] Password reset request for ${user.email}: ${url}`)
+    async sendVerificationEmail({ user, url }: { user: any; url: string }) {
+      console.log(`[Better Auth] Sending verification email to ${user.email}`)
+      await sendVerificationEmail({
+        to: user.email,
+        name: user.name || user.email.split("@")[0],
+        verificationUrl: url,
+      })
+    },
+    async sendResetPassword({ user, url }: { user: any; url: string }) {
+      console.log(`[Better Auth] Sending password reset email to ${user.email}`)
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name || user.email.split("@")[0],
+        resetUrl: url,
+      })
     },
   },
   plugins: [
     twoFactor({
-      issuer: "usrly",
+      issuer: "UpFront",
       otpOptions: {
-        async sendOTP({ user, otp }) {
-          console.log(`[Better Auth] MFA OTP for ${user.email}: ${otp}`)
+        async sendOTP({ user, otp }: { user: any; otp: string }) {
+          console.log(`[Better Auth] Sending 2FA OTP to ${user.email}`)
+          await sendMfaOtpEmail({
+            to: user.email,
+            name: user.name || user.email.split("@")[0],
+            otp,
+          })
         },
       },
     }),

@@ -14,6 +14,7 @@ import { sanitizeDomain, validateTargetUrl, SSRFValidationError } from "./ssrf-p
 import { runHttpScan } from "./http-scanner"
 import { runBrowserScan, BrowserExecutionError } from "./browser-scanner"
 import { mergeAndPersistDiscoveredCookies } from "./merger"
+import { sendScanCompletedEmail } from "@/lib/email/resend"
 import type { ScanJobRecord, ScannerOptions, ScanStatus, FindingItem, DiscoveredCookieRaw } from "./types"
 
 export class ScanService {
@@ -199,6 +200,34 @@ export class ScanService {
           scanId,
         ]
       )
+
+      // 6. Asynchronously dispatch scan completion email via Resend
+      if (process.env.RESEND_API_KEY) {
+        Promise.resolve().then(async () => {
+          try {
+            const siteRes = await pool.query(
+              `SELECT s.user_id, u.email, u.name 
+               FROM sites s 
+               LEFT JOIN "user" u ON u.id = s.user_id 
+               WHERE s.domain = $1 OR s.id = $2 
+               LIMIT 1`,
+              [domain, siteId]
+            )
+            const recipientEmail = siteRes.rows[0]?.email
+            if (recipientEmail) {
+              await sendScanCompletedEmail({
+                to: recipientEmail,
+                domain,
+                cookiesFound: persistedCookies.length,
+                scriptsFound: combinedScripts.length,
+                leaksFound: leaksCount,
+              })
+            }
+          } catch (notifErr) {
+            console.warn("[Scanner] Could not dispatch scan completed email:", notifErr)
+          }
+        })
+      }
 
       return {
         id: scanId,

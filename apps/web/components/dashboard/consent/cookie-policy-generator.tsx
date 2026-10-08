@@ -16,8 +16,12 @@ import {
   Edit3,
   Clock,
   ArrowLeft,
+  Crown,
+  Globe,
 } from "lucide-react"
 import { useDomain } from "@/lib/domain-context"
+import { useEntitlements } from "@/lib/entitlements-context"
+import { SUPPORTED_LANGUAGES } from "@/lib/i18n/translations"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/sonner"
@@ -80,6 +84,17 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card", compan
   const domain = activeDomain || "onconnect.one"
   const effectiveCompany = companyName?.trim() || domain
 
+  // Entitlements
+  let isGrowthPlus = false
+  let openUpgradeModal: ((plan?: any, feat?: string) => void) | undefined
+  try {
+    const entitlements = useEntitlements()
+    isGrowthPlus = entitlements.plan === "growth" || entitlements.plan === "business" || Boolean(entitlements.isPaid)
+    openUpgradeModal = entitlements.openUpgradeModal
+  } catch {
+    isGrowthPlus = false
+  }
+
   // View state: "card" (Clean Status Card) | "editor" (4-Step Customization Wizard)
   const [viewMode, setViewMode] = useState<"card" | "editor">(initialViewMode)
 
@@ -116,6 +131,7 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card", compan
 
   // Export Tab inside Preview Modal
   const [previewTab, setPreviewTab] = useState<"rendered" | "embed" | "html">("rendered")
+  const [selectedLang, setSelectedLang] = useState<string>("en")
   const [copiedType, setCopiedType] = useState<string | null>(null)
 
   // Fetch real cookies & scan metadata for domain
@@ -192,7 +208,7 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card", compan
   const progressPct = Math.round(((activeStep - 1) / 3) * 100)
 
   // Generated Dynamic Snippet
-  const dynamicEmbedCode = `<div id="usrly-cookie-declaration" data-domain="${domain}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
+  const dynamicEmbedCode = `<div id="usrly-cookie-declaration" data-domain="${domain}" data-lang="${selectedLang}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
 
   // Generated Full HTML Document
   const fullHtml = `<!DOCTYPE html>
@@ -494,27 +510,48 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card", compan
                 </button>
               </div>
 
-              {/* Modal Tabs */}
-              <div className="px-4 pt-3 border-b border-slate-200 flex items-center gap-3 text-xs font-bold">
-                {[
-                  { id: "rendered", label: "Rendered Document" },
-                  { id: "embed", label: "Embed Code" },
-                  { id: "html", label: "Raw HTML" },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setPreviewTab(tab.id as any)}
-                    className={cn(
-                      "pb-2.5 border-b-2 transition-colors cursor-pointer",
-                      previewTab === tab.id
-                        ? "border-[#1868db] text-[#1868db]"
-                        : "border-transparent text-slate-500 hover:text-slate-900"
-                    )}
+              {/* Modal Tabs & Language */}
+              <div className="px-4 pt-2 pb-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs font-bold bg-white">
+                <div className="flex items-center gap-3">
+                  {[
+                    { id: "rendered", label: "Rendered Document" },
+                    { id: "embed", label: "Dynamic Script", locked: !isGrowthPlus },
+                    { id: "html", label: "Raw HTML" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setPreviewTab(tab.id as any)}
+                      className={cn(
+                        "pb-1 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5",
+                        previewTab === tab.id
+                          ? "border-[#1868db] text-[#1868db]"
+                          : "border-transparent text-slate-500 hover:text-slate-900"
+                      )}
+                    >
+                      <span>{tab.label}</span>
+                      {tab.locked && (
+                        <Crown className="size-3.5 text-amber-500 fill-amber-400 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/90 rounded-md px-2 py-1 shadow-2xs">
+                  <Globe className="size-3 text-slate-500 shrink-0" />
+                  <select
+                    value={selectedLang}
+                    onChange={(e) => setSelectedLang(e.target.value)}
+                    className="bg-transparent text-[11px] font-semibold text-slate-700 outline-hidden cursor-pointer"
+                    aria-label="Select policy language"
                   >
-                    {tab.label}
-                  </button>
-                ))}
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.flag} {lang.name} ({lang.nativeName})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Modal Body */}
@@ -596,14 +633,40 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card", compan
                 )}
 
                 {previewTab === "embed" && (
-                  <div className="space-y-3">
-                    <p className="text-slate-600">
-                      Paste this snippet into your website to embed the self-updating declaration widget:
-                    </p>
-                    <div className="bg-slate-900 text-slate-100 p-4 rounded-lg font-mono text-xs overflow-x-auto leading-relaxed">
-                      <code>{dynamicEmbedCode}</code>
+                  !isGrowthPlus ? (
+                    <div className="rounded-xl border border-amber-200/90 bg-amber-50/50 p-8 text-center space-y-4 max-w-xl mx-auto my-6">
+                      <div className="size-11 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center mx-auto shadow-2xs">
+                        <Crown className="size-5 fill-amber-400 text-amber-600" />
+                      </div>
+                      <div className="space-y-1.5 max-w-md mx-auto">
+                        <h4 className="text-sm font-bold text-slate-900">
+                          Dynamic Policy Embedding is Locked
+                        </h4>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          Upgrade to the Growth plan to automatically deliver live policy updates, automatic cookie declaration sync, and instant compliance changes to your website without manually editing code.
+                        </p>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => openUpgradeModal?.("growth", "Dynamic Policy Embed Script")}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                        >
+                          <Crown className="size-3.5 fill-white text-white" />
+                          <span>Upgrade to Growth</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-slate-600">
+                        Paste this snippet into your website to embed the self-updating declaration widget:
+                      </p>
+                      <div className="bg-slate-900 text-slate-100 p-4 rounded-lg font-mono text-xs overflow-x-auto leading-relaxed">
+                        <code>{dynamicEmbedCode}</code>
+                      </div>
+                    </div>
+                  )
                 )}
 
                 {previewTab === "html" && (
@@ -629,28 +692,39 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card", compan
                   Close
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleCopy(
-                      previewTab === "embed" ? dynamicEmbedCode : fullHtml,
-                      previewTab
-                    )
-                  }
-                  className="px-4 py-1.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white rounded-lg shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                >
-                  {copiedType === previewTab ? (
-                    <>
-                      <Check className="size-3.5 text-white" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="size-3.5" />
-                      <span>Copy Code</span>
-                    </>
-                  )}
-                </button>
+                {previewTab === "embed" && !isGrowthPlus ? (
+                  <button
+                    type="button"
+                    onClick={() => openUpgradeModal?.("growth", "Dynamic Policy Embed Script")}
+                    className="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Crown className="size-3.5 fill-white text-white" />
+                    <span>Upgrade to Unlock</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopy(
+                        previewTab === "embed" ? dynamicEmbedCode : fullHtml,
+                        previewTab
+                      )
+                    }
+                    className="px-4 py-1.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white rounded-lg shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    {copiedType === previewTab ? (
+                      <>
+                        <Check className="size-3.5 text-white" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="size-3.5" />
+                        <span>Copy Code</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>

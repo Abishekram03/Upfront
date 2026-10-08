@@ -57,21 +57,47 @@ export interface TermsOfServiceData {
   effectiveDate?: string
 }
 
-export function generateTermsOfServiceMarkdown(data: TermsOfServiceData, domain: string): string {
+const TERMS_TITLES: Record<string, string> = {
+  en: "Terms of Service",
+  de: "Nutzungsbedingungen",
+  fr: "Conditions d'Utilisation",
+  es: "Términos del Servicio",
+  pt: "Termos de Serviço",
+  it: "Termini di Servizio",
+  nl: "Algemene Voorwaarden",
+  hi: "सेवा की शर्तें",
+  ja: "利用規約",
+}
+
+const TERMS_SUBTITLES: Record<string, (comp: string, dom: string) => string> = {
+  en: (c, d) => `The agreement between you and ${c} for use of the ${d} service.`,
+  de: (c, d) => `Die Vereinbarung zwischen Ihnen und ${c} für die Nutzung der Dienste von ${d}.`,
+  fr: (c, d) => `L'accord entre vous et ${c} pour l'utilisation du service ${d}.`,
+  es: (c, d) => `El acuerdo entre usted y ${c} para el uso del servicio ${d}.`,
+  pt: (c, d) => `O contrato entre você e a ${c} para uso do serviço ${d}.`,
+  it: (c, d) => `L'accordo tra l'utente e ${c} per l'utilizzo del servizio ${d}.`,
+  nl: (c, d) => `De overeenkomst tussen u en ${c} voor het gebruik van de diensten van ${d}.`,
+  hi: (c, d) => `${d} सेवा के उपयोग के लिए आपके और ${c} के बीच का अनुबंध।`,
+  ja: (c, d) => `${d}サービスの利用に関するお客様と${c}との間の契約。`,
+}
+
+export function generateTermsOfServiceMarkdown(data: TermsOfServiceData, domain: string, langCode: string = "en"): string {
   const company = data.companyName || domain || "Company"
   const url = data.websiteUrl || `https://${domain || "example.com"}`
   const email = data.contactEmail || `contact@${domain || "example.com"}`
-  const effective = formatLegalDate(data.effectiveDate)
+  const effective = formatLegalDate(data.effectiveDate, langCode)
   const dba = data.isDba && data.dbaName ? `, doing business as "${data.dbaName}"` : ""
   const governing = data.governingCountry || data.country || "the United States"
   const disputePlace = data.disputeCountry || governing
   const mediationDays = data.mediationDays || 30
+  const langKey = langCode.toLowerCase().split("-")[0] || "en"
   
+  const defaultTranslatedTitle = TERMS_TITLES[langKey] || "Terms of Service"
   const rawTitle = data.policyTitleChoice === "custom" && data.customPolicyTitle 
     ? data.customPolicyTitle 
-    : (data.policyTitleChoice || "Terms of Service")
+    : defaultTranslatedTitle
   const title = (rawTitle.toLowerCase().includes("privacy") || !rawTitle)
-    ? "Terms of Service"
+    ? defaultTranslatedTitle
     : rawTitle
 
   const addressString = [data.addressLine1, data.addressLine2, data.city, data.zipCode, data.country].filter(Boolean).join(", ") || governing
@@ -341,16 +367,18 @@ ${contactLines}
 `
 }
 
-export function generateTermsOfServiceHtml(data: TermsOfServiceData, domain: string): string {
-  const md = generateTermsOfServiceMarkdown(data, domain)
+export function generateTermsOfServiceHtml(data: TermsOfServiceData, domain: string, langCode: string = "en"): string {
+  const md = generateTermsOfServiceMarkdown(data, domain, langCode)
+  const langKey = langCode.toLowerCase().split("-")[0] || "en"
+  const defaultTranslatedTitle = TERMS_TITLES[langKey] || "Terms of Service"
   const rawTitle = data.policyTitleChoice === "custom" && data.customPolicyTitle 
     ? data.customPolicyTitle 
-    : (data.policyTitleChoice || "Terms of Service")
+    : defaultTranslatedTitle
   const title = (rawTitle.toLowerCase().includes("privacy") || !rawTitle)
-    ? "Terms of Service"
+    ? defaultTranslatedTitle
     : rawTitle
   const company = data.companyName || domain
-  const effective = formatLegalDate(data.effectiveDate)
+  const effective = formatLegalDate(data.effectiveDate, langCode)
   
   const normalized = md
     .replace(/\r\n/g, "\n")
@@ -369,10 +397,11 @@ export function generateTermsOfServiceHtml(data: TermsOfServiceData, domain: str
     }
   }
 
-  const subtitle = `The agreement between you and ${company} for use of the ${domain} service.`
+  const subtitleGenerator = TERMS_SUBTITLES[langKey] || TERMS_SUBTITLES.en || ((c: string, d: string) => `The agreement between you and ${c} for use of the ${d} service.`)
+  const subtitle = subtitleGenerator(company, domain)
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${langKey}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />

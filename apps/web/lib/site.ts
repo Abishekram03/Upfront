@@ -1,6 +1,6 @@
 export const SITE_NAME = "UpFront";
 export const COMPANY = "Syft Technologies";
-export const SITE_TAGLINE = "Privacy analytics and consent, unified in one lightweight script.";
+export const SITE_TAGLINE = "Know your traffic. Respect their privacy. One script under 4KB.";
 export const LAST_UPDATED = "September 29, 2026";
 
 export const productNav = [
@@ -125,19 +125,19 @@ export type Faq = { q: string; a: string };
 export const homeFaqs: Faq[] = [
   {
     q: "What is UpFront?",
-    a: "UpFront is a website platform by Syft Technologies that combines privacy-first, cookieless analytics with a full-featured Consent Management Platform, a cookie scanner, and proof-of-consent records — all loaded through one lightweight script under 4KB.",
+    a: "UpFront is a privacy-first website platform by Syft Technologies that combines cookieless analytics with a complete Consent Management Platform — including a consent banner, cookie scanner, and proof-of-consent records — all loaded through one lightweight script under 4KB.",
   },
   {
     q: "How is UpFront different from traditional analytics?",
-    a: "Traditional setups pair a web analytics tool with a separate consent platform, each with its own script, dashboard, and bill. UpFront unifies analytics, consent management, cookie scanning, and consent records in a single product with one unified dashboard.",
+    a: "Traditional setups pair a web analytics tool with a separate consent platform, each with its own script, dashboard, and bill. UpFront unifies analytics and consent management in a single product with one unified dashboard.",
   },
   {
     q: "Does UpFront use cookies for analytics?",
-    a: "No. UpFront analytics is cookieless by default and does not rely on cookies or persistent identifiers for measurement. Cookie scanning and consent features still help you manage the cookies your other tools set.",
+    a: "No. UpFront analytics is cookieless by default and does not rely on cookies or persistent identifiers for measurement. The consent management side still helps you manage the cookies your other tools set.",
   },
   {
     q: "Does UpFront store raw IP addresses?",
-    a: "No. UpFront is built with zero raw IP storage. Traffic is processed in a way that does not retain raw IP addresses in our analytics systems.",
+    a: "No. Raw IP addresses are discarded immediately after country-level lookup. UpFront never writes raw IPs to disk or stores them in the database.",
   },
   {
     q: "How does the consent banner work?",
@@ -148,40 +148,12 @@ export const homeFaqs: Faq[] = [
     a: "Yes. Script auto-blocking holds third-party scripts until the visitor grants the consent category they are mapped to, and releases them automatically when consent is given.",
   },
   {
-    q: "Does UpFront support Google Consent Mode v2?",
-    a: "Yes. Google Consent Mode v2 is available on the Growth and Business plans, letting your Google tags respect the consent states collected by UpFront.",
-  },
-  {
-    q: "Does UpFront support Global Privacy Control?",
-    a: "Yes. Global Privacy Control (GPC) signals are respected on the Growth and Business plans and can be recorded alongside visitor choices.",
-  },
-  {
     q: "Can I manage multiple websites?",
     a: "Yes. Every plan includes unlimited websites in one workspace. Pricing is based on monthly pageviews, not on the number of websites you add.",
   },
   {
     q: "How do I install UpFront?",
-    a: "Create a workspace, add your website, and copy the one-line script from your dashboard. Paste it into your site's <head> and data starts flowing immediately.",
-  },
-  {
-    q: "How long does installation take?",
-    a: "Setup takes under two minutes: create your workspace, copy the script, and paste it into your website.",
-  },
-  {
-    q: "What happens when I exceed my pageview limit?",
-    a: "We'll notify you as you approach your plan's monthly pageview allowance so you can upgrade before you reach it. You can change plans at any time from your workspace.",
-  },
-  {
-    q: "Can I upgrade or downgrade my plan?",
-    a: "Yes. Plans can be changed at any time, and changes apply to your billing going forward.",
-  },
-  {
-    q: "How does billing work?",
-    a: "Plans are billed per workspace, not per website. You can start on the Free plan without a credit card and upgrade only when you need higher limits.",
-  },
-  {
-    q: "Is UpFront a legal compliance service?",
-    a: "No. UpFront provides software tools for website analytics and consent management. Use of the Service does not constitute legal advice and does not guarantee regulatory compliance.",
+    a: "Create a workspace, add your website, and copy the one-line script from your dashboard. Paste it into your site's <head> and data starts flowing immediately — setup takes under two minutes.",
   },
 ];
 

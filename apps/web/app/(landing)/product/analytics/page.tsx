@@ -80,7 +80,7 @@ export default function AnalyticsPage() {
           <SectionHeader
             eyebrow="Core metrics"
             title="Everything you need to understand your traffic."
-            description="Clear metrics organized into a single dashboard. No hidden menus, no multi-level drilldowns, no configuration required."
+            description="Clear metrics in a single dashboard. No hidden menus, no multi-level drilldowns, no configuration needed."
           />
         </Reveal>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -110,7 +110,7 @@ export default function AnalyticsPage() {
               align="left"
               eyebrow="Privacy architecture"
               title="Privacy built into the data layer."
-              description="Most analytics platforms collect raw identifiers and promise not to abuse them. UpFront is designed so the identifiers never exist in the first place."
+              description="Most analytics platforms collect raw identifiers and promise not to misuse them. UpFront is designed so those identifiers never exist in the first place."
             />
             <div className="mt-8 space-y-4">
               <div className="rounded-xl border border-line bg-surface p-5 shadow-xs">

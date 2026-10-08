@@ -4,6 +4,9 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { useEntitlements } from "@/lib/entitlements-context"
 import { toast } from "@/components/ui/sonner"
 
+import { formatLegalDate } from "./templates/privacy-policy"
+import { SUPPORTED_LANGUAGES, CMP_TRANSLATIONS, POLICY_TRANSLATIONS } from "@/lib/i18n/translations"
+
 export interface CMPCookieItem {
   id?: string
   name: string
@@ -12,6 +15,68 @@ export interface CMPCookieItem {
   duration?: string
   description?: string
   domain?: string
+}
+
+export const DEFAULT_BASELINE_COOKIES: CMPCookieItem[] = [
+  {
+    name: "_ga",
+    category: "analytics",
+    service_name: "Google Analytics",
+    duration: "2 years",
+    description: "Used to distinguish users and calculate visitor, session and campaign data for analytics reports.",
+  },
+  {
+    name: "_gid",
+    category: "analytics",
+    service_name: "Google Analytics",
+    duration: "24 hours",
+    description: "Used to store and count pageviews across user visits.",
+  },
+  {
+    name: "upfront_test_functional",
+    category: "functional",
+    service_name: "UpFront CMP",
+    duration: "Session",
+    description: "Preserves user interface state, preferred language, and regional preferences.",
+  },
+  {
+    name: "upfront_cookie",
+    category: "necessary",
+    service_name: "UpFront CMP",
+    duration: "1 year",
+    description: "Stores the visitor's consent state and preferences for cookie categories.",
+  },
+  {
+    name: "session",
+    category: "necessary",
+    service_name: "Authentication",
+    duration: "Session",
+    description: "Maintains encrypted session authentication state during browsing.",
+  },
+]
+
+const COOKIE_TITLES: Record<string, string> = {
+  en: "Cookie Policy",
+  de: "Cookie-Richtlinie",
+  fr: "Politique de Cookies",
+  es: "Política de Cookies",
+  pt: "Política de Cookies",
+  it: "Informativa sui Cookie",
+  nl: "Cookiebeleid",
+  hi: "कुकी नीति",
+  ja: "クッキーポリシー",
+}
+
+const COOKIE_SUBTITLES: Record<string, (comp: string, dom: string) => string> = {
+  en: (c, d) => `How ${c} uses cookies and tracking technologies across the ${d} website.`,
+  de: (c, d) => `Wie ${c} Cookies und Tracking-Technologien auf der Website ${d} verwendet.`,
+  fr: (c, d) => `Comment ${c} utilise les cookies et les technologies de suivi sur le site Web ${d}.`,
+  es: (c, d) => `Cómo utiliza ${c} las cookies y tecnologías de seguimiento en el sitio web ${d}.`,
+  pt: (c, d) => `Como a ${c} utiliza cookies e tecnologias de rastreamento no site ${d}.`,
+  it: (c, d) => `Come ${c} utilizza i cookie e le tecnologie di tracciamento sul sito web ${d}.`,
+  nl: (c, d) => `Hoe ${c} cookies en trackingtechnologieën gebruikt op de website ${d}.`,
+  hi: (c, d) => `${c} ${d} वेबसाइट पर कुकीज़ और ट्रैकिंग तकनीकों का उपयोग कैसे करता है।`,
+  ja: (c, d) => `${c}が${d}ウェブサイトでクッキーおよび追跡技術をどのように使用しているかについて。`,
 }
 
 export interface CMPCookiePolicyData {
@@ -47,15 +112,7 @@ export interface CMPCookiePolicyData {
   generatedHtml: string
 }
 
-const DEFAULT_BASELINE_COOKIES: CMPCookieItem[] = [
-  { name: "_ga", category: "analytics", service_name: "Google Analytics", duration: "2 years" },
-  { name: "_gid", category: "analytics", service_name: "Google Analytics", duration: "24 hours" },
-  { name: "upfront_test_functional", category: "functional", service_name: "Uncatalogued Provider", duration: "12 months" },
-  { name: "upfront_cookie", category: "necessary", service_name: "Consent Management", duration: "12 months" },
-  { name: "session", category: "necessary", service_name: "Session Management", duration: "Session" },
-]
-
-export function useCMPCookiePolicy(domain: string, companyName?: string): CMPCookiePolicyData {
+export function useCMPCookiePolicy(domain: string, companyName?: string, langCode: string = "en"): CMPCookiePolicyData {
   const [discoveredCookies, setDiscoveredCookies] = useState<CMPCookieItem[]>([])
   const [syncedCookies, setSyncedCookies] = useState<CMPCookieItem[]>([])
   const [hasLoadedSavedSync, setHasLoadedSavedSync] = useState(false)
@@ -230,7 +287,7 @@ export function useCMPCookiePolicy(domain: string, companyName?: string): CMPCoo
       uncategorized: 0,
     }
 
-    activeCookies.forEach((c) => {
+    activeCookies.forEach((c: CMPCookieItem) => {
       const cat = (c.category || "uncategorized").toLowerCase()
       if (cat in counts) {
         counts[cat as keyof typeof counts]++
@@ -246,16 +303,18 @@ export function useCMPCookiePolicy(domain: string, companyName?: string): CMPCoo
     return counts
   }, [activeCookies])
 
-  // Standard headings and descriptions
-  const aboutHeading = "What are cookies?"
-  const aboutDescription = `This Cookie Policy explains what cookies are, how we use them, the types of cookies we use (i.e., the information we collect using cookies and how that information is used), and how to manage your cookie settings.\n\nCookies are small text files used to store small pieces of information. They are stored on your device when a website loads in your browser. These cookies help ensure that the website functions properly, enhance security, provide a better user experience, and analyse performance to identify what works and where improvements are needed.`
+  const langKey = (langCode || "en").toLowerCase().split("-")[0] || "en"
+  const policyDict = POLICY_TRANSLATIONS[langKey]?.cookie_policy || POLICY_TRANSLATIONS.en?.cookie_policy
+
+  // Standard headings and descriptions with multi-language fallback
+  const aboutHeading = policyDict?.about_heading || "What are cookies?"
+  const aboutDescription = policyDict?.about_text || `This Cookie Policy explains what cookies are, how we use them, the types of cookies we use (i.e., the information we collect using cookies and how that information is used), and how to manage your cookie settings.\n\nCookies are small text files used to store small pieces of information. They are stored on your device when a website loads in your browser. These cookies help ensure that the website functions properly, enhance security, provide a better user experience, and analyse performance to identify what works and where improvements are needed.`
 
   const useHeading = "How do we use cookies?"
   const useDescription = `Like most online services, our website uses both first-party and third-party cookies for various purposes. First-party cookies are primarily necessary for the website to function properly and do not collect any personally identifiable data.\n\nThe third-party cookies used on our website primarily help us understand how the website performs, track how you interact with it, keep our services secure, deliver relevant advertisements, and enhance your overall user experience while improving the speed of your future interactions with our website.`
 
-  const typesHeading = "Types of cookies we use"
-
-  const prefHeading = "Manage cookie preferences"
+  const typesHeading = policyDict?.table_heading || "Types of cookies we use"
+  const prefHeading = policyDict?.manage_heading || "Manage cookie preferences"
   const prefDescription = `You can modify your cookie settings anytime by clicking the 'Consent Preferences' button above. This will allow you to revisit the cookie consent banner and update your preferences or withdraw your consent immediately.\n\nAdditionally, different browsers offer various methods to block and delete cookies used by websites. You can adjust your browser settings to block or delete cookies. Below are links to support documents on how to manage and delete cookies in major web browsers:\n\nChrome: https://support.google.com/accounts/answer/32050\nSafari: https://support.apple.com/en-in/guide/safari/sfri11471/mac\nFirefox: https://support.mozilla.org/en-US/kb/clear-cookies-and-site-data-firefox\nMicrosoft Edge: https://support.microsoft.com/en-us/microsoft-edge/delete-cookies-in-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09\n\nIf you are using a different web browser, please refer to its official support documentation.`
 
   const browserLinks = [
@@ -267,10 +326,11 @@ export function useCMPCookiePolicy(domain: string, companyName?: string): CMPCoo
 
   // Generated Markdown perfectly matching CMP
   const generatedMarkdown = useMemo(() => {
-    const updatedDate = lastSyncedDate || lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    const updatedDate = formatLegalDate(lastSyncedDate || lastScanDate || undefined, langCode)
     const effectiveCompany = companyName?.trim() || cleanDomain || "example.com"
+    const policyTitle = COOKIE_TITLES[langKey] || "Cookie Policy"
     
-    let md = `# Cookie Policy for ${cleanDomain || "example.com"}\n\n`
+    let md = `# ${policyTitle} for ${cleanDomain || "example.com"}\n\n`
     md += `*Last updated: ${updatedDate}*\n\n`
     
     md += `## ${aboutHeading}\n`
@@ -286,7 +346,7 @@ export function useCMPCookiePolicy(domain: string, companyName?: string): CMPCoo
     if (activeCookies.length > 0) {
       md += `| Cookie Name | Category | Service Provider | Expiration |\n`
       md += `| :--- | :--- | :--- | :--- |\n`
-      activeCookies.forEach((c) => {
+      activeCookies.forEach((c: CMPCookieItem) => {
         md += `| \`${c.name}\` | ${c.category} | ${c.service_name || cleanDomain} | ${c.duration || "Session"} |\n`
       })
       md += `\n`
@@ -297,19 +357,22 @@ export function useCMPCookiePolicy(domain: string, companyName?: string): CMPCoo
     md += `${prefDescription}\n`
 
     return md
-  }, [cleanDomain, companyName, activeCookies, lastSyncedDate, lastScanDate])
+  }, [cleanDomain, companyName, activeCookies, lastSyncedDate, lastScanDate, langCode, langKey, aboutHeading, aboutDescription, useHeading, useDescription, typesHeading, prefHeading, prefDescription])
 
   // Generated HTML perfectly matching CMP
   const generatedHtml = useMemo(() => {
-    const updatedDate = lastSyncedDate || lastScanDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    const updatedDate = formatLegalDate(lastSyncedDate || lastScanDate || undefined, langCode)
     const effectiveCompany = companyName?.trim() || cleanDomain || "example.com"
+    const policyTitle = COOKIE_TITLES[langKey] || "Cookie Policy"
+    const subtitleGenerator = COOKIE_SUBTITLES[langKey] || COOKIE_SUBTITLES.en || ((c: string, d: string) => `How ${c} uses cookies across ${d}.`)
+    const subtitle = subtitleGenerator(effectiveCompany, cleanDomain || "example.com")
     
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${langKey}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cookie Policy - ${cleanDomain}</title>
+  <title>${policyTitle} - ${cleanDomain}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />

@@ -55,8 +55,8 @@ export default function ProofPage() {
     <>
       <PageHero
         eyebrow="Proof of Consent"
-        title="Keep a clear record of consent."
-        description="Every visitor decision becomes a proof-of-consent record — a receipt you can search, filter, and export as evidence that consent was requested and given."
+        title="Keep a clear, searchable record of every consent decision."
+        description="Every visitor choice becomes a proof-of-consent record — a receipt you can search, filter, and export as evidence that consent was requested and given."
       >
         <CTAGroup
           primary={{ label: "Start for free", to: "/contact" }}
@@ -69,7 +69,7 @@ export default function ProofPage() {
           <SectionHeader
             eyebrow="The audit vault"
             title="Evidence, organized like an audit trail."
-            description="The Proof-of-Consent vault stores each choice with the context you need to reconstruct it later."
+            description="The Proof-of-Consent vault stores every choice with the context you need to reconstruct it later."
           />
         </Reveal>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -117,8 +117,8 @@ export default function ProofPage() {
             <SectionHeader
               align="left"
               eyebrow="Data retention"
-              title="Records that match your retention policy."
-              description="Your plan defines how long consent and analytics history is retained. Choose the window that fits your own policies, and records outside the window are removed."
+              title="Records that match your retention needs."
+              description="Your plan defines how long consent and analytics history is retained. Choose the window that fits your policies — records outside the window are automatically removed."
             />
             <ul className="mt-6 space-y-2.5">
               <CheckItem>Free plan: 30 days of analytics & consent history</CheckItem>

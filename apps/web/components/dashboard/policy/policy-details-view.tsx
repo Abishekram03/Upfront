@@ -12,11 +12,14 @@ import {
   RefreshCw,
   AlertCircle,
   Zap,
+  Crown,
+  Globe,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { toast } from "@/components/ui/sonner"
 import { useEntitlements } from "@/lib/entitlements-context"
+import { SUPPORTED_LANGUAGES } from "@/lib/i18n/translations"
 import { PolicyDefinition, DomainPolicyRecord } from "./policy-types"
 import { useCMPCookiePolicy } from "./use-cmp-cookie-policy"
 import {
@@ -30,7 +33,8 @@ function renderGenericMarkdown(
   md: string,
   domain: string = "example.com",
   companyName?: string,
-  fallbackTitle?: string
+  fallbackTitle?: string,
+  langCode: string = "en"
 ) {
   const normalized = md
     .replace(/\r\n/g, "\n")
@@ -195,6 +199,7 @@ export function PolicyDetailsView({
   const [copiedType, setCopiedType] = useState<string | null>(null)
   const [embedTab, setEmbedTab] = useState<"html" | "widget">("html")
   const [isPublishing, setIsPublishing] = useState(false)
+  const [selectedLang, setSelectedLang] = useState<string>("en")
 
   // Entitlements
   let isGrowthPlus = false
@@ -217,7 +222,7 @@ export function PolicyDetailsView({
     ""
 
   // Live CMP cookie policy data for cookies
-  const cmpData = useCMPCookiePolicy(isCookiePolicy ? domain : "", configuredCompany)
+  const cmpData = useCMPCookiePolicy(isCookiePolicy ? domain : "", configuredCompany, selectedLang)
 
   const isPublished = record?.status === "published"
   const policyTitle = record?.customTitle || policy.name
@@ -247,15 +252,15 @@ export function PolicyDetailsView({
   const fullHtmlSnippet = isCookiePolicy
     ? cmpData.generatedHtml
     : isPrivacyPolicy
-    ? generatePrivacyPolicyHtml(record?.config || {}, domain)
+    ? generatePrivacyPolicyHtml(record?.config || {}, domain, selectedLang)
     : isTermsPolicy
-    ? generateTermsOfServiceHtml(record?.config || {}, domain)
+    ? generateTermsOfServiceHtml(record?.config || {}, domain, selectedLang)
     : record?.contentHtml || ""
 
   // Div / Script container embed
   const widgetSnippet = isCookiePolicy
-    ? `<div id="usrly-cookie-declaration" data-domain="${domain}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
-    : `<div id="usrly-${policy.id}-policy" data-domain="${domain}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
+    ? `<div id="usrly-cookie-declaration" data-domain="${domain}" data-lang="${selectedLang}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
+    : `<div id="usrly-${policy.id}-policy" data-domain="${domain}" data-lang="${selectedLang}"></div>\n<script defer src="https://usrly-five.vercel.app/script.js"></script>`
 
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
@@ -296,7 +301,24 @@ export function PolicyDetailsView({
           <span>Back to policies</span>
         </button>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Multi-Language Switcher */}
+          <div className="relative inline-flex items-center">
+            <select
+              aria-label="Select policy language"
+              value={selectedLang}
+              onChange={(e) => setSelectedLang(e.target.value)}
+              className="appearance-none bg-white border border-slate-200 text-slate-700 text-xs font-semibold py-1.5 pl-2.5 pr-7 rounded-md shadow-2xs hover:bg-slate-50 cursor-pointer focus:outline-hidden focus:border-[#1868db]"
+            >
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.flag} {l.name}
+                </option>
+              ))}
+            </select>
+            <Globe className="size-3.5 text-slate-400 absolute right-2 pointer-events-none" />
+          </div>
+
           {/* Sync Button on Free Tier / Green Border Auto Sync on Growth+ Tier */}
           {isCookiePolicy && (
             cmpData.isGrowthPlus ? (
@@ -390,7 +412,7 @@ export function PolicyDetailsView({
               <div>
                 <h2 className="text-xl font-medium tracking-normal text-slate-900 mb-3">{cmpData.aboutHeading}</h2>
                 <div className="space-y-4 text-[15px] leading-relaxed text-slate-600">
-                  {cmpData.aboutDescription.split("\n\n").map((p, i) => (
+                  {cmpData.aboutDescription.split("\n\n").map((p: string, i: number) => (
                     <p key={i}>{p}</p>
                   ))}
                 </div>
@@ -400,7 +422,7 @@ export function PolicyDetailsView({
               <div>
                 <h2 className="text-xl font-medium tracking-normal text-slate-900 mb-3">{cmpData.useHeading}</h2>
                 <div className="space-y-4 text-[15px] leading-relaxed text-slate-600">
-                  {cmpData.useDescription.split("\n\n").map((p, i) => (
+                  {cmpData.useDescription.split("\n\n").map((p: string, i: number) => (
                     <p key={i}>{p}</p>
                   ))}
                 </div>
@@ -479,7 +501,7 @@ export function PolicyDetailsView({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-600 text-xs">
-                    {cmpData.cookies.map((c, idx) => (
+                    {cmpData.cookies.map((c: any, idx: number) => (
                       <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-2.5 font-mono font-semibold text-slate-900">{c.name}</td>
                         <td className="p-2.5">
@@ -520,14 +542,14 @@ export function PolicyDetailsView({
                 </div>
 
                 <div className="space-y-4 text-[15px] leading-relaxed text-slate-600">
-                  {cmpData.prefDescription.split("\n\n").map((p, i) => (
+                  {cmpData.prefDescription.split("\n\n").map((p: string, i: number) => (
                     <p key={i}>{p}</p>
                   ))}
                 </div>
 
                 {/* Browser Links */}
                 <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  {cmpData.browserLinks.map((b) => (
+                  {cmpData.browserLinks.map((b: { name: string; url: string }) => (
                     <a
                       key={b.name}
                       href={b.url}
@@ -548,21 +570,21 @@ export function PolicyDetailsView({
         {/* PRIVACY POLICY PREVIEW (Full 13 Sections) */}
         {isPrivacyPolicy && (
           <div className="space-y-4 text-xs sm:text-sm leading-relaxed text-slate-700">
-            {renderGenericMarkdown(generatePrivacyPolicyMarkdown(record?.config || {}, domain), domain, configuredCompany, "Privacy Policy")}
+            {renderGenericMarkdown(generatePrivacyPolicyMarkdown(record?.config || {}, domain, selectedLang), domain, configuredCompany, "Privacy Policy", selectedLang)}
           </div>
         )}
 
         {/* TERMS OF SERVICE PREVIEW (Full 21 Sections) */}
         {isTermsPolicy && (
           <div className="space-y-4 text-xs sm:text-sm leading-relaxed text-slate-700">
-            {renderGenericMarkdown(generateTermsOfServiceMarkdown(record?.config || {}, domain), domain, configuredCompany, "Terms of Service")}
+            {renderGenericMarkdown(generateTermsOfServiceMarkdown(record?.config || {}, domain, selectedLang), domain, configuredCompany, "Terms of Service", selectedLang)}
           </div>
         )}
 
         {/* OTHER POLICIES PREVIEW */}
         {!isCookiePolicy && !isPrivacyPolicy && !isTermsPolicy && (
           <div className="space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
-            {renderGenericMarkdown(record?.contentMarkdown || policy.defaultSampleText || `# ${policyTitle}\n\nThis policy statement protects your platform, ensures consumer compliance, and defines clear legal guidelines.`, domain, configuredCompany)}
+            {renderGenericMarkdown(record?.contentMarkdown || policy.defaultSampleText || `# ${policyTitle}\n\nThis policy statement protects your platform, ensures consumer compliance, and defines clear legal guidelines.`, domain, configuredCompany, undefined, selectedLang)}
           </div>
         )}
       </div>
@@ -588,11 +610,11 @@ export function PolicyDetailsView({
               </button>
             </div>
 
-            {/* Modal Tabs (HTML & Embed Script) */}
+            {/* Modal Tabs (HTML & Dynamic Script) */}
             <div className="px-4 pt-3 border-b border-slate-200 flex items-center gap-3 text-xs font-bold">
               {[
                 { id: "html", label: "HTML Code" },
-                { id: "widget", label: "Embed Script" },
+                { id: "widget", label: "Dynamic Script", locked: !isGrowthPlus },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -606,6 +628,9 @@ export function PolicyDetailsView({
                   )}
                 >
                   <span>{tab.label}</span>
+                  {tab.locked && (
+                    <Crown className="size-3.5 text-amber-500 fill-amber-400 shrink-0" />
+                  )}
                 </button>
               ))}
             </div>
@@ -625,15 +650,45 @@ export function PolicyDetailsView({
               )}
 
               {embedTab === "widget" && (
-                <div className="space-y-3">
-                  <p className="leading-relaxed text-slate-600">
-                    Paste this script tag into your website page where you want the policy to display:
-                  </p>
-
-                  <div className="bg-slate-900 rounded-lg p-4 font-mono text-xs text-emerald-400 overflow-x-auto leading-relaxed border border-slate-800">
-                    <code>{widgetSnippet}</code>
+                !isGrowthPlus ? (
+                  <div className="rounded-xl border border-amber-200/90 bg-amber-50/50 p-6 text-center space-y-4">
+                    <div className="size-11 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center mx-auto shadow-2xs">
+                      <Crown className="size-5 fill-amber-400 text-amber-600" />
+                    </div>
+                    <div className="space-y-1.5 max-w-md mx-auto">
+                      <h4 className="text-sm font-bold text-slate-900">
+                        Dynamic Policy Embedding is Locked
+                      </h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Upgrade to the Growth plan to automatically deliver live policy updates, automatic cookie declaration sync, and instant legal revisions to your website without manually editing code.
+                      </p>
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (openUpgradeModal) {
+                            openUpgradeModal("growth", "Dynamic Policy Embed Script")
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                      >
+                        <Crown className="size-3.5 fill-white text-white" />
+                        <span>Upgrade to Growth</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="leading-relaxed text-slate-600">
+                      Paste this dynamic script tag into your website page where you want the policy to display:
+                    </p>
+
+                    <div className="bg-slate-900 rounded-lg p-4 font-mono text-xs text-emerald-400 overflow-x-auto leading-relaxed border border-slate-800">
+                      <code>{widgetSnippet}</code>
+                    </div>
+                  </div>
+                )
               )}
             </div>
 
@@ -647,28 +702,43 @@ export function PolicyDetailsView({
                 Close
               </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleCopy(
-                    embedTab === "html" ? fullHtmlSnippet : widgetSnippet,
-                    "modal_copy"
-                  )
-                }
-                className="px-4 py-1.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white rounded-lg shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
-              >
-                {copiedType === "modal_copy" ? (
-                  <>
-                    <Check className="size-3.5 text-white" />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="size-3.5" />
-                    <span>Copy {embedTab === "html" ? "HTML" : "Script"}</span>
-                  </>
-                )}
-              </button>
+              {embedTab === "widget" && !isGrowthPlus ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (openUpgradeModal) {
+                      openUpgradeModal("growth", "Dynamic Policy Embed Script")
+                    }
+                  }}
+                  className="px-4 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Crown className="size-3.5 fill-white text-white" />
+                  <span>Upgrade to Unlock</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopy(
+                      embedTab === "html" ? fullHtmlSnippet : widgetSnippet,
+                      "modal_copy"
+                    )
+                  }
+                  className="px-4 py-1.5 text-xs font-bold bg-[#1868db] hover:bg-[#1559be] text-white rounded-lg shadow-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  {copiedType === "modal_copy" ? (
+                    <>
+                      <Check className="size-3.5 text-white" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5" />
+                      <span>Copy {embedTab === "html" ? "HTML" : "Script"}</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>

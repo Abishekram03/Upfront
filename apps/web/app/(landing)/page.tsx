@@ -45,11 +45,11 @@ import { homeFaqs } from "@/lib/site";
 export const metadata: Metadata = {
   title: "UpFront — Privacy Analytics & Consent Management",
   description:
-    "Privacy-first website analytics and consent management in one lightweight script. Understand your traffic, manage consent, scan cookies, and keep proof of consent in one place.",
+    "Know your traffic. Respect their privacy. Cookieless analytics and a complete Consent Management Platform in one script under 4KB.",
   openGraph: {
     title: "UpFront — Privacy Analytics & Consent Management",
     description:
-      "Privacy-first website analytics and consent management in one lightweight script. Understand your traffic, manage consent, scan cookies, and keep proof of consent in one place.",
+      "Know your traffic. Respect their privacy. Cookieless analytics and a complete Consent Management Platform in one script under 4KB.",
     type: "website",
   },
 };
@@ -74,23 +74,18 @@ export default function HomePage() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-brand-mist via-surface to-brand-mist py-20 md:py-28">
+    <section className="relative overflow-hidden bg-gradient-to-br from-brand-mist via-surface to-brand-mist pt-10 pb-16 md:pt-14 md:pb-20">
       <Container className="relative mx-auto max-w-4xl text-center">
         <Reveal>
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-brand-mist px-4 py-1.5 text-xs font-medium text-primary shadow-xs">
-            <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
-            <span>Privacy Analytics + Integrated Consent Management</span>
-          </div>
-        </Reveal>
-        <Reveal delay={80}>
-          <h1 className="mt-6 text-4xl font-medium leading-[1.15] tracking-tight text-ink sm:text-5xl md:text-6xl text-balance">
-            <span className="text-primary">Privacy analytics and consent</span> in one lightweight script
+          <h1 className="text-4xl font-medium leading-[1.15] tracking-tight text-ink sm:text-5xl md:text-6xl text-balance">
+            <span className="text-primary">Know your traffic. Respect their privacy.</span>{" "}
+            One script.
           </h1>
         </Reveal>
         <Reveal delay={160}>
           <p className="mx-auto mt-6 max-w-2xl text-lg font-normal leading-relaxed text-ink-soft text-balance">
-            UpFront combines cookieless analytics and a full-featured Consent Management Platform
-            in one script under 4KB, so you can understand your traffic and respect visitor choices without sacrificing performance.
+            Cookieless analytics and a complete Consent Management Platform — unified in a single
+            script under 4KB. No cookies for measurement, no raw IP storage, no complexity.
           </p>
         </Reveal>
         <Reveal delay={240}>
@@ -196,8 +191,8 @@ function AnalyticsSection() {
       <Reveal>
         <SectionHeader
           eyebrow="Analytics"
-          title="Understand your traffic without tracking your visitors."
-          description="UpFront provides privacy-oriented website analytics without cookies by default and without storing raw IP addresses. You get the numbers that matter — nothing more, nothing leaked."
+          title="Understand your traffic — without tracking your visitors."
+          description="Privacy-first website analytics with no cookies and zero raw IP storage. Real-time pageviews, referrers, geography, and devices — the metrics that matter, nothing more."
         />
       </Reveal>
 
@@ -253,8 +248,8 @@ function ConsentSection() {
       <Reveal>
         <SectionHeader
           eyebrow="Consent Management"
-          title="Consent management without the complexity."
-          description="A complete Consent Management Platform built into the same script — configure it once and let it handle categories, blocking, and records."
+          title="Full consent management, built right in."
+          description="A complete CMP in the same script — banner configuration, script blocking, cookie scanning, and proof-of-consent records, all handled from one dashboard."
         />
       </Reveal>
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -374,27 +369,26 @@ function SetupSection() {
 }
 
 function WhyUpFrontSection() {
-  const modules = ["Analytics", "Consent Management", "Cookie Scanner", "Proof of Consent"];
   return (
     <Section className="border-t border-line">
       <Reveal>
         <SectionHeader
           eyebrow="Why UpFront"
           title="Two essential website tools. One lightweight script."
-          description="What used to be four products and four scripts becomes one platform with one unified dashboard."
+          description="Analytics and consent management — the two things every modern website needs — consolidated into one platform with a unified dashboard."
         />
       </Reveal>
       <Reveal delay={120}>
         <div className="mx-auto mt-12 flex max-w-3xl flex-col items-center gap-6">
-          <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
-            {modules.map((m) => (
-              <div
-                key={m}
-                className="rounded-lg border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-soft shadow-xs"
-              >
-                {m}
-              </div>
-            ))}
+          <div className="grid w-full grid-cols-2 gap-3">
+            <div className="rounded-lg border border-line bg-surface px-4 py-4 text-center shadow-xs">
+              <p className="text-sm font-medium text-ink">Analytics</p>
+              <p className="mt-1 text-xs text-muted-foreground">Cookieless, real-time, privacy-first</p>
+            </div>
+            <div className="rounded-lg border border-line bg-surface px-4 py-4 text-center shadow-xs">
+              <p className="text-sm font-medium text-ink">Consent Management</p>
+              <p className="mt-1 text-xs text-muted-foreground">Banner, scanner, and proof of consent</p>
+            </div>
           </div>
           <div className="flex flex-col items-center gap-1 text-primary" aria-hidden="true">
             <ChevronRight className="h-5 w-5 rotate-90" />

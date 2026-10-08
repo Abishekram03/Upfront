@@ -55,8 +55,8 @@ export default function ScannerPage() {
     <>
       <PageHero
         eyebrow="Cookie Scanner"
-        title="Know what's actually running on your website."
-        description="Scan your site to discover the cookies and trackers it sets, see who sets them, and map every one to a consent category — before your visitors ever see the banner."
+        title="Know exactly what’s running on your website."
+        description="Scan your site to discover every cookie and tracker it sets, identify who sets them, and map each one to a consent category — before your visitors ever see the banner."
       >
         <CTAGroup
           primary={{ label: "Start for free", to: "/contact" }}
@@ -69,7 +69,7 @@ export default function ScannerPage() {
           <SectionHeader
             eyebrow="Discovery & classification"
             title="From unknown cookies to mapped categories."
-            description="The scanner walks your pages, collects the cookies and trackers it encounters, and proposes a category for each — you stay in control with manual overrides."
+            description="The scanner walks your pages, collects the cookies and trackers it finds, and proposes a category for each one — you stay in control with manual overrides."
           />
         </Reveal>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -142,7 +142,7 @@ export default function ScannerPage() {
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
               Start with a manual scan on the Free plan, then let scheduled scans keep your
-              categories accurate as your site changes.
+              cookie categories accurate as your site evolves.
             </p>
             <div className="mt-6 flex justify-center">
               <CTAGroup primary={{ label: "Start for free", to: "/contact" }} />

@@ -64,8 +64,8 @@ export default function ConsentPage() {
     <>
       <PageHero
         eyebrow="Consent Management"
-        title="Consent management without the complexity."
-        description="A complete Consent Management Platform built into the same under-4KB script as your analytics. Configure it once — categories, blocking, and records are handled for you."
+        title="Full consent management, built right in."
+        description="A complete CMP in the same under-4KB script as your analytics. Configure it once — banner, script blocking, scanning, and consent records are handled from one dashboard."
       >
         <CTAGroup
           primary={{ label: "Start for free", to: "/contact" }}
@@ -77,8 +77,8 @@ export default function ConsentPage() {
         <Reveal>
           <SectionHeader
             eyebrow="Banner Studio"
-            title="Design the banner your visitors actually understand."
-            description="Choose layouts, colors, and text that fit your brand. Start with a standard bottom-bar banner on Free, unlock additional banner layouts on Growth, and add custom CSS on Business."
+            title="Design a banner your visitors actually understand."
+            description="Choose layouts, colors, and copy that fit your brand. Start with a bottom-bar banner on Free, unlock additional layouts on Growth, and add custom CSS on Business."
           />
         </Reveal>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
@@ -107,8 +107,8 @@ export default function ConsentPage() {
         <Reveal>
           <SectionHeader
             eyebrow="Standards & signals"
-            title="Speaks the standards your visitors' regulators expect."
-            description="Designed to support GDPR, CCPA, ePrivacy and global privacy compliance efforts — with the signals modern ad and analytics stacks need."
+            title="Speaks the standards regulators expect."
+            description="Built to support GDPR, CCPA, ePrivacy, and global privacy frameworks — with the signals modern ad and analytics stacks need."
           />
         </Reveal>
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

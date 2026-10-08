@@ -26,14 +26,26 @@ export interface PrivacyPolicyData {
   customPolicyTitle?: string
 }
 
-export function formatLegalDate(rawDate?: string): string {
+export function formatLegalDate(rawDate?: string, langCode?: string): string {
+  const localeMap: Record<string, string> = {
+    en: "en-US",
+    de: "de-DE",
+    fr: "fr-FR",
+    es: "es-ES",
+    pt: "pt-PT",
+    it: "it-IT",
+    nl: "nl-NL",
+    hi: "hi-IN",
+    ja: "ja-JP",
+  }
+  const locale = localeMap[langCode || "en"] || "en-US"
   if (!rawDate) {
-    return new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    return new Date().toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" })
   }
   try {
     const d = new Date(rawDate)
     if (!isNaN(d.getTime())) {
-      return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+      return d.toLocaleDateString(locale, { month: "long", day: "numeric", year: "numeric" })
     }
   } catch {
     // fallback
@@ -41,19 +53,57 @@ export function formatLegalDate(rawDate?: string): string {
   return rawDate
 }
 
-export function generatePrivacyPolicyMarkdown(data: PrivacyPolicyData, domain: string): string {
+const PRIVACY_TITLES: Record<string, string> = {
+  en: "Privacy Policy",
+  de: "Datenschutzerklärung",
+  fr: "Politique de Confidentialité",
+  es: "Política de Privacidad",
+  pt: "Política de Privacidade",
+  it: "Informativa sulla Privacy",
+  nl: "Privacybeleid",
+  hi: "गोपनीयता नीति",
+  ja: "プライバシーポリシー",
+}
+
+const PRIVACY_SUBTITLES: Record<string, (comp: string, dom: string) => string> = {
+  en: (c, d) => `How ${c} handles personal data across the ${d} website and service.`,
+  de: (c, d) => `Wie ${c} personenbezogene Daten auf der Website und den Diensten von ${d} verarbeitet.`,
+  fr: (c, d) => `Comment ${c} traite les données personnelles sur le site Web et les services ${d}.`,
+  es: (c, d) => `Cómo maneja ${c} los datos personales en el sitio web y servicio de ${d}.`,
+  pt: (c, d) => `Como a ${c} trata os dados pessoais no site e serviço ${d}.`,
+  it: (c, d) => `Come ${c} gestisce i dati personali sul sito web e sui servizi ${d}.`,
+  nl: (c, d) => `Hoe ${c} omgaat met persoonsgegevens op de website en diensten van ${d}.`,
+  hi: (c, d) => `${c} ${d} वेबसाइट और सेवा पर व्यक्तिगत डेटा का प्रबंधन कैसे करता है।`,
+  ja: (c, d) => `${c}が${d}のウェブサイトおよびサービス全体で個人データをどのように取り扱うかについて。`,
+}
+
+const LAST_UPDATED_LABELS: Record<string, string> = {
+  en: "Last updated",
+  de: "Zuletzt aktualisiert",
+  fr: "Dernière mise à jour",
+  es: "Última actualización",
+  pt: "Última atualização",
+  it: "Ultimo aggiornamento",
+  nl: "Laatst bijgewerkt",
+  hi: "अंतिम अद्यतन",
+  ja: "最終更新日",
+}
+
+export function generatePrivacyPolicyMarkdown(data: PrivacyPolicyData, domain: string, langCode: string = "en"): string {
   const company = data.companyName || domain || "Company"
   const url = data.websiteUrl || `https://${domain || "example.com"}`
   const email = data.supportEmail || `privacy@${domain || "example.com"}`
-  const effective = formatLegalDate(data.effectiveDate)
+  const effective = formatLegalDate(data.effectiveDate, langCode)
   const dba = data.isDba && data.dbaName ? ` (doing business as "${data.dbaName}")` : ""
   const serverCountry = data.country || "the United States"
+  const langKey = langCode.toLowerCase().split("-")[0] || "en"
   
+  const defaultTranslatedTitle = PRIVACY_TITLES[langKey] || "Privacy Policy"
   const rawTitle = data.policyTitleChoice === "custom" && data.customPolicyTitle
     ? data.customPolicyTitle
-    : (data.policyTitleChoice || "Privacy Policy")
+    : defaultTranslatedTitle
   const sanitizedTitle = (rawTitle.toLowerCase().includes("terms") || !rawTitle)
-    ? "Privacy Policy"
+    ? defaultTranslatedTitle
     : rawTitle
 
   const title =
@@ -246,16 +296,19 @@ Based on the applicable laws of your country, you may have the right to request 
 `
 }
 
-export function generatePrivacyPolicyHtml(data: PrivacyPolicyData, domain: string): string {
-  const md = generatePrivacyPolicyMarkdown(data, domain)
+export function generatePrivacyPolicyHtml(data: PrivacyPolicyData, domain: string, langCode: string = "en"): string {
+  const md = generatePrivacyPolicyMarkdown(data, domain, langCode)
+  const langKey = langCode.toLowerCase().split("-")[0] || "en"
+  const defaultTranslatedTitle = PRIVACY_TITLES[langKey] || "Privacy Policy"
   const rawTitle = data.policyTitleChoice === "custom" && data.customPolicyTitle
     ? data.customPolicyTitle
-    : (data.policyTitleChoice || "Privacy Policy")
+    : defaultTranslatedTitle
   const sanitizedTitle = (rawTitle.toLowerCase().includes("terms") || !rawTitle)
-    ? "Privacy Policy"
+    ? defaultTranslatedTitle
     : rawTitle
-  const title = data.policyTitleChoice === "none" ? "Privacy Notice" : sanitizedTitle
-  const effective = formatLegalDate(data.effectiveDate)
+  const title = data.policyTitleChoice === "none" ? defaultTranslatedTitle : sanitizedTitle
+  const effective = formatLegalDate(data.effectiveDate, langCode)
+  const updatedLabel = LAST_UPDATED_LABELS[langKey] || "Last updated"
   
   const normalized = md
     .replace(/\r\n/g, "\n")
@@ -276,10 +329,11 @@ export function generatePrivacyPolicyHtml(data: PrivacyPolicyData, domain: strin
   }
 
   const company = data.companyName || domain
-  const subtitle = `How ${company} handles personal data across the ${domain} website and service.`
+  const subtitleGenerator = PRIVACY_SUBTITLES[langKey] || PRIVACY_SUBTITLES.en || ((c: string, d: string) => `How ${c} handles personal data across the ${d} website and service.`)
+  const subtitle = subtitleGenerator(company, domain)
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${langKey}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />

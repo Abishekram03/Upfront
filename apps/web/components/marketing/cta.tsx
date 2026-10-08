@@ -1,8 +1,8 @@
 import { Section, PrimaryCta, SecondaryCta } from "./ui";
 
 export function FinalCta({
-  title = "Bring analytics and consent together.",
-  description = "Start with UpFront for free and get your website operations in one lightweight platform.",
+  title = "Start understanding your traffic — the privacy-first way.",
+  description = "Create your workspace for free. Analytics and consent management live on your site in under two minutes.",
   primaryLabel = "Start for free",
   primaryTo = "/contact",
   secondaryLabel = "Read the documentation",

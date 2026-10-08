@@ -39,12 +39,12 @@ export default function AboutPage() {
         <Reveal>
           <div className="mx-auto max-w-2xl text-lg leading-relaxed text-muted-foreground">
             <p>
-              Running a website today means running a stack: analytics here, consent there, a
-              scanner somewhere else. Each tool brings its own script, dashboard, learning curve,
-              and bill — and the visitor's privacy experience is stitched together in the middle.
+              Running a website today means juggling a stack of tools: analytics in one dashboard,
+              consent management in another, each with its own script, learning curve, and bill —
+              while your visitors' experience gets stitched together somewhere in between.
             </p>
             <p className="mt-6">
-              We started {SITE_NAME} because we think the essential parts of website operations —
+              We started {SITE_NAME} because the essential parts of website operations —
               understanding your traffic and respecting your visitors — should live in one place,
               weigh almost nothing, and stay out of your way.
             </p>
@@ -83,13 +83,12 @@ export default function AboutPage() {
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-medium text-primary">The long view</p>
             <h2 className="mt-3 text-2xl font-medium tracking-normal text-ink md:text-3xl">
-              Building toward the unified privacy, telemetry, and compliance layer for the modern
-              web.
+              Building toward the unified privacy and compliance layer for the modern web.
             </h2>
             <p className="mt-4 text-muted-foreground">
-              Today, that means analytics and consent management done well. Tomorrow, it means one
-              platform for the operational concerns every modern website shares. One step at a
-              time.
+              Today, that means analytics and consent management done well. Tomorrow, it means
+              expanding the platform to cover more of the operational concerns every modern website
+              shares — one step at a time.
             </p>
           </div>
         </Reveal>
