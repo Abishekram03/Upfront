@@ -520,7 +520,6 @@ export async function ensureTables() {
         );
         CREATE INDEX IF NOT EXISTS ix_billing_events_event_id ON billing_events(event_id);
 
-        -- Generated Policies (Privacy Policy, Terms of Service, etc.)
         CREATE TABLE IF NOT EXISTS generated_policies (
           id VARCHAR(36) PRIMARY KEY,
           domain VARCHAR(255) NOT NULL,
@@ -534,10 +533,24 @@ export async function ensureTables() {
           published_at TIMESTAMP WITHOUT TIME ZONE,
           created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
           updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+          user_id VARCHAR(64),
+          workspace_id VARCHAR(36),
+          site_id VARCHAR(36),
           CONSTRAINT uq_domain_policy UNIQUE(domain, policy_id)
         );
+        ALTER TABLE generated_policies ADD COLUMN IF NOT EXISTS user_id VARCHAR(64);
+        ALTER TABLE generated_policies ADD COLUMN IF NOT EXISTS workspace_id VARCHAR(36);
+        ALTER TABLE generated_policies ADD COLUMN IF NOT EXISTS site_id VARCHAR(36);
         CREATE INDEX IF NOT EXISTS ix_generated_policies_domain ON generated_policies(domain);
         CREATE INDEX IF NOT EXISTS ix_generated_policies_domain_policy ON generated_policies(domain, policy_id);
+        CREATE INDEX IF NOT EXISTS ix_generated_policies_workspace ON generated_policies(workspace_id);
+        CREATE INDEX IF NOT EXISTS ix_generated_policies_user ON generated_policies(user_id);
+
+        -- Backfill existing generated_policies with site, workspace and user ownership
+        UPDATE generated_policies gp
+        SET site_id = s.id, workspace_id = s.workspace_id, user_id = s.user_id
+        FROM sites s
+        WHERE gp.domain = s.domain AND (gp.site_id IS NULL OR gp.user_id IS NULL);
 
         -- User Notification Read & Cleared States (Persistent across Logins, Reloads, and Devices)
         CREATE TABLE IF NOT EXISTS user_notification_states (

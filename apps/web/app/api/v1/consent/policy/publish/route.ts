@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
+import { getCurrentUser } from "@/lib/auth-server"
 import { randomUUID } from "node:crypto"
 
 function sanitizeDomain(input?: string | null): string {
@@ -33,12 +34,29 @@ export async function OPTIONS() {
 export async function POST(req: Request) {
   try {
     await ensureTables()
+    const user = await getCurrentUser()
+    if (!user?.id) {
+      return NextResponse.json({ detail: "Unauthorized" }, { status: 401, headers: CORS_HEADERS })
+    }
+
     const body = await req.json()
     const domain = sanitizeDomain(body.domain)
 
     if (!domain) {
       return NextResponse.json({ detail: "Domain is required" }, { status: 400, headers: CORS_HEADERS })
     }
+
+    const siteRes = await pool.query(
+      `SELECT s.id FROM sites s 
+       LEFT JOIN workspace_members wm ON s.workspace_id = wm.workspace_id 
+       WHERE s.domain = $1 AND (s.user_id = $2 OR wm.user_id = $2) 
+       LIMIT 1`,
+      [domain, user.id]
+    )
+    if (siteRes.rows.length === 0) {
+      return NextResponse.json({ detail: "Forbidden: You do not have access to this domain" }, { status: 403, headers: CORS_HEADERS })
+    }
+    const siteId = siteRes.rows[0]?.id || null
 
     // Validation
     const companyName = (body.company_name || "").trim() || "Our Company"
@@ -56,9 +74,6 @@ export async function POST(req: Request) {
     )
     const existing = existingRes.rows[0]
     const nextVersion = existing ? incrementVersion(existing.policy_version) : "1.0"
-
-    const siteRes = await pool.query("SELECT id FROM sites WHERE domain = $1", [domain])
-    const siteId = siteRes.rows[0]?.id || null
 
     const policyId = existing?.id || randomUUID()
     const upsertRes = await pool.query(

@@ -80,9 +80,9 @@ interface CookiePolicyGeneratorProps {
 }
 
 export function CookiePolicyGenerator({ onBack, initialViewMode = "card", companyName }: CookiePolicyGeneratorProps = {}) {
-  const { activeDomain } = useDomain()
-  const domain = activeDomain || "onconnect.one"
-  const effectiveCompany = companyName?.trim() || domain
+  const { sites, activeDomain } = useDomain()
+  const domain = activeDomain || (sites && sites.length > 0 ? (sites[0]?.domain ?? "") : "")
+  const effectiveCompany = companyName?.trim() || domain || "Your Company"
 
   // Entitlements
   let isGrowthPlus = false

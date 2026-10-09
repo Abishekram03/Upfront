@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
+import { getCurrentUser } from "@/lib/auth-server"
 import { randomUUID } from "node:crypto"
 
 function sanitizeDomain(input?: string | null): string {
@@ -29,8 +30,25 @@ export async function GET(req: Request) {
       return NextResponse.json({ detail: "Domain parameter is required" }, { status: 400, headers: CORS_HEADERS })
     }
 
-    // 1. If draft requested (dashboard context), check cookie_policy_drafts
+    // 1. If draft requested (dashboard context), check authorization and cookie_policy_drafts
     if (isDraftRequested) {
+      const user = await getCurrentUser()
+      if (!user?.id) {
+        return NextResponse.json({ detail: "Unauthorized" }, { status: 401, headers: CORS_HEADERS })
+      }
+
+      const siteRes = await pool.query(
+        `SELECT s.id FROM sites s 
+         LEFT JOIN workspace_members wm ON s.workspace_id = wm.workspace_id 
+         WHERE s.domain = $1 AND (s.user_id = $2 OR wm.user_id = $2) 
+         LIMIT 1`,
+        [domain, user.id]
+      )
+
+      if (siteRes.rows.length === 0) {
+        return NextResponse.json({ detail: "Forbidden: You do not have access to this domain" }, { status: 403, headers: CORS_HEADERS })
+      }
+
       const draftRes = await pool.query(
         `SELECT * FROM cookie_policy_drafts WHERE domain = $1`,
         [domain]

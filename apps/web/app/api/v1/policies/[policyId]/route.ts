@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
+import { getCurrentUser } from "@/lib/auth-server"
 import {
   generatePrivacyPolicyMarkdown,
   generatePrivacyPolicyHtml,
@@ -87,10 +88,33 @@ export async function GET(
 
     const cleanId = policyId.replace(/-(policy|declaration)$/i, "").toLowerCase()
 
-    const res = await pool.query(
-      `SELECT * FROM generated_policies WHERE domain = $1 AND (policy_id = $2 OR policy_id = $3)`,
-      [domain, policyId, cleanId]
-    )
+    const user = await getCurrentUser().catch(() => null)
+    let res: any
+    if (user?.id) {
+      const siteRes = await pool.query(
+        `SELECT s.id FROM sites s 
+         LEFT JOIN workspace_members wm ON s.workspace_id = wm.workspace_id 
+         WHERE s.domain = $1 AND (s.user_id = $2 OR wm.user_id = $2) 
+         LIMIT 1`,
+        [domain, user.id]
+      )
+      if (siteRes.rows.length > 0) {
+        res = await pool.query(
+          `SELECT * FROM generated_policies WHERE domain = $1 AND (policy_id = $2 OR policy_id = $3)`,
+          [domain, policyId, cleanId]
+        )
+      } else {
+        res = await pool.query(
+          `SELECT * FROM generated_policies WHERE domain = $1 AND (policy_id = $2 OR policy_id = $3) AND status = 'published'`,
+          [domain, policyId, cleanId]
+        )
+      }
+    } else {
+      res = await pool.query(
+        `SELECT * FROM generated_policies WHERE domain = $1 AND (policy_id = $2 OR policy_id = $3) AND status = 'published'`,
+        [domain, policyId, cleanId]
+      )
+    }
 
     if (res.rows.length === 0) {
       if (cleanId === "privacy") {

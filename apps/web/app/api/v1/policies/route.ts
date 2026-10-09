@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { pool, ensureTables } from "@/lib/db"
+import { getCurrentUser } from "@/lib/auth-server"
 import { randomUUID } from "node:crypto"
 
 function sanitizeDomain(input?: string | null): string {
@@ -76,6 +77,11 @@ function mapPolicyRow(row: any) {
 export async function GET(req: Request) {
   try {
     await ensureTables()
+    const user = await getCurrentUser()
+    if (!user?.id) {
+      return NextResponse.json({ detail: "Unauthorized" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(req.url)
     const domain = sanitizeDomain(searchParams.get("domain"))
 
@@ -83,9 +89,29 @@ export async function GET(req: Request) {
       return NextResponse.json({ detail: "Domain parameter is required" }, { status: 400 })
     }
 
+    // Verify domain belongs to authenticated user or their workspace
+    const siteRes = await pool.query(
+      `SELECT s.id, s.domain, s.workspace_id, s.user_id 
+       FROM sites s 
+       LEFT JOIN workspace_members wm ON s.workspace_id = wm.workspace_id 
+       WHERE s.domain = $1 AND (s.user_id = $2 OR wm.user_id = $2) 
+       LIMIT 1`,
+      [domain, user.id]
+    )
+
+    if (siteRes.rows.length === 0) {
+      // The current user has no access to this domain — return empty list for strict account isolation
+      return NextResponse.json([])
+    }
+
+    const site = siteRes.rows[0]
+
     const res = await pool.query(
-      `SELECT * FROM generated_policies WHERE domain = $1 ORDER BY created_at ASC`,
-      [domain]
+      `SELECT * FROM generated_policies 
+       WHERE domain = $1 
+         AND (site_id = $2 OR workspace_id = $3 OR user_id = $4 OR (workspace_id IS NULL AND user_id IS NULL))
+       ORDER BY created_at ASC`,
+      [domain, site.id, site.workspace_id, user.id]
     )
 
     const formatted = (res.rows || []).map(mapPolicyRow)
@@ -99,6 +125,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     await ensureTables()
+    const user = await getCurrentUser()
+    if (!user?.id) {
+      return NextResponse.json({ detail: "Unauthorized" }, { status: 401 })
+    }
+
     const body = await req.json()
     const domain = sanitizeDomain(body.domain)
     const policyId = (body.policy_id || body.policyId || "").trim()
@@ -107,6 +138,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ detail: "Domain and policy_id are required" }, { status: 400 })
     }
 
+    // Verify domain belongs to authenticated user or their workspace
+    const siteRes = await pool.query(
+      `SELECT s.id, s.domain, s.workspace_id, s.user_id 
+       FROM sites s 
+       LEFT JOIN workspace_members wm ON s.workspace_id = wm.workspace_id 
+       WHERE s.domain = $1 AND (s.user_id = $2 OR wm.user_id = $2) 
+       LIMIT 1`,
+      [domain, user.id]
+    )
+
+    if (siteRes.rows.length === 0) {
+      return NextResponse.json(
+        { detail: "Forbidden: You do not have permission to manage policies for this domain." },
+        { status: 403 }
+      )
+    }
+
+    const site = siteRes.rows[0]
     const status = body.status === "published" ? "published" : "draft"
     const customTitle = body.custom_title || body.customTitle || null
     const config = typeof body.config === "object" ? JSON.stringify(body.config) : (body.config || "{}")
@@ -118,9 +167,9 @@ export async function POST(req: Request) {
 
     const res = await pool.query(
       `INSERT INTO generated_policies (
-        id, domain, policy_id, status, version, custom_title, config, content_markdown, content_html, published_at, updated_at
+        id, domain, policy_id, status, version, custom_title, config, content_markdown, content_html, published_at, updated_at, user_id, workspace_id, site_id
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, NOW()
+        $1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, NOW(), $11, $12, $13
       )
       ON CONFLICT (domain, policy_id) DO UPDATE SET
         status = EXCLUDED.status,
@@ -130,9 +179,12 @@ export async function POST(req: Request) {
         content_markdown = EXCLUDED.content_markdown,
         content_html = EXCLUDED.content_html,
         published_at = CASE WHEN EXCLUDED.status = 'published' THEN NOW() ELSE generated_policies.published_at END,
-        updated_at = NOW()
+        updated_at = NOW(),
+        user_id = EXCLUDED.user_id,
+        workspace_id = EXCLUDED.workspace_id,
+        site_id = EXCLUDED.site_id
       RETURNING *`,
-      [id, domain, policyId, status, version, customTitle, config, contentMarkdown, contentHtml, publishedAt]
+      [id, domain, policyId, status, version, customTitle, config, contentMarkdown, contentHtml, publishedAt, user.id, site.workspace_id, site.id]
     )
 
     const savedRecord = mapPolicyRow(res.rows[0])

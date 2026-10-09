@@ -75,8 +75,8 @@ const TRACKERS: TrackerItem[] = [
 ]
 
 export function ScriptRules() {
-  const { activeDomain } = useDomain()
-  const domain = activeDomain || "onconnect.one"
+  const { sites, activeDomain } = useDomain()
+  const domain = activeDomain || (sites && sites.length > 0 ? (sites[0]?.domain ?? "") : "")
   const defaultTracker = TRACKERS[0] ?? {
     id: "ga4",
     name: "Google Analytics 4 / Google Tag",
