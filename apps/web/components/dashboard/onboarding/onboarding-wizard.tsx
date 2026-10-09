@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import {
   Globe,
   Sparkles,
@@ -17,6 +18,9 @@ import {
   Sliders,
   ExternalLink,
   Code2,
+  ChevronLeft,
+  Lock,
+  Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -68,6 +72,13 @@ function sanitizeUrlToDomain(input: string): { domain: string; url: string; erro
     return { domain: "", url: "", error: "Please enter a valid URL." }
   }
 }
+
+const STEPS_NAV = [
+  { id: "welcome", label: "Welcome", stepNum: 1 },
+  { id: "website", label: "Add Website", stepNum: 2 },
+  { id: "install", label: "Install Script", stepNum: 3 },
+  { id: "completed", label: "Ready", stepNum: 4 },
+] as const
 
 export function OnboardingWizard({ workspace, onComplete }: OnboardingWizardProps) {
   const router = useRouter()
@@ -206,7 +217,7 @@ export function OnboardingWizard({ workspace, onComplete }: OnboardingWizardProp
       if (data.success && data.status === "detected") {
         setVerificationResult({
           success: true,
-          message: data.message || "Your website is connected.",
+          message: data.message || "Your website is connected successfully.",
         })
         await updateOnboardingState(workspace.id, {
           step: "completed",
@@ -230,7 +241,7 @@ export function OnboardingWizard({ workspace, onComplete }: OnboardingWizardProp
     } catch (err: any) {
       setVerificationResult({
         success: false,
-        message: "Verification failed. Please check your internet connection and try again.",
+        message: "Verification failed. Please check your connection and try again.",
         detail: err.message,
       })
     } finally {
@@ -238,7 +249,7 @@ export function OnboardingWizard({ workspace, onComplete }: OnboardingWizardProp
     }
   }
 
-  // Handle Skip
+  // Handle Skip / Do it later
   const handleSkipForNow = async () => {
     await updateOnboardingState(workspace.id, {
       step: "install",
@@ -272,326 +283,495 @@ export function OnboardingWizard({ workspace, onComplete }: OnboardingWizardProp
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-      <div className="w-full max-w-xl bg-white rounded-2xl border border-slate-200/80 shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
-        {/* Step Indicator Header */}
-        <div className="bg-gradient-to-r from-[#1868db] to-[#114ba3] px-8 py-6 text-white relative">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="size-8 rounded-lg bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/20">
-                <ShieldCheck className="size-4.5 text-white" />
-              </div>
-              <span className="font-bold text-sm tracking-wide">UpFront Setup</span>
-            </div>
+  const currentStepNumber =
+    currentStep === "welcome"
+      ? 1
+      : currentStep === "website"
+      ? 2
+      : currentStep === "install" || currentStep === "verify"
+      ? 3
+      : 4
 
-            {/* Step badges */}
-            <div className="flex items-center gap-1.5 text-xs">
-              {(["welcome", "website", "install", "completed"] as const).map((stepName, idx) => {
-                const stepOrder = ["welcome", "website", "install", "verify", "completed"]
-                const currentIdx = stepOrder.indexOf(currentStep)
-                const thisIdx = stepOrder.indexOf(stepName)
-                const isPassed = currentIdx > thisIdx || currentStep === "completed"
-                const isCurrent = currentStep === stepName || (currentStep === "verify" && stepName === "install")
+  return (
+    <div className="fixed inset-0 z-[100] min-h-screen w-full bg-[#f8fafc] text-slate-900 flex flex-col overflow-y-auto font-sans selection:bg-blue-100 selection:text-[#1868db]">
+      {/* Top ambient soft blue mesh glow */}
+      <div className="absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-blue-50/80 via-blue-50/20 to-transparent pointer-events-none" />
+
+      {/* Full Page Navigation Header */}
+      <header className="relative z-20 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-6 sm:px-12 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+          {/* Brand Logo & Workspace Tag */}
+          <div className="flex items-center gap-3">
+            <Image
+              src="/UpFront-Logo-Blue-600.svg"
+              alt="UpFront Logo"
+              width={120}
+              height={30}
+              className="h-7 w-auto object-contain"
+              priority
+            />
+            {workspace?.name && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-xs font-normal text-[#1868db] border border-blue-100/80">
+                {workspace.name}
+              </span>
+            )}
+          </div>
+
+          {/* Stepper overview (centered) */}
+          <div className="hidden md:flex items-center gap-2 text-xs font-light text-slate-500">
+            <span>Setup Guide</span>
+            <span>•</span>
+            <span className="font-normal text-slate-800">Step {currentStepNumber} of 4</span>
+          </div>
+
+          {/* Do It Later Action Button */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSkipForNow}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-normal text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 transition-all shadow-2xs hover:shadow-xs cursor-pointer"
+            >
+              <span>Do it later</span>
+              <ArrowRight className="size-3.5 text-slate-400" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Full-Page Onboarding Container */}
+      <main className="relative z-10 flex-1 flex flex-col justify-center items-center px-4 sm:px-6 py-8 sm:py-14">
+        <div className="w-full max-w-2xl">
+          {/* Horizontal Progress Timeline */}
+          <div className="mb-8 sm:mb-10 px-4">
+            <div className="flex items-center justify-between relative">
+              {/* Timeline Connector Line */}
+              <div className="absolute top-4 left-6 right-6 h-0.5 bg-slate-200 -z-10" />
+              <div
+                className="absolute top-4 left-6 h-0.5 bg-[#1868db] -z-10 transition-all duration-500 ease-out"
+                style={{
+                  width: `${((currentStepNumber - 1) / (STEPS_NAV.length - 1)) * 100}%`,
+                }}
+              />
+
+              {STEPS_NAV.map((step) => {
+                const isPassed = step.stepNum < currentStepNumber
+                const isCurrent = step.stepNum === currentStepNumber
 
                 return (
-                  <div
-                    key={stepName}
-                    className={cn(
-                      "size-2.5 rounded-full transition-all duration-300",
-                      isPassed
-                        ? "bg-emerald-400"
-                        : isCurrent
-                        ? "bg-white ring-4 ring-white/20 scale-110"
-                        : "bg-white/30"
-                    )}
-                  />
+                  <div key={step.id} className="flex flex-col items-center gap-2">
+                    <div
+                      className={cn(
+                        "size-8 sm:size-9 rounded-full flex items-center justify-center text-xs transition-all duration-300 font-normal",
+                        isPassed
+                          ? "bg-[#1868db] text-white shadow-xs"
+                          : isCurrent
+                          ? "bg-white text-[#1868db] border-2 border-[#1868db] ring-4 ring-blue-100 shadow-sm"
+                          : "bg-white text-slate-400 border border-slate-300"
+                      )}
+                    >
+                      {isPassed ? (
+                        <Check className="size-4 stroke-[2.5]" />
+                      ) : (
+                        <span>{step.stepNum}</span>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "text-xs sm:text-sm tracking-tight hidden sm:block transition-colors",
+                        isCurrent
+                          ? "font-normal text-[#1868db]"
+                          : isPassed
+                          ? "font-normal text-slate-700"
+                          : "font-light text-slate-400"
+                      )}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
                 )
               })}
             </div>
           </div>
-        </div>
 
-        {/* Dynamic Step Content */}
-        <div className="p-8 flex-1">
-          {/* STEP 1: WELCOME */}
-          {currentStep === "welcome" && (
-            <div className="space-y-6 py-2 text-center animate-in fade-in-50 duration-200">
-              <div className="mx-auto size-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shadow-xs">
-                <Globe className="size-8 text-[#1868db]" />
-              </div>
+          {/* Full Page Card Component */}
+          <div className="relative bg-white rounded-3xl border border-slate-200/90 shadow-xl shadow-slate-200/50 overflow-hidden transition-all duration-300">
+            {/* Top Blue Highlight Accent */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-[#1868db] via-blue-500 to-indigo-500" />
 
-              <div className="space-y-2">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  Welcome to UpFront
-                </h1>
-                <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                  Let&apos;s get your website connected.
-                </p>
-              </div>
+            <div className="p-8 sm:p-12">
+              {/* ================= STEP 1: WELCOME ================= */}
+              {currentStep === "welcome" && (
+                <div className="space-y-8 text-center animate-in fade-in-50 duration-300">
+                  <div className="mx-auto size-20 rounded-2xl bg-blue-50 border border-blue-100/90 flex items-center justify-center shadow-xs">
+                    <Globe className="size-10 text-[#1868db] stroke-[1.5]" />
+                  </div>
 
-              <div className="pt-4">
-                <Button
-                  type="button"
-                  onClick={() => goToStep("website")}
-                  className="w-full h-11 bg-[#1868db] hover:bg-[#1559be] text-white font-semibold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  Get Started
-                  <ArrowRight className="size-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+                  <div className="space-y-3">
+                    <h1 className="text-3xl sm:text-4xl font-normal text-slate-900 tracking-tight">
+                      Welcome to UpFront
+                    </h1>
+                    <p className="text-sm sm:text-base font-light text-slate-500 max-w-lg mx-auto leading-relaxed">
+                      Let&apos;s get your website connected with privacy-first cookieless analytics and complete consent management.
+                    </p>
+                  </div>
 
-          {/* STEP 2: ADD WEBSITE */}
-          {currentStep === "website" && (
-            <form onSubmit={handleAddWebsite} className="space-y-5 animate-in fade-in-50 duration-200">
-              <div className="space-y-1">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-                  Add your Website
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Enter the domain you want to collect privacy-first analytics and consent for.
-                </p>
-              </div>
+                  {/* Highlights Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
+                    <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/70">
+                      <div className="size-8 rounded-xl bg-blue-100/70 text-[#1868db] flex items-center justify-center mb-2.5">
+                        <BarChart3 className="size-4.5 stroke-[1.75]" />
+                      </div>
+                      <h4 className="text-xs font-normal text-slate-900">Cookieless Analytics</h4>
+                      <p className="text-[11px] font-light text-slate-500 mt-1 leading-normal">
+                        No cookies, zero IP storage, GDPR & CCPA safe.
+                      </p>
+                    </div>
 
-              {siteError && (
-                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium flex items-center gap-2">
-                  <XCircle className="size-4 text-rose-500 shrink-0" />
-                  <span>{siteError}</span>
+                    <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/70">
+                      <div className="size-8 rounded-xl bg-indigo-100/70 text-indigo-600 flex items-center justify-center mb-2.5">
+                        <Sliders className="size-4.5 stroke-[1.75]" />
+                      </div>
+                      <h4 className="text-xs font-normal text-slate-900">Consent Banner</h4>
+                      <p className="text-[11px] font-light text-slate-500 mt-1 leading-normal">
+                        Studio banner builder with Google Consent Mode v2.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/70">
+                      <div className="size-8 rounded-xl bg-emerald-100/70 text-emerald-600 flex items-center justify-center mb-2.5">
+                        <Zap className="size-4.5 stroke-[1.75]" />
+                      </div>
+                      <h4 className="text-xs font-normal text-slate-900">Single Script Tag</h4>
+                      <p className="text-[11px] font-light text-slate-500 mt-1 leading-normal">
+                        Unified tag under 4KB with zero performance lag.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Big Primary Button & Do it later */}
+                  <div className="pt-4 space-y-3">
+                    <Button
+                      type="button"
+                      onClick={() => goToStep("website")}
+                      className="w-full h-13 sm:h-14 text-base font-normal bg-[#1868db] hover:bg-[#1559be] text-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2.5"
+                    >
+                      <span>Get Started</span>
+                      <ArrowRight className="size-4.5" />
+                    </Button>
+
+                    <button
+                      type="button"
+                      onClick={handleSkipForNow}
+                      className="text-xs sm:text-sm font-light text-slate-500 hover:text-slate-900 transition-colors cursor-pointer py-1 block mx-auto"
+                    >
+                      Do it later
+                    </button>
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                    Website Name
-                  </label>
-                  <Input
-                    type="text"
-                    value={siteName}
-                    onChange={(e) => setSiteName(e.target.value)}
-                    placeholder="e.g. My Website or Production Store"
-                    className="h-10 text-sm bg-slate-50 border-slate-300 focus:bg-white focus:border-[#1868db]"
-                  />
-                </div>
+              {/* ================= STEP 2: ADD WEBSITE ================= */}
+              {currentStep === "website" && (
+                <form onSubmit={handleAddWebsite} className="space-y-6 animate-in fade-in-50 duration-300">
+                  <div className="text-center sm:text-left space-y-2">
+                    <div className="inline-flex sm:hidden mx-auto size-14 rounded-2xl bg-blue-50 border border-blue-100 items-center justify-center mb-2">
+                      <Globe className="size-7 text-[#1868db]" />
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-normal text-slate-900 tracking-tight">
+                      Add your website
+                    </h2>
+                    <p className="text-sm font-light text-slate-500">
+                      Enter the domain you want to collect privacy-first analytics and consent for.
+                    </p>
+                  </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                    Website URL <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    type="text"
-                    value={siteUrl}
-                    onChange={(e) => {
-                      setSiteUrl(e.target.value)
-                      if (!siteName) {
-                        const { domain } = sanitizeUrlToDomain(e.target.value)
-                        if (domain) setSiteName(domain)
-                      }
-                    }}
-                    placeholder="https://example.com"
-                    required
-                    autoFocus
-                    className="h-10 text-sm bg-slate-50 border-slate-300 focus:bg-white focus:border-[#1868db]"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Enter your site&apos;s root address. Works seamlessly with subdomains.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-3">
-                <Button
-                  type="submit"
-                  disabled={isCreatingSite || !siteUrl.trim()}
-                  className="w-full h-11 bg-[#1868db] hover:bg-[#1559be] text-white font-semibold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {isCreatingSite ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Adding Website...
-                    </>
-                  ) : (
-                    <>
-                      Continue
-                      <ArrowRight className="size-4" />
-                    </>
+                  {siteError && (
+                    <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs font-normal text-rose-700 flex items-center gap-2.5">
+                      <XCircle className="size-4 text-rose-500 shrink-0" />
+                      <span>{siteError}</span>
+                    </div>
                   )}
-                </Button>
-              </div>
-            </form>
-          )}
 
-          {/* STEP 3 & 4: INSTALL SCRIPT & VERIFY */}
-          {(currentStep === "install" || currentStep === "verify") && (
-            <div className="space-y-5 animate-in fade-in-50 duration-200">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-                    Install UpFront Script
-                  </h2>
-                  <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 font-mono">
-                    {siteDomain}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500">
-                  Add this script to the <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">&lt;head&gt;</code> of your website, before <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">&lt;/head&gt;</code>.
-                </p>
-              </div>
+                  <div className="space-y-4 pt-1">
+                    <div>
+                      <label className="text-xs font-normal text-slate-600 block mb-1.5 uppercase tracking-wider">
+                        Website Name <span className="text-slate-400 font-light lowercase">(optional)</span>
+                      </label>
+                      <Input
+                        type="text"
+                        value={siteName}
+                        onChange={(e) => setSiteName(e.target.value)}
+                        placeholder="e.g. My Website or Production Store"
+                        className="h-12 text-sm font-light bg-slate-50/80 border-slate-200 rounded-xl focus:bg-white focus:border-[#1868db] focus:ring-2 focus:ring-blue-100 transition-all"
+                      />
+                    </div>
 
-              {/* Code Snippet Box */}
-              <div className="relative rounded-xl border border-slate-200 bg-slate-900 text-slate-100 p-4 shadow-inner">
-                <button
-                  type="button"
-                  onClick={handleCopyScript}
-                  className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-white/10 hover:bg-white/20 px-2.5 py-1 text-xs font-medium text-white transition-colors cursor-pointer border border-white/10"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="size-3.5 text-emerald-400" />
-                      <span className="text-emerald-300 font-semibold">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="size-3.5 text-slate-300" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
+                    <div>
+                      <label className="text-xs font-normal text-slate-600 block mb-1.5 uppercase tracking-wider">
+                        Website URL <span className="text-rose-500">*</span>
+                      </label>
+                      <Input
+                        type="text"
+                        value={siteUrl}
+                        onChange={(e) => {
+                          setSiteUrl(e.target.value)
+                          if (!siteName) {
+                            const { domain } = sanitizeUrlToDomain(e.target.value)
+                            if (domain) setSiteName(domain)
+                          }
+                        }}
+                        placeholder="https://example.com"
+                        required
+                        autoFocus
+                        className="h-12 text-sm font-light bg-slate-50/80 border-slate-200 rounded-xl focus:bg-white focus:border-[#1868db] focus:ring-2 focus:ring-blue-100 transition-all"
+                      />
+                      <p className="text-[11px] font-light text-slate-400 mt-1.5">
+                        Enter your site root or primary domain. Works seamlessly with subdomains.
+                      </p>
+                    </div>
+                  </div>
 
-                <pre className="font-mono text-xs overflow-x-auto pr-18 py-1 leading-relaxed text-slate-200 select-all whitespace-pre-wrap break-all">
-                  <code>{scriptSnippet}</code>
-                </pre>
-              </div>
+                  {/* Big Primary Button & Actions */}
+                  <div className="pt-4 space-y-3">
+                    <Button
+                      type="submit"
+                      disabled={isCreatingSite || !siteUrl.trim()}
+                      className="w-full h-13 sm:h-14 text-base font-normal bg-[#1868db] hover:bg-[#1559be] text-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-50"
+                    >
+                      {isCreatingSite ? (
+                        <>
+                          <Loader2 className="size-4.5 animate-spin" />
+                          <span>Adding website...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Continue to Installation</span>
+                          <ArrowRight className="size-4.5" />
+                        </>
+                      )}
+                    </Button>
 
-              {/* Verification Feedback Banner */}
-              {verificationResult && (
-                <div
-                  className={cn(
-                    "p-3.5 rounded-xl border text-xs font-medium flex items-start gap-3 animate-in fade-in-50 duration-200",
-                    verificationResult.success
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                      : "bg-amber-50 border-amber-200 text-amber-900"
-                  )}
-                >
-                  {verificationResult.success ? (
-                    <CheckCircle2 className="size-4.5 text-emerald-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <XCircle className="size-4.5 text-amber-600 shrink-0 mt-0.5" />
-                  )}
-                  <div className="space-y-0.5">
-                    <p className="font-bold">{verificationResult.message}</p>
-                    {verificationResult.detail && (
-                      <p className="text-[11px] opacity-90">{verificationResult.detail}</p>
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        type="button"
+                        onClick={() => goToStep("welcome")}
+                        className="inline-flex items-center gap-1 text-xs sm:text-sm font-light text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                      >
+                        <ChevronLeft className="size-4" />
+                        <span>Back</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSkipForNow}
+                        className="text-xs sm:text-sm font-light text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                      >
+                        Do it later
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* ================= STEP 3: INSTALL SCRIPT ================= */}
+              {(currentStep === "install" || currentStep === "verify") && (
+                <div className="space-y-6 animate-in fade-in-50 duration-300">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="space-y-1">
+                      <h2 className="text-2xl sm:text-3xl font-normal text-slate-900 tracking-tight">
+                        Install the UpFront script
+                      </h2>
+                      <p className="text-sm font-light text-slate-500">
+                        Add this single snippet to the <code className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-xs font-mono">&lt;head&gt;</code> of your website.
+                      </p>
+                    </div>
+                    {siteDomain && (
+                      <span className="self-start sm:self-center text-xs font-normal text-[#1868db] bg-blue-50 px-3 py-1 rounded-full border border-blue-200 font-mono">
+                        {siteDomain}
+                      </span>
                     )}
                   </div>
+
+                  {/* Code Snippet Box with Big Copy Button */}
+                  <div className="relative rounded-2xl border border-slate-200 bg-slate-900 text-slate-100 p-5 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={handleCopyScript}
+                      className="absolute right-3.5 top-3.5 inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-normal text-white transition-all cursor-pointer border border-white/10 shadow-xs"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="size-3.5 text-emerald-400 stroke-[2.5]" />
+                          <span className="text-emerald-300 font-normal">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3.5 text-slate-300" />
+                          <span>Copy Snippet</span>
+                        </>
+                      )}
+                    </button>
+
+                    <pre className="font-mono text-xs sm:text-sm overflow-x-auto pr-24 py-2 leading-relaxed text-slate-200 select-all whitespace-pre-wrap break-all">
+                      <code>{scriptSnippet}</code>
+                    </pre>
+                  </div>
+
+                  {/* Verification Status Banner */}
+                  {verificationResult && (
+                    <div
+                      className={cn(
+                        "p-4 rounded-2xl border text-xs font-normal flex items-start gap-3 animate-in fade-in-50 duration-200",
+                        verificationResult.success
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                          : "bg-amber-50 border-amber-200 text-amber-900"
+                      )}
+                    >
+                      {verificationResult.success ? (
+                        <CheckCircle2 className="size-5 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                      )}
+                      <div className="space-y-0.5">
+                        <p className="font-normal text-sm">{verificationResult.message}</p>
+                        {verificationResult.detail && (
+                          <p className="text-xs font-light opacity-90">{verificationResult.detail}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Big Primary Button & Actions */}
+                  <div className="pt-3 space-y-3">
+                    <Button
+                      type="button"
+                      disabled={isVerifying}
+                      onClick={handleVerifyInstallation}
+                      className="w-full h-13 sm:h-14 text-base font-normal bg-[#1868db] hover:bg-[#1559be] text-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2.5"
+                    >
+                      {isVerifying ? (
+                        <>
+                          <Loader2 className="size-4.5 animate-spin" />
+                          <span>Checking script connection...</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="size-5 stroke-[1.75]" />
+                          <span>
+                            {verificationResult && !verificationResult.success
+                              ? "Try Verification Again"
+                              : "Verify Installation"}
+                          </span>
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        type="button"
+                        onClick={() => goToStep("website")}
+                        className="inline-flex items-center gap-1 text-xs sm:text-sm font-light text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                      >
+                        <ChevronLeft className="size-4" />
+                        <span>Back</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSkipForNow}
+                        className="text-xs sm:text-sm font-light text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                      >
+                        I&apos;ll do this later
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-2">
-                <Button
-                  type="button"
-                  disabled={isVerifying}
-                  onClick={handleVerifyInstallation}
-                  className="w-full h-11 bg-[#1868db] hover:bg-[#1559be] text-white font-semibold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {isVerifying ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Verifying installation...
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="size-4" />
-                      {verificationResult && !verificationResult.success ? "Try Again" : "Verify Installation"}
-                    </>
-                  )}
-                </Button>
+              {/* ================= STEP 4: COMPLETED ================= */}
+              {currentStep === "completed" && (
+                <div className="space-y-8 text-center animate-in fade-in-50 duration-300">
+                  <div className="mx-auto size-20 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center shadow-xs">
+                    <CheckCircle2 className="size-11 text-emerald-600 animate-in zoom-in-75 duration-300 stroke-[1.75]" />
+                  </div>
 
-                <div className="text-center pt-1">
-                  <button
-                    type="button"
-                    onClick={handleSkipForNow}
-                    className="text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors cursor-pointer py-1"
-                  >
-                    Skip for now
-                  </button>
+                  <div className="space-y-2">
+                    <h2 className="text-3xl sm:text-4xl font-normal text-slate-900 tracking-tight">
+                      Your website is connected!
+                    </h2>
+                    <p className="text-sm font-light text-slate-500 max-w-md mx-auto leading-relaxed">
+                      UpFront is active on <span className="font-normal text-slate-800 font-mono">{siteDomain}</span>. You can now monitor live traffic and manage cookie consent policies.
+                    </p>
+                  </div>
+
+                  {/* Next Step Exploration Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-left pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleFinishOnboarding("/analytics")}
+                      className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 hover:bg-blue-50/70 hover:border-blue-200 transition-all text-left cursor-pointer group"
+                    >
+                      <div className="size-9 rounded-xl bg-blue-100/80 text-[#1868db] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                        <BarChart3 className="size-4.5 stroke-[1.75]" />
+                      </div>
+                      <h4 className="text-xs sm:text-sm font-normal text-slate-900 group-hover:text-[#1868db]">
+                        View Analytics
+                      </h4>
+                      <p className="text-xs font-light text-slate-500 mt-1 leading-normal">
+                        Monitor realtime cookieless visitor traffic
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleFinishOnboarding("/consent")}
+                      className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 hover:bg-indigo-50/70 hover:border-indigo-200 transition-all text-left cursor-pointer group"
+                    >
+                      <div className="size-9 rounded-xl bg-indigo-100/80 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                        <Sliders className="size-4.5 stroke-[1.75]" />
+                      </div>
+                      <h4 className="text-xs sm:text-sm font-normal text-slate-900 group-hover:text-indigo-600">
+                        Configure Consent
+                      </h4>
+                      <p className="text-xs font-light text-slate-500 mt-1 leading-normal">
+                        Style and customize banner in Studio
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleFinishOnboarding("/consent/scanner")}
+                      className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 hover:bg-emerald-50/70 hover:border-emerald-200 transition-all text-left cursor-pointer group"
+                    >
+                      <div className="size-9 rounded-xl bg-emerald-100/80 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                        <Search className="size-4.5 stroke-[1.75]" />
+                      </div>
+                      <h4 className="text-xs sm:text-sm font-normal text-slate-900 group-hover:text-emerald-600">
+                        Scan Website
+                      </h4>
+                      <p className="text-xs font-light text-slate-500 mt-1 leading-normal">
+                        Run an automated tracker audit
+                      </p>
+                    </button>
+                  </div>
+
+                  {/* Big Primary Button */}
+                  <div className="pt-4">
+                    <Button
+                      type="button"
+                      onClick={() => handleFinishOnboarding("/analytics")}
+                      className="w-full h-13 sm:h-14 text-base font-normal bg-[#1868db] hover:bg-[#1559be] text-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2.5"
+                    >
+                      <span>Go to Dashboard</span>
+                      <ArrowRight className="size-4.5" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          )}
-
-          {/* STEP 5: COMPLETED */}
-          {currentStep === "completed" && (
-            <div className="space-y-6 text-center animate-in fade-in-50 duration-200 py-2">
-              <div className="mx-auto size-16 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center shadow-xs">
-                <CheckCircle2 className="size-9 text-emerald-600 animate-in zoom-in duration-300" />
-              </div>
-
-              <div className="space-y-1">
-                <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Your website is connected.
-                </h2>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  UpFront is successfully installed on <span className="font-semibold text-slate-700 font-mono">{siteDomain}</span>. You are ready to manage privacy and analytics.
-                </p>
-              </div>
-
-              {/* Useful Next Actions Grid */}
-              <div className="grid grid-cols-3 gap-3 text-left pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleFinishOnboarding("/analytics")}
-                  className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-blue-50/60 hover:border-blue-200 transition-all text-left cursor-pointer group"
-                >
-                  <div className="size-8 rounded-lg bg-blue-100/80 text-[#1868db] flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                    <BarChart3 className="size-4" />
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-800 group-hover:text-[#1868db]">View Analytics</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-tight">Monitor cookieless traffic</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleFinishOnboarding("/consent")}
-                  className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-purple-50/60 hover:border-purple-200 transition-all text-left cursor-pointer group"
-                >
-                  <div className="size-8 rounded-lg bg-purple-100/80 text-purple-600 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                    <Sliders className="size-4" />
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-800 group-hover:text-purple-700">Configure Consent</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-tight">Design banner in Studio</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleFinishOnboarding("/consent/scanner")}
-                  className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-emerald-50/60 hover:border-emerald-200 transition-all text-left cursor-pointer group"
-                >
-                  <div className="size-8 rounded-lg bg-emerald-100/80 text-emerald-600 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                    <Search className="size-4" />
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Scan Website</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-tight">Audit cookies & scripts</p>
-                </button>
-              </div>
-
-              <div className="pt-2">
-                <Button
-                  type="button"
-                  onClick={() => handleFinishOnboarding("/analytics")}
-                  className="w-full h-11 bg-[#1868db] hover:bg-[#1559be] text-white font-semibold text-sm shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  Go to Dashboard
-                  <ArrowRight className="size-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
