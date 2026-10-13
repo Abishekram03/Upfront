@@ -43,14 +43,15 @@ export function UpgradeModal() {
       setIsProcessing(true)
       setErrorMessage(null)
 
-      const targetPriceId =
-        planToCheckout === "business"
-          ? PADDLE_PRICE_IDS.business
-          : PADDLE_PRICE_IDS.growth
-
       // Fetch checkout configuration / user details
       const res = await fetch(`/api/v1/billing/subscription?workspaceId=${encodeURIComponent(activeWorkspace.id)}`)
       const data = await res.json().catch(() => ({}))
+
+      const targetPriceId =
+        data?.plans?.[planToCheckout]?.paddlePriceId ||
+        (planToCheckout === "business"
+          ? (process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || PADDLE_PRICE_IDS.business)
+          : (process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID || PADDLE_PRICE_IDS.growth))
 
       await openPaddleCheckout({
         priceId: targetPriceId,

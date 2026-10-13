@@ -37,6 +37,7 @@ export interface WorkspaceUsageData {
   pageviewPercent: number
   sitesCount: number
   activeScansCount: number
+  extraPageviewsBalance?: number
 }
 
 interface EntitlementsContextType {
@@ -46,11 +47,11 @@ interface EntitlementsContextType {
   isPaid: boolean
   isPastDue: boolean
   isLoading: boolean
-  isCheckingOut: PlanId | null
+  isCheckingOut: PlanId | "addon_100k" | string | null
   hasCapability: (key: EntitlementKey) => boolean
   getRequiredPlan: (key: EntitlementKey) => PlanId
   refreshEntitlements: () => Promise<void>
-  startCheckout: (planId?: PlanId) => Promise<void>
+  startCheckout: (planId?: PlanId | "addon_100k" | string) => Promise<void>
   openUpgradeModal: (requiredPlan?: PlanId, featureName?: string) => void
   closeUpgradeModal: () => void
   isUpgradeModalOpen: boolean
@@ -65,7 +66,7 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
   const [entitlements, setEntitlements] = useState<WorkspaceEntitlementsData | null>(null)
   const [usage, setUsage] = useState<WorkspaceUsageData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isCheckingOut, setIsCheckingOut] = useState<PlanId | null>(null)
+  const [isCheckingOut, setIsCheckingOut] = useState<PlanId | "addon_100k" | string | null>(null)
 
   // Upgrade Modal State (retained for backwards compatibility, modal disabled by default)
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false)
@@ -142,7 +143,7 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
   }, [])
 
   const startCheckout = useCallback(
-    async (planToCheckout: PlanId = "growth") => {
+    async (planToCheckout: PlanId | "addon_100k" | string = "growth") => {
       if (!activeWorkspace?.id) {
         alert("Please select a workspace before upgrading.")
         return
@@ -150,15 +151,20 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
 
       try {
         setIsCheckingOut(planToCheckout)
-        const targetPriceId =
-          planToCheckout === "business"
-            ? PADDLE_PRICE_IDS.business
-            : PADDLE_PRICE_IDS.growth
-
         const res = await fetch(
           `/api/v1/billing/subscription?workspaceId=${encodeURIComponent(activeWorkspace.id)}`
         )
         const data = await res.json().catch(() => ({}))
+
+        const isAddon = planToCheckout === "addon_100k"
+        const targetPriceId = isAddon
+          ? data?.addons?.pageviews_100k?.paddlePriceId ||
+            process.env.NEXT_PUBLIC_PADDLE_ADDON_100K_PRICE_ID ||
+            "pri_01addon_100k_pageviews"
+          : data?.plans?.[planToCheckout]?.paddlePriceId ||
+            (planToCheckout === "business"
+              ? (process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || PADDLE_PRICE_IDS.business)
+              : (process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID || PADDLE_PRICE_IDS.growth))
 
         await openPaddleCheckout({
           priceId: targetPriceId,
@@ -167,6 +173,16 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
           userEmail: data?.userEmail,
           onSuccess: async () => {
             setIsCheckingOut(null)
+            if (isAddon) {
+              await fetch("/api/v1/billing/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  workspaceId: activeWorkspace.id,
+                  plan: "addon_100k",
+                }),
+              }).catch(() => {})
+            }
             await refreshEntitlements()
           },
           onError: (errText?: string) => {

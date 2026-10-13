@@ -48,9 +48,16 @@ export function loadPaddleScript(environment: "sandbox" | "production" = "sandbo
                       rawPriceId === (process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || "pri_01m3rgx14zzhfr3g10241pxw93") ||
                       rawPriceId?.includes("business")
 
+                    const isAddon =
+                      activeCheckoutOptions?.plan === "addon_100k" ||
+                      rawPriceId === (process.env.NEXT_PUBLIC_PADDLE_ADDON_100K_PRICE_ID || "pri_01addon_100k_pageviews") ||
+                      rawPriceId?.includes("addon")
+
                     const plan =
-                      activeCheckoutOptions?.plan ||
-                      (isBusiness ? "business" : "growth")
+                      isAddon
+                        ? "addon_100k"
+                        : activeCheckoutOptions?.plan ||
+                          (isBusiness ? "business" : "growth")
 
                     if (workspaceId && plan) {
                       try {
@@ -122,8 +129,8 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
   const resolvedPriceId =
     priceId ||
     (options.plan === "business"
-      ? PADDLE_PRICE_IDS.business
-      : PADDLE_PRICE_IDS.growth)
+      ? (process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || PADDLE_PRICE_IDS.business)
+      : (process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID || PADDLE_PRICE_IDS.growth))
 
   if (!resolvedPriceId) {
     throw new Error("Missing Paddle Price ID for checkout.")
@@ -164,7 +171,14 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
       )
       if (simulate) {
         // Send test webhook / simulation call
-        const plan = resolvedPlan === "business" ? "business" : "growth"
+        const plan = resolvedPlan === "addon_100k" ? "addon_100k" : resolvedPlan === "business" ? "business" : "growth"
+        if (plan === "addon_100k") {
+          await fetch("/api/v1/billing/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ workspaceId, plan: "addon_100k" }),
+          }).catch(() => {})
+        }
         const res = await fetch("/api/v1/billing/webhook", {
           method: "POST",
           headers: {
@@ -173,7 +187,7 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
           },
           body: JSON.stringify({
             event_id: `evt_test_${Date.now()}`,
-            event_type: "subscription.created",
+            event_type: plan === "addon_100k" ? "transaction.completed" : "subscription.created",
             occurred_at: new Date().toISOString(),
             data: {
               id: `sub_sim_${Date.now()}`,

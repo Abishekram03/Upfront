@@ -115,10 +115,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const growthPriceId = PADDLE_PRICE_IDS.growth
-    const businessPriceId = PADDLE_PRICE_IDS.business
+    const growthPriceId = process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID || PADDLE_PRICE_IDS.growth
+    const businessPriceId = process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || PADDLE_PRICE_IDS.business
     const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || ""
     const paddleEnv = process.env.NEXT_PUBLIC_PADDLE_ENV || "sandbox"
+
+    const addonPriceId = process.env.NEXT_PUBLIC_PADDLE_ADDON_100K_PRICE_ID || "pri_01addon_100k_pageviews"
+
+    let extraPageviewsBalance = 0
+    try {
+      const wsRes = await pool.query(
+        `SELECT extra_pageviews_balance FROM workspaces WHERE id = $1 LIMIT 1`,
+        [workspaceId]
+      )
+      extraPageviewsBalance = wsRes.rows[0]?.extra_pageviews_balance || 0
+    } catch {
+      // ignore
+    }
 
     const enrichedPlans = {
       ...PLANS,
@@ -140,12 +153,25 @@ export async function GET(req: NextRequest) {
         paddleCustomerId: entitlements.paddleCustomerId,
       },
       plans: enrichedPlans,
+      addons: {
+        pageviews_100k: {
+          id: "pageviews_100k",
+          name: "100k Pageview Booster",
+          price: 10,
+          pageviews: 100000,
+          rollover: true,
+          paddlePriceId: addonPriceId,
+        },
+      },
+      extraPageviewsBalance,
+      userEmail: user.email,
       paddleConfig: {
         environment: paddleEnv,
         clientToken,
         prices: {
           growth: growthPriceId,
           business: businessPriceId,
+          addon100k: addonPriceId,
         },
       },
     })

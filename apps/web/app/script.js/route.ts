@@ -1691,14 +1691,18 @@ const TRACKER_SCRIPT = `(function () {
         font-weight: 600;
       }
       .usrly-cat-desc {
-        padding: 10px 0 4px 20px;
-        font-size: 12.5px;
+        padding: 4px 0 4px 20px;
+        font-size: 12px;
         font-weight: 400;
         color: \${textMuted};
         line-height: 1.5;
+        display: block;
+      }
+      .usrly-cat-table-drawer {
+        padding: 2px 0 4px 20px;
         display: none;
       }
-      .usrly-cat-desc.visible {
+      .usrly-cat-table-drawer.visible {
         display: block;
       }
 
@@ -2021,22 +2025,24 @@ const TRACKER_SCRIPT = `(function () {
             \` : ""}
 
             <div class="usrly-category-item">
-              <div class="usrly-cat-header" data-target="desc-nec">
+              <div class="usrly-cat-header" data-target="drawer-nec">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow">›</span>
                   <span class="usrly-cat-title">\${resolveCategoryTitle("necessary", config)}</span>
                 </div>
                 <span class="usrly-cat-always-active">\${resolveText("always_active_label", config)}</span>
               </div>
-              <div class="usrly-cat-desc" id="desc-nec">
-                <p style="margin-bottom:6px;">\${resolveCategoryDesc("necessary", config)}</p>
+              <div class="usrly-cat-desc">
+                \${resolveCategoryDesc("necessary", config)}
+              </div>
+              <div class="usrly-cat-table-drawer" id="drawer-nec">
                 \${renderCategoryCookieTable("necessary")}
               </div>
             </div>
 
             \${config.enable_functional_category !== false ? \`
             <div class="usrly-category-item">
-              <div class="usrly-cat-header" data-target="desc-func">
+              <div class="usrly-cat-header" data-target="drawer-func">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow">›</span>
                   <span class="usrly-cat-title">\${resolveCategoryTitle("functional", config)}</span>
@@ -2046,8 +2052,10 @@ const TRACKER_SCRIPT = `(function () {
                   <span class="usrly-slider"></span>
                 </label>
               </div>
-              <div class="usrly-cat-desc" id="desc-func">
-                <p style="margin-bottom:6px;">\${resolveCategoryDesc("functional", config)}</p>
+              <div class="usrly-cat-desc">
+                \${resolveCategoryDesc("functional", config)}
+              </div>
+              <div class="usrly-cat-table-drawer" id="drawer-func">
                 \${renderCategoryCookieTable("functional")}
               </div>
             </div>
@@ -2055,7 +2063,7 @@ const TRACKER_SCRIPT = `(function () {
 
             \${config.enable_analytics_category !== false ? \`
             <div class="usrly-category-item">
-              <div class="usrly-cat-header" data-target="desc-ana">
+              <div class="usrly-cat-header" data-target="drawer-ana">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow">›</span>
                   <span class="usrly-cat-title">\${resolveCategoryTitle("analytics", config)}</span>
@@ -2065,8 +2073,10 @@ const TRACKER_SCRIPT = `(function () {
                   <span class="usrly-slider"></span>
                 </label>
               </div>
-              <div class="usrly-cat-desc" id="desc-ana">
-                <p style="margin-bottom:6px;">\${resolveCategoryDesc("analytics", config)}</p>
+              <div class="usrly-cat-desc">
+                \${resolveCategoryDesc("analytics", config)}
+              </div>
+              <div class="usrly-cat-table-drawer" id="drawer-ana">
                 \${renderCategoryCookieTable("analytics")}
               </div>
             </div>
@@ -2074,7 +2084,7 @@ const TRACKER_SCRIPT = `(function () {
 
             \${config.enable_performance_category !== false ? \`
             <div class="usrly-category-item">
-              <div class="usrly-cat-header" data-target="desc-perf">
+              <div class="usrly-cat-header" data-target="drawer-perf">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow">›</span>
                   <span class="usrly-cat-title">\${resolveCategoryTitle("performance", config)}</span>
@@ -2084,8 +2094,10 @@ const TRACKER_SCRIPT = `(function () {
                   <span class="usrly-slider"></span>
                 </label>
               </div>
-              <div class="usrly-cat-desc" id="desc-perf">
-                <p style="margin-bottom:6px;">\${resolveCategoryDesc("performance", config)}</p>
+              <div class="usrly-cat-desc">
+                \${resolveCategoryDesc("performance", config)}
+              </div>
+              <div class="usrly-cat-table-drawer" id="drawer-perf">
                 \${renderCategoryCookieTable("performance")}
               </div>
             </div>
@@ -2093,7 +2105,7 @@ const TRACKER_SCRIPT = `(function () {
 
             \${config.enable_advertisement_category !== false ? \`
             <div class="usrly-category-item">
-              <div class="usrly-cat-header" data-target="desc-ad">
+              <div class="usrly-cat-header" data-target="drawer-ad">
                 <div class="usrly-cat-left">
                   <span class="usrly-cat-arrow">›</span>
                   <span class="usrly-cat-title">\${resolveCategoryTitle("advertisement", config)}</span>
@@ -2103,8 +2115,10 @@ const TRACKER_SCRIPT = `(function () {
                   <span class="usrly-slider"></span>
                 </label>
               </div>
-              <div class="usrly-cat-desc" id="desc-ad">
-                <p style="margin-bottom:6px;">\${resolveCategoryDesc("advertisement", config)}</p>
+              <div class="usrly-cat-desc">
+                \${resolveCategoryDesc("advertisement", config)}
+              </div>
+              <div class="usrly-cat-table-drawer" id="drawer-ad">
                 \${renderCategoryCookieTable("advertisement")}
               </div>
             </div>
@@ -2137,10 +2151,10 @@ const TRACKER_SCRIPT = `(function () {
             return;
           }
           var targetId = h.getAttribute("data-target");
-          var desc = overlay.querySelector("#" + targetId);
+          var drawer = overlay.querySelector("#" + targetId);
           var arrow = h.querySelector(".usrly-cat-arrow");
-          if (desc) {
-            var isVis = desc.classList.toggle("visible");
+          if (drawer) {
+            var isVis = drawer.classList.toggle("visible");
             if (arrow) arrow.classList.toggle("expanded", isVis);
           }
         });

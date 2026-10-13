@@ -36,6 +36,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ detail: "Access denied to workspace" }, { status: 403 })
     }
 
+    // Handle Traffic Booster Add-On (100k pageviews with rollover)
+    if (plan === "addon_100k" || plan?.includes("addon")) {
+      const updateRes = await pool.query(
+        `UPDATE workspaces 
+         SET extra_pageviews_balance = COALESCE(extra_pageviews_balance, 0) + 100000,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING extra_pageviews_balance`,
+        [workspaceId]
+      )
+
+      await pool.query(
+        `INSERT INTO billing_events (id, event_id, event_type, occurred_at, payload)
+         VALUES ($1, $2, $3, NOW(), $4)
+         ON CONFLICT (event_id) DO NOTHING`,
+        [
+          `evt_${Date.now()}_addon`,
+          `evt_addon_${Date.now()}`,
+          "transaction.completed",
+          JSON.stringify({
+            data: {
+              id: `txn_${Date.now()}`,
+              invoice_number: `INV-ADDON-${Date.now().toString().slice(-6)}`,
+              status: "paid",
+              details: { totals: { total: 1000 } },
+              custom_data: { workspace_id: workspaceId, plan: "addon_100k" },
+            },
+          }),
+        ]
+      )
+
+      return NextResponse.json({
+        success: true,
+        isAddon: true,
+        extraPageviewsBalance: updateRes.rows[0]?.extra_pageviews_balance || 100000,
+        message: "🎉 100k Pageview Booster added! Your rollover capacity has been updated.",
+      })
+    }
+
     const targetPlan = plan === "business" ? "business" : "growth"
     const now = new Date()
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)

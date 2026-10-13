@@ -105,7 +105,63 @@ export async function processPaddleWebhook(event: PaddleWebhookEvent): Promise<{
     return { success: true, action: "deduplicated" }
   }
 
-  // 2. Filter supported subscription lifecycle events
+  // 2. Handle transaction.completed & transaction.paid (e.g. Add-on purchases & invoice receipts)
+  if (event_type === "transaction.completed" || event_type === "transaction.paid") {
+    await pool.query(
+      `INSERT INTO billing_events (id, event_id, event_type, occurred_at, payload)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (event_id) DO NOTHING`,
+      [`evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, event_id, event_type, eventDate, JSON.stringify(event)]
+    )
+
+    let workspaceId = data.custom_data?.workspace_id || data.custom_data?.workspaceId
+    const paddleCustomerId = data.customer_id || null
+
+    if (!workspaceId && paddleCustomerId) {
+      const subLookup = await pool.query(
+        `SELECT workspace_id FROM subscriptions WHERE paddle_customer_id = $1 LIMIT 1`,
+        [paddleCustomerId]
+      )
+      if (subLookup.rows.length > 0) {
+        workspaceId = subLookup.rows[0].workspace_id
+      }
+    }
+
+    // Check if this transaction is for the 100k pageviews add-on
+    const isAddon100k =
+      data.custom_data?.plan === "addon_100k" ||
+      data.items?.some((item: any) =>
+        item.price?.id === process.env.NEXT_PUBLIC_PADDLE_ADDON_100K_PRICE_ID ||
+        item.price?.id === "pri_01addon_100k_pageviews" ||
+        item.price?.description?.toLowerCase().includes("100k") ||
+        item.price?.name?.toLowerCase().includes("100k")
+      )
+
+    if (workspaceId && isAddon100k) {
+      await pool.query(
+        `UPDATE workspaces 
+         SET extra_pageviews_balance = COALESCE(extra_pageviews_balance, 0) + 100000,
+             updated_at = NOW() 
+         WHERE id = $1`,
+        [workspaceId]
+      )
+      console.log(`[Paddle Webhook] Credited +100,000 rollover pageviews to workspace ${workspaceId}`)
+    }
+
+    if (workspaceId && paddleCustomerId) {
+      await pool.query(
+        `UPDATE subscriptions 
+         SET paddle_customer_id = COALESCE(paddle_customer_id, $1),
+             updated_at = NOW() 
+         WHERE workspace_id = $2`,
+        [paddleCustomerId, workspaceId]
+      )
+    }
+
+    return { success: true, action: "processed", workspaceId }
+  }
+
+  // 3. Filter supported subscription lifecycle events
   const supportedEvents = [
     "subscription.created",
     "subscription.updated",

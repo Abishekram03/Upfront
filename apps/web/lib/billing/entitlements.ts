@@ -57,6 +57,7 @@ export interface WorkspaceUsage {
   pageviewPercent: number
   sitesCount: number
   activeScansCount: number
+  extraPageviewsBalance?: number
 }
 
 /**
@@ -182,6 +183,7 @@ export async function getWorkspaceUsage(workspaceId: string): Promise<WorkspaceU
 
   let sitesCount = 0
   let pageviewsThisMonth = 0
+  let extraPageviewsBalance = 0
 
   try {
     if (workspaceId) {
@@ -201,12 +203,19 @@ export async function getWorkspaceUsage(workspaceId: string): Promise<WorkspaceU
         )
         pageviewsThisMonth = pvRes.rows[0]?.count || 0
       }
+
+      const wsRes = await pool.query(
+        `SELECT extra_pageviews_balance FROM workspaces WHERE id = $1 LIMIT 1`,
+        [workspaceId]
+      )
+      extraPageviewsBalance = wsRes.rows[0]?.extra_pageviews_balance || 0
     }
   } catch (err) {
     console.warn("[Workspace Usage] Error calculating usage:", err)
   }
 
-  const pageviewLimit = entitlements.limits.monthlyPageviews || 50000
+  const baseLimit = entitlements.limits.monthlyPageviews || 50000
+  const pageviewLimit = baseLimit + extraPageviewsBalance
   const pageviewPercent = Math.min(100, Math.round((pageviewsThisMonth / pageviewLimit) * 100))
 
   return {
@@ -216,5 +225,6 @@ export async function getWorkspaceUsage(workspaceId: string): Promise<WorkspaceU
     pageviewPercent,
     sitesCount,
     activeScansCount: 0,
+    extraPageviewsBalance,
   }
 }

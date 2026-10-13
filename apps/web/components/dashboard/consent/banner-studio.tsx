@@ -2512,7 +2512,7 @@ export function BannerStudio() {
                       {/* 1. Necessary */}
                       <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
                         <div
-                          className="flex items-center justify-between cursor-pointer py-1"
+                          className="flex items-center justify-between cursor-pointer py-1 select-none"
                           onClick={() => toggleMockAccordion("necessary")}
                         >
                           <div className={cn("flex items-center gap-1.5 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>
@@ -2523,36 +2523,34 @@ export function BannerStudio() {
                             {getText("always_active_label")}
                           </span>
                         </div>
-                        {mockExpanded.necessary && (
-                          <div className="pl-4 space-y-2">
-                            <p className={cn("text-[10px] font-normal leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
-                              {getText("necessary_description")}
-                            </p>
-                            {config.show_cookie_list_on_banner !== false && (
+                        <p className={cn("text-[10px] font-normal leading-relaxed pl-4", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
+                          {getText("necessary_description")}
+                        </p>
+                        {mockExpanded.necessary && config.show_cookie_list_on_banner !== false && (
+                          <div className="pl-4 pt-1 space-y-2">
+                            <div className={cn(
+                              "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
+                              config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                            )}>
                               <div className={cn(
-                                "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
-                                config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                                "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
+                                config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-800 border-slate-200"
                               )}>
-                                <div className={cn(
-                                  "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
-                                  config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-800 border-slate-200"
-                                )}>
-                                  <span className="col-span-4">{getText("cookie_column_label")}</span>
-                                  <span className="col-span-3">{getText("duration_column_label")}</span>
-                                  <span className="col-span-5">{getText("description_column_label")}</span>
-                                </div>
-                                <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
-                                  <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>upfront_cookie</span>
-                                  <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>1 year</span>
-                                  <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Consent preferences state</span>
-                                </div>
-                                <div className="grid grid-cols-12 pt-0.5 items-center min-w-[280px]">
-                                  <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>cf_clearance</span>
-                                  <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>30 days</span>
-                                  <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Cloudflare bot clearance</span>
-                                </div>
+                                <span className="col-span-4">{getText("cookie_column_label")}</span>
+                                <span className="col-span-3">{getText("duration_column_label")}</span>
+                                <span className="col-span-5">{getText("description_column_label")}</span>
                               </div>
-                            )}
+                              <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
+                                <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>upfront_cookie</span>
+                                <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>1 year</span>
+                                <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Consent preferences state</span>
+                              </div>
+                              <div className="grid grid-cols-12 pt-0.5 items-center min-w-[280px]">
+                                <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>cf_clearance</span>
+                                <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>30 days</span>
+                                <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Cloudflare bot clearance</span>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2560,7 +2558,7 @@ export function BannerStudio() {
                       {/* 2. Functional */}
                       {config.enable_functional_category && (
                         <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
-                          <div className="flex items-center justify-between py-1">
+                          <div className="flex items-center justify-between py-1 select-none">
                             <div
                               className={cn("flex items-center gap-1.5 font-semibold cursor-pointer", config.theme === "dark" ? "text-white" : "text-slate-900")}
                               onClick={() => toggleMockAccordion("functional")}
@@ -2575,31 +2573,29 @@ export function BannerStudio() {
                               className="size-3.5 rounded text-[#1868db] focus:ring-[#1868db]"
                             />
                           </div>
-                          {mockExpanded.functional && (
-                            <div className="pl-4 space-y-2">
-                              <p className={cn("text-[10px] font-normal leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
-                                {getText("functional_description")}
-                              </p>
-                              {config.show_cookie_list_on_banner !== false && (
+                          <p className={cn("text-[10px] font-normal leading-relaxed pl-4", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
+                            {getText("functional_description")}
+                          </p>
+                          {mockExpanded.functional && config.show_cookie_list_on_banner !== false && (
+                            <div className="pl-4 pt-1 space-y-2">
+                              <div className={cn(
+                                "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
+                                config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                              )}>
                                 <div className={cn(
-                                  "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
-                                  config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                                  "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
+                                  config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-800 border-slate-200"
                                 )}>
-                                  <div className={cn(
-                                    "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
-                                    config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-800 border-slate-200"
-                                  )}>
-                                    <span className="col-span-4">{getText("cookie_column_label")}</span>
-                                    <span className="col-span-3">{getText("duration_column_label")}</span>
-                                    <span className="col-span-5">{getText("description_column_label")}</span>
-                                  </div>
-                                  <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
-                                    <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>i18n_lang</span>
-                                    <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Session</span>
-                                    <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>User language choice</span>
-                                  </div>
+                                  <span className="col-span-4">{getText("cookie_column_label")}</span>
+                                  <span className="col-span-3">{getText("duration_column_label")}</span>
+                                  <span className="col-span-5">{getText("description_column_label")}</span>
                                 </div>
-                              )}
+                                <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
+                                  <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>i18n_lang</span>
+                                  <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Session</span>
+                                  <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>User language choice</span>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -2608,7 +2604,7 @@ export function BannerStudio() {
                       {/* 3. Analytics */}
                       {config.enable_analytics_category && (
                         <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
-                          <div className="flex items-center justify-between py-1">
+                          <div className="flex items-center justify-between py-1 select-none">
                             <div
                               className={cn("flex items-center gap-1.5 font-semibold cursor-pointer", config.theme === "dark" ? "text-white" : "text-slate-900")}
                               onClick={() => toggleMockAccordion("analytics")}
@@ -2623,36 +2619,34 @@ export function BannerStudio() {
                               className="size-3.5 rounded text-[#1868db] focus:ring-[#1868db]"
                             />
                           </div>
-                          {mockExpanded.analytics && (
-                            <div className="pl-4 space-y-2">
-                              <p className={cn("text-[10px] font-normal leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
-                                {getText("analytics_description")}
-                              </p>
-                              {config.show_cookie_list_on_banner !== false && (
+                          <p className={cn("text-[10px] font-normal leading-relaxed pl-4", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
+                            {getText("analytics_description")}
+                          </p>
+                          {mockExpanded.analytics && config.show_cookie_list_on_banner !== false && (
+                            <div className="pl-4 pt-1 space-y-2">
+                              <div className={cn(
+                                "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
+                                config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                              )}>
                                 <div className={cn(
-                                  "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
-                                  config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                                  "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
+                                  config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-800 border-slate-200"
                                 )}>
-                                  <div className={cn(
-                                    "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
-                                    config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-800 border-slate-200"
-                                  )}>
-                                    <span className="col-span-4">{getText("cookie_column_label")}</span>
-                                    <span className="col-span-3">{getText("duration_column_label")}</span>
-                                    <span className="col-span-5">{getText("description_column_label")}</span>
-                                  </div>
-                                  <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
-                                    <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>_ga</span>
-                                    <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>2 years</span>
-                                    <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Google Analytics visitor ID</span>
-                                  </div>
-                                  <div className="grid grid-cols-12 pt-0.5 items-center min-w-[280px]">
-                                    <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>_gid</span>
-                                    <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>24 hours</span>
-                                    <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Google Analytics session ID</span>
-                                  </div>
+                                  <span className="col-span-4">{getText("cookie_column_label")}</span>
+                                  <span className="col-span-3">{getText("duration_column_label")}</span>
+                                  <span className="col-span-5">{getText("description_column_label")}</span>
                                 </div>
-                              )}
+                                <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
+                                  <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>_ga</span>
+                                  <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>2 years</span>
+                                  <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Google Analytics visitor ID</span>
+                                </div>
+                                <div className="grid grid-cols-12 pt-0.5 items-center min-w-[280px]">
+                                  <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>_gid</span>
+                                  <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>24 hours</span>
+                                  <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Google Analytics session ID</span>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -2661,7 +2655,7 @@ export function BannerStudio() {
                       {/* 4. Performance */}
                       {config.enable_performance_category && (
                         <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
-                          <div className="flex items-center justify-between py-1">
+                          <div className="flex items-center justify-between py-1 select-none">
                             <div
                               className={cn("flex items-center gap-1.5 font-semibold cursor-pointer", config.theme === "dark" ? "text-white" : "text-slate-900")}
                               onClick={() => toggleMockAccordion("performance")}
@@ -2676,21 +2670,19 @@ export function BannerStudio() {
                               className="size-3.5 rounded text-[#1868db] focus:ring-[#1868db]"
                             />
                           </div>
-                          {mockExpanded.performance && (
-                            <div className="pl-4 space-y-2">
-                              <p className={cn("text-[10px] font-normal leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
-                                {getText("performance_description")}
-                              </p>
-                              {config.show_cookie_list_on_banner !== false && (
-                                <div className={cn(
-                                  "rounded border border-dashed p-2.5 text-center",
-                                  config.theme === "dark" ? "bg-slate-800/40 border-slate-700" : "bg-slate-50/70 border-slate-200"
-                                )}>
-                                  <span className={cn("text-[10px] italic font-medium", config.theme === "dark" ? "text-slate-400" : "text-slate-400")}>
-                                    {getText("no_cookies_to_display_label")}
-                                  </span>
-                                </div>
-                              )}
+                          <p className={cn("text-[10px] font-normal leading-relaxed pl-4", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
+                            {getText("performance_description")}
+                          </p>
+                          {mockExpanded.performance && config.show_cookie_list_on_banner !== false && (
+                            <div className="pl-4 pt-1 space-y-2">
+                              <div className={cn(
+                                "rounded border border-dashed p-2.5 text-center",
+                                config.theme === "dark" ? "bg-slate-800/40 border-slate-700" : "bg-slate-50/70 border-slate-200"
+                              )}>
+                                <span className={cn("text-[10px] italic font-medium", config.theme === "dark" ? "text-slate-400" : "text-slate-400")}>
+                                  {getText("no_cookies_to_display_label")}
+                                </span>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -2699,7 +2691,7 @@ export function BannerStudio() {
                       {/* 5. Advertisement */}
                       {config.enable_advertisement_category && (
                         <div className={cn("border-t pt-2 space-y-1.5", config.theme === "dark" ? "border-slate-800" : "border-slate-200")}>
-                          <div className="flex items-center justify-between py-1">
+                          <div className="flex items-center justify-between py-1 select-none">
                             <div
                               className={cn("flex items-center gap-1.5 font-semibold cursor-pointer", config.theme === "dark" ? "text-white" : "text-slate-900")}
                               onClick={() => toggleMockAccordion("advertisement")}
@@ -2714,31 +2706,29 @@ export function BannerStudio() {
                               className="size-3.5 rounded text-[#1868db] focus:ring-[#1868db]"
                             />
                           </div>
-                          {mockExpanded.advertisement && (
-                            <div className="pl-4 space-y-2">
-                              <p className={cn("text-[10px] font-normal leading-relaxed", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
-                                {getText("advertisement_description")}
-                              </p>
-                              {config.show_cookie_list_on_banner !== false && (
+                          <p className={cn("text-[10px] font-normal leading-relaxed pl-4", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>
+                            {getText("advertisement_description")}
+                          </p>
+                          {mockExpanded.advertisement && config.show_cookie_list_on_banner !== false && (
+                            <div className="pl-4 pt-1 space-y-2">
+                              <div className={cn(
+                                "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
+                                config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                              )}>
                                 <div className={cn(
-                                  "rounded border p-2 text-[9.5px] space-y-1 font-mono overflow-x-auto",
-                                  config.theme === "dark" ? "bg-slate-800/60 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-600"
+                                  "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
+                                  config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-800 border-slate-200"
                                 )}>
-                                  <div className={cn(
-                                    "font-sans font-bold grid grid-cols-12 text-[10px] pb-1 border-b min-w-[280px]",
-                                    config.theme === "dark" ? "text-slate-200 border-slate-700" : "text-slate-800 border-slate-200"
-                                  )}>
-                                    <span className="col-span-4">{getText("cookie_column_label")}</span>
-                                    <span className="col-span-3">{getText("duration_column_label")}</span>
-                                    <span className="col-span-5">{getText("description_column_label")}</span>
-                                  </div>
-                                  <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
-                                    <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>_fbp</span>
-                                    <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>3 months</span>
-                                    <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Meta advertising pixel tracking</span>
-                                  </div>
+                                  <span className="col-span-4">{getText("cookie_column_label")}</span>
+                                  <span className="col-span-3">{getText("duration_column_label")}</span>
+                                  <span className="col-span-5">{getText("description_column_label")}</span>
                                 </div>
-                              )}
+                                <div className="grid grid-cols-12 pt-1 items-center min-w-[280px]">
+                                  <span className={cn("col-span-4 font-semibold", config.theme === "dark" ? "text-white" : "text-slate-900")}>_fbp</span>
+                                  <span className={cn("col-span-3 font-normal", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>3 months</span>
+                                  <span className={cn("col-span-5 font-sans font-normal text-[9px] truncate", config.theme === "dark" ? "text-slate-300" : "text-slate-600")}>Meta advertising pixel tracking</span>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>

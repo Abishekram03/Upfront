@@ -303,6 +303,32 @@ export const PADDLE_PRICE_IDS = {
   business: "pri_01m3rgx14zzhfr3g10241pxw93", // $39/$49/month in Paddle
 } as const
 
+export const PADDLE_ADDON_PRICE_IDS = {
+  pageviews_100k: "pri_01addon_100k_pageviews",
+} as const
+
+export interface AddonPackageConfig {
+  id: string
+  name: string
+  price: number
+  pageviews: number
+  rollover: boolean
+  description: string
+  paddlePriceId?: string
+}
+
+export const ADDON_PACKAGES: Record<string, AddonPackageConfig> = {
+  pageviews_100k: {
+    id: "pageviews_100k",
+    name: "100k Pageview Booster",
+    price: 10,
+    pageviews: 100_000,
+    rollover: true,
+    description: "Instant 100,000 pageview capacity. Unused pageviews roll over month-to-month and never expire.",
+    paddlePriceId: process.env.NEXT_PUBLIC_PADDLE_ADDON_100K_PRICE_ID || PADDLE_ADDON_PRICE_IDS.pageviews_100k,
+  },
+}
+
 /**
  * Resolves plan by Paddle Price / Product ID.
  */
@@ -327,3 +353,4 @@ export function getPlanByPaddlePriceId(priceId?: string | null): PlanId {
   }
   return "free"
 }
+

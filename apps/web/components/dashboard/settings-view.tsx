@@ -40,6 +40,8 @@ import {
   FileText,
   Eye,
   Info,
+  Receipt,
+  Zap,
   Layers,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -99,6 +101,32 @@ export function SettingsView() {
   const [cancelImmediately, setCancelImmediately] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
 
+  // Invoices & Billing History State
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false)
+
+  const loadInvoices = async (wsId: string) => {
+    if (!wsId) return
+    setIsLoadingInvoices(true)
+    try {
+      const res = await fetch(`/api/v1/billing/invoices?workspaceId=${encodeURIComponent(wsId)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setInvoices(data.invoices || [])
+      }
+    } catch (err) {
+      console.warn("Failed to load invoices:", err)
+    } finally {
+      setIsLoadingInvoices(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeWorkspace?.id && activeTab === "billing") {
+      loadInvoices(activeWorkspace.id)
+    }
+  }, [activeWorkspace?.id, activeTab])
+
   const handleConfirmCancel = async () => {
     if (!activeWorkspace?.id) return
     try {
@@ -149,7 +177,7 @@ export function SettingsView() {
     const checkoutParam = searchParams.get("checkout")
     if (checkoutParam === "success") {
       setActiveTab("billing")
-      const planFromUrl = (searchParams.get("plan") as PlanId) || "growth"
+      const planFromUrl = searchParams.get("plan") || "growth"
       const targetWsId = searchParams.get("workspaceId") || activeWorkspace?.id
 
       const runSyncAndRefresh = async () => {
@@ -160,7 +188,7 @@ export function SettingsView() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 workspaceId: targetWsId,
-                plan: planFromUrl === "business" ? "business" : "growth",
+                plan: planFromUrl === "addon_100k" ? "addon_100k" : planFromUrl === "business" ? "business" : "growth",
               }),
             })
           } catch (e) {
@@ -169,6 +197,9 @@ export function SettingsView() {
         }
         await refreshEntitlements()
         await refreshWorkspaces()
+        if (targetWsId) {
+          loadInvoices(targetWsId)
+        }
       }
 
       runSyncAndRefresh()
@@ -1424,8 +1455,8 @@ export function SettingsView() {
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-700">Monthly Pageviews</span>
-                <span className="font-mono text-slate-500 font-medium">
-                  {(usage?.pageviewsThisMonth || 0).toLocaleString()} / {(entitlements?.limits.monthlyPageviews || 50000).toLocaleString()}
+                <span className="font-mono text-slate-900 font-bold">
+                  {(usage?.pageviewsThisMonth || 0).toLocaleString()} / {(usage?.pageviewLimit || entitlements?.limits.monthlyPageviews || 50000).toLocaleString()}
                 </span>
               </div>
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -1434,9 +1465,16 @@ export function SettingsView() {
                   style={{ width: `${Math.min(100, usage?.pageviewPercent || 0)}%` }}
                 />
               </div>
-              <p className="text-[11px] text-slate-400">
-                {usage?.pageviewPercent ? `${usage.pageviewPercent}% used this month` : "0% used this month"}
-              </p>
+              <div className="flex items-center justify-between text-[11px]">
+                <p className="text-slate-400">
+                  {usage?.pageviewPercent ? `${usage.pageviewPercent}% used this month` : "0% used this month"}
+                </p>
+                {Boolean(usage?.extraPageviewsBalance) && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    +{usage?.extraPageviewsBalance?.toLocaleString()} Rollover Active
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* 2. Tracked Websites */}
@@ -1779,42 +1817,181 @@ export function SettingsView() {
             </div>
           </div>
 
-          {/* Invoices Table */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-2xs space-y-4">
-            <h2 className="text-sm font-bold text-slate-900">Billing History & Invoices</h2>
-            <div className="overflow-x-auto border border-slate-200 rounded-md">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="p-3">Invoice</th>
-                    <th className="p-3">Date</th>
-                    <th className="p-3">Amount</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3 text-right">Receipt</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  <tr className="hover:bg-slate-50/60">
-                    <td className="p-3 font-mono font-bold text-slate-900">INV-2026-001</td>
-                    <td className="p-3 text-slate-500">Sep 01, 2026</td>
-                    <td className="p-3 font-mono text-slate-800">$0.00</td>
-                    <td className="p-3">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        Paid
-                      </span>
-                    </td>
-                    <td className="p-3 text-right">
-                      <button
-                        onClick={() => alert("Sample invoice receipt downloaded.")}
-                        className="text-[#1868db] hover:underline font-bold text-[11px] cursor-pointer inline-flex items-center gap-1"
-                      >
-                        <Download className="size-3" /> PDF
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          {/* Traffic Booster Add-On Package */}
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl border border-indigo-500/30 p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="space-y-3 max-w-2xl">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5 bg-indigo-950/60 px-2.5 py-0.5 rounded-md border border-indigo-400/30">
+                    <Zap className="size-3.5 text-amber-400 fill-amber-400" />
+                    Capacity Booster Add-On
+                  </span>
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
+                    <CheckCircle2 className="size-3 text-emerald-400" />
+                    Rollover Guaranteed: Never Expires
+                  </span>
+                  {Boolean(usage?.extraPageviewsBalance) && (
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-200 border border-blue-400/30">
+                      Balance: +{usage?.extraPageviewsBalance?.toLocaleString()} PVs
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <h3 className="text-2xl font-extrabold text-white">100,000 Pageview Booster Pack</h3>
+                  <span className="text-2xl font-black text-amber-400">$10</span>
+                  <span className="text-xs text-slate-400 font-medium">/ pack</span>
+                </div>
+
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Experiencing traffic surges or launching a high-volume marketing campaign? Add 100k extra pageviews to your workspace pool. 
+                  <strong> Unused pageviews never expire or reset at month-end</strong>—they roll over month-to-month until fully consumed.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs text-slate-200">
+                  <div className="flex items-center gap-2">
+                    <Check className="size-4 text-emerald-400 shrink-0" />
+                    <span><strong>+100,000</strong> instant pageviews</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="size-4 text-emerald-400 shrink-0" />
+                    <span><strong>Lifetime rollover</strong> (never resets)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="size-4 text-emerald-400 shrink-0" />
+                    <span>Stackable anytime</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 flex flex-col sm:flex-row lg:flex-col gap-2 min-w-[200px]">
+                <Button
+                  type="button"
+                  disabled={isCheckingOut !== null}
+                  onClick={() => startCheckout("addon_100k")}
+                  className="h-11 px-6 text-xs font-bold bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white shadow-md cursor-pointer flex items-center justify-center gap-2 rounded-xl transition-all"
+                >
+                  {isCheckingOut === "addon_100k" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Opening Checkout...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
+                      <span>Add 100k Pageviews ($10)</span>
+                    </>
+                  )}
+                </Button>
+                <p className="text-[10px] text-center text-slate-400">
+                  Secure checkout powered by Paddle
+                </p>
+              </div>
             </div>
+          </div>
+
+          {/* Invoices Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Billing History & Invoices</h2>
+                <p className="text-xs text-slate-500">
+                  Official VAT/tax invoices, receipts, and order history for your workspace.
+                </p>
+              </div>
+              {entitlements?.paddleCustomerId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openPaddleCustomerPortal(entitlements.paddleCustomerId!)}
+                  className="text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                >
+                  <Receipt className="size-3.5 text-slate-500" />
+                  <span>Paddle Customer Portal</span>
+                  <ExternalLink className="size-3 text-slate-400" />
+                </Button>
+              )}
+            </div>
+
+            {isLoadingInvoices ? (
+              <div className="py-12 flex flex-col items-center justify-center text-slate-400 space-y-2">
+                <Loader2 className="size-6 animate-spin text-blue-600" />
+                <p className="text-xs">Loading billing history...</p>
+              </div>
+            ) : invoices.length === 0 ? (
+              <div className="py-12 px-4 rounded-xl border border-dashed border-slate-200 text-center space-y-2 bg-slate-50/50">
+                <div className="size-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                  <Receipt className="size-5" />
+                </div>
+                <h4 className="text-xs font-bold text-slate-700">No Billing Invoices Yet</h4>
+                <p className="text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  You are currently on the Free plan or have not made any payments yet. When you upgrade to Growth, Business, or purchase an add-on, your official PDF invoices and tax receipts will appear here automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="p-3.5">Invoice / Reference</th>
+                      <th className="p-3.5">Date</th>
+                      <th className="p-3.5">Amount</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5 text-right">Receipt</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {invoices.map((inv) => (
+                      <tr key={inv.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="p-3.5 font-mono font-bold text-slate-900">
+                          {inv.invoiceNumber}
+                        </td>
+                        <td className="p-3.5 text-slate-500">
+                          {inv.date ? new Date(inv.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-"}
+                        </td>
+                        <td className="p-3.5 font-mono font-bold text-slate-800">
+                          {inv.amount}
+                        </td>
+                        <td className="p-3.5">
+                          <span className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                            inv.status === "Paid"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-amber-100 text-amber-800"
+                          )}>
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-right">
+                          {inv.receiptUrl ? (
+                            <a
+                              href={inv.receiptUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#1868db] hover:underline font-bold text-[11px] inline-flex items-center gap-1"
+                            >
+                              <Download className="size-3" /> PDF
+                            </a>
+                          ) : entitlements?.paddleCustomerId ? (
+                            <button
+                              type="button"
+                              onClick={() => openPaddleCustomerPortal(entitlements.paddleCustomerId!)}
+                              className="text-[#1868db] hover:underline font-bold text-[11px] cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <ExternalLink className="size-3" /> View in Paddle
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 text-[11px] font-mono">Paid</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
