@@ -80,11 +80,6 @@ export function resolveDomain(source: string): string | null {
     return domainMatch
   }
 
-  // Default assumption for alphanumeric words
-  if (/^[a-z0-9-]+$/.test(clean)) {
-    return `${clean}.com`
-  }
-
   return null
 }
 

@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     }
 
     if (!domain) {
-      return NextResponse.json({ detail: "Domain parameter is required" }, { status: 400, headers: CORS_HEADERS })
+      return NextResponse.json({ schedule: null }, { headers: CORS_HEADERS })
     }
 
     const schedule = await ScheduleService.getScheduleByDomain(domain)

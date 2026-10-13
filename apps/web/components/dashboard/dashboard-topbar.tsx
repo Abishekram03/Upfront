@@ -110,7 +110,7 @@ export function DashboardTopbar({
                   </div>
                   <div className="my-1 border-t border-neutral-100" />
                   <Link
-                    href="/settings"
+                    href="/settings#sites"
                     onClick={() => setDomainDropdown(false)}
                     className="flex w-full items-center gap-1.5 rounded-[4px] px-2.5 py-1.5 text-xs font-medium text-[#1868db] hover:bg-blue-50 transition-colors"
                   >

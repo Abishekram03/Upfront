@@ -38,6 +38,8 @@ export interface PaddleWebhookEvent {
       workspace_id?: string
       workspaceId?: string
       user_id?: string
+      plan?: string
+      [key: string]: any
     }
     [key: string]: any
   }

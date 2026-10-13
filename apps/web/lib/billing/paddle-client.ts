@@ -147,38 +147,42 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
     )
 
     if (paddle && typeof paddle.Checkout?.open === "function") {
-      paddle.Checkout.open({
-        items: [{ priceId: resolvedPriceId, quantity: 1 }],
-        customer: userEmail ? { email: userEmail } : undefined,
-        customData: {
-          workspace_id: workspaceId,
-          workspaceId: workspaceId,
-          user_id: userId || "",
-          plan: resolvedPlan,
-        },
-        settings: {
-          displayMode: "overlay",
-          theme: "light",
-          locale: "en",
-          successUrl: `${window.location.origin}/settings?tab=billing&checkout=success&plan=${resolvedPlan}&workspaceId=${workspaceId}`,
-        },
-      })
-    } else {
-      // Fallback if Paddle token is not yet configured: provide clear simulation in development
-      console.warn("[Paddle] SDK checkout opened in test mode.")
+      try {
+        paddle.Checkout.open({
+          items: [{ priceId: resolvedPriceId, quantity: 1 }],
+          customer: userEmail ? { email: userEmail } : undefined,
+          customData: {
+            workspace_id: workspaceId,
+            workspaceId: workspaceId,
+            user_id: userId || "",
+            plan: resolvedPlan,
+          },
+          settings: {
+            displayMode: "overlay",
+            theme: "light",
+            locale: "en",
+            successUrl: `${window.location.origin}/settings?tab=billing&checkout=success&plan=${resolvedPlan}&workspaceId=${workspaceId}`,
+          },
+        })
+        return
+      } catch (sdkOpenErr) {
+        console.warn("[Paddle] SDK checkout open error, falling back to test mode:", sdkOpenErr)
+      }
+    }
+
+    // Fallback if Paddle token is not yet configured or in sandbox dev: provide clear simulation
+    console.warn("[Paddle] SDK checkout opened in test mode.")
       const simulate = confirm(
         `[Paddle Test Mode]\n\nUpgrading workspace to ${resolvedPlan.toUpperCase()} (Price ID: ${resolvedPriceId})\nWorkspace: ${workspaceId}\n\nClick OK to simulate successful checkout or Cancel to abort.`
       )
       if (simulate) {
         // Send test webhook / simulation call
         const plan = resolvedPlan === "addon_100k" ? "addon_100k" : resolvedPlan === "business" ? "business" : "growth"
-        if (plan === "addon_100k") {
-          await fetch("/api/v1/billing/sync", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ workspaceId, plan: "addon_100k" }),
-          }).catch(() => {})
-        }
+        await fetch("/api/v1/billing/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workspaceId, plan }),
+        }).catch(() => {})
         const res = await fetch("/api/v1/billing/webhook", {
           method: "POST",
           headers: {
@@ -216,7 +220,6 @@ export async function openPaddleCheckout(options: CheckoutOptions) {
           }
         }
       }
-    }
   } catch (err) {
     console.error("Failed to open Paddle Checkout:", err)
     alert("Could not initialize payment checkout. Please try again.")

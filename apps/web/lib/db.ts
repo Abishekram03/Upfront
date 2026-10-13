@@ -347,28 +347,6 @@ export async function ensureTables() {
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS performance_description TEXT;
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS advertisement_title VARCHAR(255);
         ALTER TABLE consent_configs ADD COLUMN IF NOT EXISTS advertisement_description TEXT;
-        ALTER TABLE consent_receipts ADD COLUMN IF NOT EXISTS consent_version VARCHAR(20) DEFAULT '1.0';
-        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS script_pattern_regex TEXT;
-        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS discovery_source VARCHAR(50) DEFAULT 'http_set_cookie';
-        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS path VARCHAR(255) DEFAULT '/';
-        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS is_secure BOOLEAN DEFAULT FALSE;
-        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS is_http_only BOOLEAN DEFAULT FALSE;
-        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS same_site VARCHAR(50);
-        ALTER TABLE scans ADD COLUMN IF NOT EXISTS scan_type VARCHAR(50) DEFAULT 'hybrid';
-        ALTER TABLE scans ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITHOUT TIME ZONE;
-        ALTER TABLE scans ADD COLUMN IF NOT EXISTS error_message TEXT;
-
-        -- Consolidate legacy CMP cookies and ensure upfront_cookie / upfront_consent are always categorized as Necessary
-        DELETE FROM discovered_cookies WHERE name = 'usrly_consent';
-        UPDATE discovered_cookies 
-        SET category = 'necessary', 
-            service_name = 'UpFront Consent Management', 
-            description = 'Stores the user''s cookie consent choices and preferences for the domain.', 
-            duration = '1 year',
-            confidence = 'high',
-            status = 'detected'
-        WHERE name IN ('upfront_cookie', 'upfront_consent') AND (category = 'uncategorised' OR category = 'unknown' OR service_name = 'Uncatalogued Provider');
-
         -- Discovered Cookies from Scanner
         CREATE TABLE IF NOT EXISTS discovered_cookies (
           id VARCHAR(36) PRIMARY KEY,
@@ -400,6 +378,27 @@ export async function ensureTables() {
           created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS ix_scans_domain_created ON scans(domain, created_at);
+
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS script_pattern_regex TEXT;
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS discovery_source VARCHAR(50) DEFAULT 'http_set_cookie';
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS path VARCHAR(255) DEFAULT '/';
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS is_secure BOOLEAN DEFAULT FALSE;
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS is_http_only BOOLEAN DEFAULT FALSE;
+        ALTER TABLE discovered_cookies ADD COLUMN IF NOT EXISTS same_site VARCHAR(50);
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS scan_type VARCHAR(50) DEFAULT 'hybrid';
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITHOUT TIME ZONE;
+        ALTER TABLE scans ADD COLUMN IF NOT EXISTS error_message TEXT;
+
+        -- Consolidate legacy CMP cookies and ensure upfront_cookie / upfront_consent are always categorized as Necessary
+        DELETE FROM discovered_cookies WHERE name = 'usrly_consent';
+        UPDATE discovered_cookies 
+        SET category = 'necessary', 
+            service_name = 'UpFront Consent Management', 
+            description = 'Stores the user''s cookie consent choices and preferences for the domain.', 
+            duration = '1 year',
+            confidence = 'high',
+            status = 'detected'
+        WHERE name IN ('upfront_cookie', 'upfront_consent') AND (category = 'uncategorised' OR category = 'unknown' OR service_name = 'Uncatalogued Provider');
 
         -- Consent Working Drafts (Isolated from Production Runtime)
         CREATE TABLE IF NOT EXISTS consent_drafts (

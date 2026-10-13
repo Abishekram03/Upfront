@@ -173,16 +173,14 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
           userEmail: data?.userEmail,
           onSuccess: async () => {
             setIsCheckingOut(null)
-            if (isAddon) {
-              await fetch("/api/v1/billing/sync", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  workspaceId: activeWorkspace.id,
-                  plan: "addon_100k",
-                }),
-              }).catch(() => {})
-            }
+            await fetch("/api/v1/billing/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                workspaceId: activeWorkspace.id,
+                plan: planToCheckout,
+              }),
+            }).catch(() => {})
             await refreshEntitlements()
           },
           onError: (errText?: string) => {
