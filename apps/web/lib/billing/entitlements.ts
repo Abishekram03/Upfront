@@ -64,114 +64,38 @@ export interface WorkspaceUsage {
  * Resolves effective entitlements for a workspace based on authoritative DB subscription state.
  */
 export async function getWorkspaceEntitlements(workspaceId: string): Promise<WorkspaceEntitlements> {
-  await ensureTables()
-
-  if (!workspaceId) {
-    const freePlan = PLANS.free
-    return {
-      workspaceId: "",
-      plan: "free",
-      planConfig: freePlan,
-      status: "active",
-      isPaid: false,
-      isPastDue: false,
-      capabilities: freePlan.capabilities,
-      limits: freePlan.limits,
-    }
-  }
-
-  const subRes = await pool.query(
-    `SELECT * FROM subscriptions WHERE workspace_id = $1 LIMIT 1`,
-    [workspaceId]
-  )
-
-  let rawPlan: PlanId = "free"
-  let status: SubscriptionStatus = "active"
-  let paddleSubscriptionId: string | null = null
-  let paddleCustomerId: string | null = null
-  let currentPeriodStart: string | null = null
-  let currentPeriodEnd: string | null = null
-  let cancelAtPeriodEnd = false
-
-  if (subRes.rows.length > 0) {
-    const sub = subRes.rows[0]
-    rawPlan = (sub.plan as PlanId) || "free"
-    status = (sub.status as SubscriptionStatus) || "active"
-    paddleSubscriptionId = sub.paddle_subscription_id || null
-    paddleCustomerId = sub.paddle_customer_id || null
-    currentPeriodStart = sub.current_period_start ? new Date(sub.current_period_start).toISOString() : null
-    currentPeriodEnd = sub.current_period_end ? new Date(sub.current_period_end).toISOString() : null
-    cancelAtPeriodEnd = !!sub.cancel_at_period_end
-    console.log(`[Entitlements] Found subscription for workspace ${workspaceId}: plan=${rawPlan}, status=${status}`)
-  } else {
-    // Fallback: Check workspaces.plan_tier
-    console.log(`[Entitlements] No subscription row for workspace ${workspaceId}, checking plan_tier fallback...`)
-    try {
-      const wsRes = await pool.query(
-        `SELECT plan_tier FROM workspaces WHERE id = $1 LIMIT 1`,
-        [workspaceId]
-      )
-      if (wsRes.rows.length > 0 && wsRes.rows[0].plan_tier && wsRes.rows[0].plan_tier !== "free") {
-        rawPlan = wsRes.rows[0].plan_tier as PlanId
-        status = "active"
-        console.log(`[Entitlements] Fallback plan_tier found: ${rawPlan}`)
-      } else {
-        console.log(`[Entitlements] No plan_tier found, defaulting to free`)
-      }
-    } catch (fallbackErr: any) {
-      console.warn(`[Entitlements] plan_tier fallback query failed:`, fallbackErr.message)
-    }
-  }
-
-  // Determine effective plan based on subscription status
-  // active / trialing = full plan access
-  // past_due = retain access with billing warning
-  // paused / canceled = fallback to Free plan
-  let effectivePlanId: PlanId = "free"
-  if (status === "active" || status === "trialing" || status === "past_due") {
-    effectivePlanId = rawPlan
-  } else {
-    effectivePlanId = "free"
-  }
-
-  const planConfig = getPlan(effectivePlanId)
-  const isPaid = effectivePlanId !== "free" && (status === "active" || status === "trialing" || status === "past_due")
-  const isPastDue = status === "past_due"
-
+  const planConfig = getPlan("business")
   return {
-    workspaceId,
-    plan: effectivePlanId,
+    workspaceId: workspaceId || "ws_default",
+    plan: "business",
     planConfig,
-    status,
-    isPaid,
-    isPastDue,
+    status: "active",
+    isPaid: true,
+    isPastDue: false,
     capabilities: planConfig.capabilities,
-    limits: planConfig.limits,
-    paddleSubscriptionId,
-    paddleCustomerId,
-    currentPeriodStart,
-    currentPeriodEnd,
-    cancelAtPeriodEnd,
+    limits: {
+      monthlyPageviews: 100_000_000,
+      retentionDays: 3650,
+      pagesPerScan: 100_000,
+      consentHistoryDays: 3650,
+    },
+    paddleSubscriptionId: null,
+    paddleCustomerId: null,
+    currentPeriodStart: null,
+    currentPeriodEnd: null,
+    cancelAtPeriodEnd: false,
   }
 }
 
 /**
- * Asserts that a workspace has a specific capability. Throws EntitlementError if missing.
+ * Asserts that a workspace has a specific capability. In open-source mode, all capabilities are unlocked.
  */
 export async function assertWorkspaceCapability(
   workspaceId: string,
   capability: EntitlementKey,
   customErrorMessage?: string
 ): Promise<WorkspaceEntitlements> {
-  const entitlements = await getWorkspaceEntitlements(workspaceId)
-  const hasAccess = !!entitlements.capabilities[capability]
-
-  if (!hasAccess) {
-    const requiredPlan = getRequiredPlanForCapability(capability)
-    throw new EntitlementError(capability, requiredPlan, customErrorMessage)
-  }
-
-  return entitlements
+  return await getWorkspaceEntitlements(workspaceId)
 }
 
 /**

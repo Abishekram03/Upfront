@@ -188,7 +188,15 @@ export function PrimaryCta({
     "inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-7 py-4 text-base font-medium text-primary-foreground shadow-sm transition-colors hover:bg-brand-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
     className,
   );
-  const target = to || href || "/signup";
+  const target = to || href || "https://github.com/Abishekram03/usrly";
+  if (target.startsWith("http")) {
+    return (
+      <a href={target} target="_blank" rel="noopener noreferrer" className={cls}>
+        {label}
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </a>
+    );
+  }
   return (
     <Link href={target} className={cls}>
       {label}
@@ -212,7 +220,14 @@ export function SecondaryCta({
     "inline-flex items-center justify-center gap-1.5 rounded-md border border-line bg-surface px-8 py-4 text-base font-medium text-ink transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
     className,
   );
-  const target = to || href || "/pricing";
+  const target = to || href || "/docs";
+  if (target.startsWith("http")) {
+    return (
+      <a href={target} target="_blank" rel="noopener noreferrer" className={cls}>
+        {label}
+      </a>
+    );
+  }
   return (
     <Link href={target} className={cls}>
       {label}

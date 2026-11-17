@@ -33,8 +33,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json(res.rows)
   } catch (err: any) {
-    console.error("GET /api/v1/sites error:", err)
-    return NextResponse.json({ detail: err.message || "Failed to fetch sites" }, { status: 500 })
+    console.warn("GET /api/v1/sites fallback:", err?.message || err)
+    return NextResponse.json([])
   }
 }
 

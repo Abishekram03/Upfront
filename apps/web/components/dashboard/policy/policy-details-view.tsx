@@ -201,16 +201,9 @@ export function PolicyDetailsView({
   const [isPublishing, setIsPublishing] = useState(false)
   const [selectedLang, setSelectedLang] = useState<string>("en")
 
-  // Entitlements
-  let isGrowthPlus = false
-  let openUpgradeModal: ((plan?: any, feat?: string) => void) | undefined
-  try {
-    const entitlements = useEntitlements()
-    isGrowthPlus = entitlements.plan === "growth" || entitlements.plan === "business" || Boolean(entitlements.isPaid)
-    openUpgradeModal = entitlements.openUpgradeModal
-  } catch {
-    isGrowthPlus = false
-  }
+  // Entitlements: Open Source edition has all features unlocked
+  const isGrowthPlus = true
+  const openUpgradeModal = (_plan?: any, _feat?: string) => {}
 
   const isCookiePolicy = policy.id === "cookies"
   const isPrivacyPolicy = policy.id === "privacy"

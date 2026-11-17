@@ -106,29 +106,29 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     },
     capabilities: {
       "analytics.enabled": true,
-      "analytics.monthly_pageviews": 50_000,
-      "analytics.retention_days": 90,
+      "analytics.monthly_pageviews": 10_000_000,
+      "analytics.retention_days": 3650,
       "cmp.banner": true,
       "cmp.box_layout": true,
       "cmp.popup_layout": true,
-      "cmp.script_rules": "basic",
-      "cmp.banner_studio": "basic",
-      "cmp.legal_frameworks": "basic",
-      "cmp.cookie_scanner": "basic",
-      "cmp.cookie_policy": "basic",
-      "cmp.consent_proof": "basic",
-      "cmp.gpc": false,
-      "cmp.geo_targeting": false,
-      "cmp.google_consent_mode_v2": false,
-      "cmp.multilingual": false,
-      "cmp.scheduled_scans": false,
-      "cmp.scheduled_scan_frequencies": [],
-      "cmp.tcf_v23": false,
-      "cmp.custom_css": false,
-      "cmp.version_history": false,
-      "cmp.whitelabel": false,
-      "scan.pages_per_scan": 100,
-      "consent.history_days": 30,
+      "cmp.script_rules": "full",
+      "cmp.banner_studio": "full",
+      "cmp.legal_frameworks": "full",
+      "cmp.cookie_scanner": "full",
+      "cmp.cookie_policy": "full",
+      "cmp.consent_proof": "full",
+      "cmp.gpc": true,
+      "cmp.geo_targeting": true,
+      "cmp.google_consent_mode_v2": true,
+      "cmp.multilingual": true,
+      "cmp.scheduled_scans": true,
+      "cmp.scheduled_scan_frequencies": ["daily", "weekly", "monthly"],
+      "cmp.tcf_v23": true,
+      "cmp.custom_css": true,
+      "cmp.version_history": true,
+      "cmp.whitelabel": true,
+      "scan.pages_per_scan": 100_000,
+      "consent.history_days": 3650,
     },
   },
 
@@ -275,26 +275,6 @@ export function getPlan(planId?: string | null): PlanConfig {
  * Returns the minimal required plan for a given capability key.
  */
 export function getRequiredPlanForCapability(key: EntitlementKey): PlanId {
-  if (
-    key === "cmp.tcf_v23" ||
-    key === "cmp.custom_css" ||
-    key === "cmp.multilingual"
-  ) {
-    return "business"
-  }
-  if (
-    key === "cmp.box_layout" ||
-    key === "cmp.popup_layout" ||
-    key === "cmp.script_rules" ||
-    key === "cmp.gpc" ||
-    key === "cmp.geo_targeting" ||
-    key === "cmp.google_consent_mode_v2" ||
-    key === "cmp.scheduled_scans" ||
-    key === "cmp.version_history" ||
-    key === "cmp.whitelabel"
-  ) {
-    return "growth"
-  }
   return "free"
 }
 

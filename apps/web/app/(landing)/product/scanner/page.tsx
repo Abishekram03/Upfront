@@ -9,6 +9,7 @@ import {
   Section,
   SectionHeader,
 } from "@/components/marketing/ui";
+import { BrowserMockupFrame } from "@/components/marketing/dashboard-preview";
 import { FaqSection } from "@/components/marketing/faq";
 import { FinalCta } from "@/components/marketing/cta";
 
@@ -59,9 +60,19 @@ export default function ScannerPage() {
         description="Scan your site to discover every cookie and tracker it sets, identify who sets them, and map each one to a consent category — before your visitors ever see the banner."
       >
         <CTAGroup
-          primary={{ label: "Start for free", to: "/contact" }}
-          secondary={{ label: "See pricing", to: "/pricing" }}
+          primary={{ label: "Star on GitHub", to: "https://github.com/Abishekram03/usrly" }}
+          secondary={{ label: "Open Cookie Manager", to: "/consent/scanner" }}
         />
+        <div className="mx-auto mt-12 max-w-4xl text-left">
+          <BrowserMockupFrame
+            src="/dashboard-illustration/policies.png"
+            alt="UpFront Cookie Scanner & Policies"
+            width={1693}
+            height={877}
+            url="upfront.local/consent/scanner"
+            priority
+          />
+        </div>
       </PageHero>
 
       <Section className="border-t border-line bg-surface">

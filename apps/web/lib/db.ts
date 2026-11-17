@@ -567,6 +567,19 @@ export async function ensureTables() {
           CONSTRAINT uq_user_domain_notification UNIQUE (user_id, domain, notification_id)
         );
         CREATE INDEX IF NOT EXISTS ix_user_notif_user_domain ON user_notification_states(user_id, domain);
+
+        -- Seed Default Local Admin and Workspace for Open Source Edition
+        INSERT INTO "user" ("id", "name", "email", "emailVerified")
+        VALUES ('usr_local_admin', 'Admin', 'admin@upfront.local', TRUE)
+        ON CONFLICT ("id") DO NOTHING;
+
+        INSERT INTO workspaces ("id", "name", "slug", "owner_id", "onboarding_completed", "onboarding_step", "plan_tier")
+        VALUES ('ws_default', 'My Workspace', 'my-workspace', 'usr_local_admin', TRUE, 'completed', 'open_source')
+        ON CONFLICT ("id") DO NOTHING;
+
+        INSERT INTO workspace_members ("id", "workspace_id", "user_id", "role")
+        VALUES ('wm_default', 'ws_default', 'usr_local_admin', 'owner')
+        ON CONFLICT ("workspace_id", "user_id") DO NOTHING;
       `)
       tablesInitialized = true
     } finally {

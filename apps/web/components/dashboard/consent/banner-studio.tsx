@@ -870,12 +870,12 @@ export function BannerStudio() {
                   <div className="space-y-1.5">
                     {[
                       { id: "all", label: "Worldwide", desc: "Display banner to all visitors", isFree: true },
-                      { id: "eu_only", label: "EU Countries & UK Only", desc: "Saves pageview quota on non-regulated traffic", isFree: false },
-                      { id: "custom", label: "Select Countries", desc: "Granular ISO country selection", isFree: false },
+                      { id: "eu_only", label: "EU Countries & UK Only", desc: "Display banner in EU countries and the UK", isFree: true },
+                      { id: "custom", label: "Select Countries", desc: "Granular ISO country selection", isFree: true },
                     ].map((opt) => {
                       const isSelected = (config.geo_targeting || "all") === opt.id
-                      const canGeoTarget = hasCapability("cmp.geo_targeting")
-                      const isLocked = !opt.isFree && !canGeoTarget
+                      const canGeoTarget = true
+                      const isLocked = false
                       return (
                         <label
                           key={opt.id}

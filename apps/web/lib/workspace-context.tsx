@@ -19,6 +19,22 @@ export interface Workspace {
   updated_at: string
 }
 
+export const DEFAULT_WORKSPACE: Workspace = {
+  id: "ws_default",
+  name: "My Workspace",
+  slug: "my-workspace",
+  owner_id: "usr_local_admin",
+  role: "owner",
+  plan_tier: "open_source",
+  onboarding_completed: true,
+  onboarding_step: "completed",
+  first_site_id: null,
+  members_count: 1,
+  sites_count: 0,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+}
+
 interface WorkspaceContextType {
   workspaces: Workspace[]
   activeWorkspace: Workspace | null
@@ -37,53 +53,39 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 const ACTIVE_WORKSPACE_KEY = "upfront_active_workspace_id"
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const { data: session, isPending: isSessionPending } = useSession()
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [activeWorkspace, setActiveWorkspaceState] = useState<Workspace | null>(null)
-  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true)
+  const { isPending: isSessionPending } = useSession()
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([DEFAULT_WORKSPACE])
+  const [activeWorkspace, setActiveWorkspaceState] = useState<Workspace | null>(DEFAULT_WORKSPACE)
+  const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false)
 
   const refreshWorkspaces = useCallback(async (): Promise<Workspace[]> => {
-    if (!session?.user?.id) {
-      setWorkspaces([])
-      setActiveWorkspaceState(null)
-      setIsLoadingWorkspaces(false)
-      return []
-    }
-
     try {
       setIsLoadingWorkspaces(true)
       const res = await fetch("/api/v1/workspaces")
-      if (!res.ok) {
-        throw new Error("Failed to load workspaces")
-      }
-      const data: Workspace[] = await res.json()
-      setWorkspaces(data)
-
-      if (data.length > 0) {
-        const savedId = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_WORKSPACE_KEY) : null
-        const matching = data.find((w) => w.id === savedId)
-        // Smart workspace selection: saved workspace -> paid workspace -> workspace with sites -> first workspace
-        const paidWorkspace = data.find((w) => w.plan_tier && w.plan_tier !== "free")
-        const workspaceWithSites = data.find((w) => (w.sites_count || 0) > 0)
-        const selected = matching || paidWorkspace || workspaceWithSites || data[0] || null
-
-        setActiveWorkspaceState(selected)
-        if (selected && typeof window !== "undefined") {
-          localStorage.setItem(ACTIVE_WORKSPACE_KEY, selected.id)
+      if (res.ok) {
+        const data: Workspace[] = await res.json()
+        if (Array.isArray(data) && data.length > 0) {
+          setWorkspaces(data)
+          const savedId = typeof window !== "undefined" ? localStorage.getItem(ACTIVE_WORKSPACE_KEY) : null
+          const matching = data.find((w) => w.id === savedId)
+          const selected = matching || data[0] || DEFAULT_WORKSPACE
+          setActiveWorkspaceState(selected)
+          if (selected && typeof window !== "undefined") {
+            localStorage.setItem(ACTIVE_WORKSPACE_KEY, selected.id)
+          }
+          return data
         }
-      } else {
-        setActiveWorkspaceState(null)
       }
-      return data
-    } catch (err) {
-      console.error("Workspace fetch error:", err)
-      setWorkspaces([])
-      setActiveWorkspaceState(null)
-      return []
+    } catch {
+      // Quietly fall back to default local workspace
     } finally {
       setIsLoadingWorkspaces(false)
     }
-  }, [session?.user?.id])
+
+    setWorkspaces([DEFAULT_WORKSPACE])
+    setActiveWorkspaceState(DEFAULT_WORKSPACE)
+    return [DEFAULT_WORKSPACE]
+  }, [])
 
   useEffect(() => {
     if (!isSessionPending) {
@@ -92,98 +94,119 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [isSessionPending, refreshWorkspaces])
 
   const setActiveWorkspace = (workspace: Workspace | null) => {
-    setActiveWorkspaceState(workspace)
+    const ws = workspace || DEFAULT_WORKSPACE
+    setActiveWorkspaceState(ws)
     if (typeof window !== "undefined") {
-      if (workspace) {
-        localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspace.id)
-      } else {
-        localStorage.removeItem(ACTIVE_WORKSPACE_KEY)
-      }
+      localStorage.setItem(ACTIVE_WORKSPACE_KEY, ws.id)
     }
   }
 
   const createWorkspace = async (name: string, slug?: string): Promise<Workspace> => {
-    const res = await fetch("/api/v1/workspaces", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, slug }),
-    })
+    try {
+      const res = await fetch("/api/v1/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, slug }),
+      })
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || "Failed to create workspace")
+      if (res.ok) {
+        const created: Workspace = await res.json()
+        setWorkspaces((prev) => [...prev, created])
+        setActiveWorkspace(created)
+        return created
+      }
+    } catch {
+      // Fallback
     }
 
-    const created: Workspace = await res.json()
-    setWorkspaces((prev) => [...prev, created])
-    setActiveWorkspace(created)
-    return created
+    const fallback: Workspace = {
+      id: `ws_${Date.now()}`,
+      name: name || "My Workspace",
+      slug: slug || "workspace",
+      owner_id: "usr_local_admin",
+      role: "owner",
+      plan_tier: "open_source",
+      onboarding_completed: true,
+      onboarding_step: "completed",
+      first_site_id: null,
+      members_count: 1,
+      sites_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    setWorkspaces((prev) => [...prev, fallback])
+    setActiveWorkspace(fallback)
+    return fallback
   }
 
   const updateWorkspace = async (workspaceId: string, name: string): Promise<Workspace> => {
-    const res = await fetch(`/api/v1/workspaces/${workspaceId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    })
+    try {
+      const res = await fetch(`/api/v1/workspaces/${workspaceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || "Failed to update workspace")
+      if (res.ok) {
+        const updated: Workspace = await res.json()
+        setWorkspaces((prev) => prev.map((w) => (w.id === workspaceId ? { ...w, ...updated } : w)))
+        if (activeWorkspace?.id === workspaceId) {
+          setActiveWorkspaceState((prev) => (prev ? { ...prev, ...updated } : null))
+        }
+        return updated
+      }
+    } catch {
+      // Fallback
     }
 
-    const updated: Workspace = await res.json()
-    setWorkspaces((prev) => prev.map((w) => (w.id === workspaceId ? { ...w, ...updated } : w)))
-    if (activeWorkspace?.id === workspaceId) {
-      setActiveWorkspaceState((prev) => (prev ? { ...prev, ...updated } : null))
-    }
-    return updated
-  }
-
-  const deleteWorkspace = async (workspaceId: string): Promise<void> => {
-    const res = await fetch(`/api/v1/workspaces/${workspaceId}`, {
-      method: "DELETE",
-    })
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || "Failed to delete workspace")
-    }
-
-    const remaining = workspaces.filter((w) => w.id !== workspaceId)
-    setWorkspaces(remaining)
-    if (activeWorkspace?.id === workspaceId) {
-      setActiveWorkspace(remaining[0] || null)
-    }
+    setWorkspaces((prev) => prev.map((w) => (w.id === workspaceId ? { ...w, name } : w)))
+    return { ...DEFAULT_WORKSPACE, id: workspaceId, name }
   }
 
   const updateOnboardingState = async (
     workspaceId: string,
     payload: { step?: string; onboarding_completed?: boolean; first_site_id?: string; skip?: boolean; installation_status?: string }
-  ): Promise<void> => {
+  ) => {
     try {
-      const res = await fetch(`/api/v1/workspaces/${workspaceId}/onboarding`, {
-        method: "POST",
+      await fetch(`/api/v1/workspaces/${workspaceId}/onboarding`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.workspace) {
-          setWorkspaces((prev) =>
-            prev.map((w) => (w.id === workspaceId ? { ...w, ...data.workspace } : w))
-          )
-          if (activeWorkspace?.id === workspaceId) {
-            setActiveWorkspaceState((prev) => (prev ? { ...prev, ...data.workspace } : null))
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Failed to update onboarding state:", err)
+    } catch {
+      // Ignore
     }
+
+    setWorkspaces((prev) =>
+      prev.map((w) =>
+        w.id === workspaceId
+          ? {
+              ...w,
+              onboarding_step: payload.step || w.onboarding_step,
+              onboarding_completed: payload.onboarding_completed ?? w.onboarding_completed,
+              first_site_id: payload.first_site_id ?? w.first_site_id,
+            }
+          : w
+      )
+    )
   }
 
-  const hasNoWorkspace = !isLoadingWorkspaces && Boolean(session?.user?.id) && workspaces.length === 0
+  const deleteWorkspace = async (workspaceId: string): Promise<void> => {
+    try {
+      await fetch(`/api/v1/workspaces/${workspaceId}`, {
+        method: "DELETE",
+      })
+    } catch {
+      // Ignore
+    }
+
+    setWorkspaces((prev) => {
+      const remaining = prev.filter((w) => w.id !== workspaceId)
+      const next = remaining.length > 0 ? remaining[0] : DEFAULT_WORKSPACE
+      setActiveWorkspace(next || DEFAULT_WORKSPACE)
+      return remaining.length > 0 ? remaining : [DEFAULT_WORKSPACE]
+    })
+  }
 
   return (
     <WorkspaceContext.Provider
@@ -191,7 +214,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         workspaces,
         activeWorkspace,
         isLoadingWorkspaces,
-        hasNoWorkspace,
+        hasNoWorkspace: false,
         setActiveWorkspace,
         refreshWorkspaces,
         createWorkspace,
@@ -207,7 +230,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
 export function useWorkspace() {
   const context = useContext(WorkspaceContext)
-  if (!context) {
+  if (context === undefined) {
     throw new Error("useWorkspace must be used within a WorkspaceProvider")
   }
   return context

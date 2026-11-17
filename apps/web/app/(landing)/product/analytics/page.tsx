@@ -20,6 +20,7 @@ import {
   Section,
   SectionHeader,
 } from "@/components/marketing/ui";
+import { BrowserMockupFrame } from "@/components/marketing/dashboard-preview";
 import { FaqSection } from "@/components/marketing/faq";
 import { FinalCta } from "@/components/marketing/cta";
 
@@ -70,9 +71,19 @@ export default function AnalyticsPage() {
         description="Cookieless by default, zero raw IP storage, and a script under 4KB. Get real-time visitors, referrers, and campaign performance without turning your visitors into data points."
       >
         <CTAGroup
-          primary={{ label: "Start for free", to: "/contact" }}
-          secondary={{ label: "See pricing", to: "/pricing" }}
+          primary={{ label: "Star on GitHub", to: "https://github.com/Abishekram03/usrly" }}
+          secondary={{ label: "Go to Dashboard", to: "/analytics" }}
         />
+        <div className="mx-auto mt-12 max-w-4xl text-left">
+          <BrowserMockupFrame
+            src="/dashboard-illustration/overview.png"
+            alt="UpFront Analytics Dashboard Overview"
+            width={1504}
+            height={873}
+            url="upfront.local/analytics"
+            priority
+          />
+        </div>
       </PageHero>
 
       <Section className="border-t border-line bg-surface">

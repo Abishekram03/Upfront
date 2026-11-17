@@ -9,6 +9,7 @@ import {
   Section,
   SectionHeader,
 } from "@/components/marketing/ui";
+import { BrowserMockupFrame } from "@/components/marketing/dashboard-preview";
 import { FaqSection } from "@/components/marketing/faq";
 import { FinalCta } from "@/components/marketing/cta";
 
@@ -59,9 +60,19 @@ export default function ProofPage() {
         description="Every visitor choice becomes a proof-of-consent record — a receipt you can search, filter, and export as evidence that consent was requested and given."
       >
         <CTAGroup
-          primary={{ label: "Start for free", to: "/contact" }}
-          secondary={{ label: "See pricing", to: "/pricing" }}
+          primary={{ label: "Star on GitHub", to: "https://github.com/Abishekram03/usrly" }}
+          secondary={{ label: "Open Consent Ledger", to: "/consent/logs" }}
         />
+        <div className="mx-auto mt-12 max-w-4xl text-left">
+          <BrowserMockupFrame
+            src="/dashboard-illustration/policies.png"
+            alt="UpFront Consent Ledger & Compliance Records"
+            width={1693}
+            height={877}
+            url="upfront.local/consent/logs"
+            priority
+          />
+        </div>
       </PageHero>
 
       <Section className="border-t border-line bg-surface">

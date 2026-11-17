@@ -43,14 +43,9 @@ export function StudioHeader({
   onOpenPublishModal,
   onOpenVersionHistory,
 }: StudioHeaderProps) {
-  const { hasCapability, openUpgradeModal } = useEntitlements()
-  const canVersionHistory = hasCapability("cmp.version_history")
+  const canVersionHistory = true
 
   const handleVersionHistoryClick = () => {
-    if (!canVersionHistory) {
-      openUpgradeModal("growth", "Version History & Rollback")
-      return
-    }
     onOpenVersionHistory()
   }
 

@@ -23,7 +23,6 @@ import { Site, createSite } from "@/lib/api"
 import { ToolType, tools } from "./tool-switcher"
 import { UserProfileMenu } from "./user-profile-menu"
 import { NotificationBell } from "./notification-bell"
-import { useEntitlements } from "@/lib/entitlements-context"
 import { useWorkspace } from "@/lib/workspace-context"
 import { useDomain } from "@/lib/domain-context"
 
@@ -52,7 +51,6 @@ export function TablerHeader({
   isMobileOpen = false,
   onToggleMobile,
 }: TablerHeaderProps) {
-  const { plan, openUpgradeModal } = useEntitlements()
   const { activeWorkspace } = useWorkspace()
   const { refreshSites } = useDomain()
   const [domainDropdown, setDomainDropdown] = useState(false)

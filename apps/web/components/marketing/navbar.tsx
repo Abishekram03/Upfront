@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { Logo } from "./logo";
+import { GitHubStarButton } from "./github-star-button";
 import { productNav } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -137,15 +138,6 @@ export function Navbar() {
         <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
           <ProductDropdown />
           <Link
-            href="/pricing"
-            className={cn(
-              "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/70",
-              isActivePath(pathname, "/pricing") ? "text-ink" : "text-ink-soft",
-            )}
-          >
-            Pricing
-          </Link>
-          <Link
             href="/docs"
             className={cn(
               "rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/70",
@@ -156,19 +148,8 @@ export function Navbar() {
           </Link>
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <Link
-            href="/login"
-            className="rounded-md border border-primary px-5 py-2.5 text-base font-normal text-primary transition-colors hover:bg-muted/70"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-base font-medium text-primary-foreground shadow-sm transition-colors hover:bg-brand-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            Start for free
-          </Link>
+        <div className="hidden items-center md:flex">
+          <GitHubStarButton />
         </div>
 
         <button
@@ -209,30 +190,13 @@ export function Navbar() {
             More
           </p>
           <Link
-            href="/pricing"
-            className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:bg-muted/70"
-          >
-            Pricing
-          </Link>
-          <Link
             href="/docs"
             className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:bg-muted/70"
           >
             Docs
           </Link>
-          <Link
-            href="/login"
-            className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:bg-muted/70"
-          >
-            Log in
-          </Link>
           <div className="border-t border-line pt-3">
-            <Link
-              href="/signup"
-              className="flex w-full items-center justify-center rounded-md bg-primary px-6 py-3.5 text-base font-medium text-primary-foreground shadow-sm"
-            >
-              Start for free
-            </Link>
+            <GitHubStarButton className="w-full justify-center py-2.5" />
           </div>
         </nav>
       </div>

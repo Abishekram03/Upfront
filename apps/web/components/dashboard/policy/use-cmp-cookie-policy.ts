@@ -121,15 +121,8 @@ export function useCMPCookiePolicy(domain: string, companyName?: string, langCod
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
 
-  // Safe Entitlements hook check
-  let isGrowthPlus = false
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const entitlements = useEntitlements()
-    isGrowthPlus = entitlements.plan === "growth" || entitlements.plan === "business" || Boolean(entitlements.isPaid)
-  } catch {
-    isGrowthPlus = false
-  }
+  // Open Source: Auto-sync is always enabled
+  const isGrowthPlus = true
 
   const cleanDomain = useMemo(() => {
     const raw = (domain || "").replace("https://", "").replace("http://", "")

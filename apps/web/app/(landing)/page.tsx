@@ -36,6 +36,10 @@ import {
   Section,
   SectionHeader,
 } from "@/components/marketing/ui";
+import {
+  InteractiveDashboardPreview,
+  BrowserMockupFrame,
+} from "@/components/marketing/dashboard-preview";
 import { FaqSection } from "@/components/marketing/faq";
 import { PricingSection } from "@/components/marketing/pricing";
 import { ComparisonSection } from "@/components/marketing/comparison";
@@ -65,7 +69,6 @@ export default function HomePage() {
       <SetupSection />
       <WhyUpFrontSection />
       {/* <ComparisonSection /> — Hidden from landing view */}
-      <PricingSection />
       <FaqSection items={homeFaqs} />
       <FinalCta />
     </>
@@ -75,24 +78,28 @@ export default function HomePage() {
 function Hero() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-brand-mist via-surface to-brand-mist pt-10 pb-16 md:pt-14 md:pb-20">
-      <Container className="relative mx-auto max-w-4xl text-center">
+      <Container className="relative mx-auto max-w-6xl text-center">
         <Reveal>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary">
+            <span className="flex h-2 w-2 rounded-full bg-primary" />
+            Open Source Tool · Apache 2.0
+          </div>
           <h1 className="text-4xl font-medium leading-[1.15] tracking-tight text-ink sm:text-5xl md:text-6xl text-balance">
-            <span className="text-primary">Know your traffic. Respect their privacy.</span>{" "}
-            One script.
+            The Open Source Tool for{" "}
+            <span className="text-primary">Privacy Analytics & Consent</span>.
           </h1>
         </Reveal>
         <Reveal delay={160}>
           <p className="mx-auto mt-6 max-w-2xl text-lg font-normal leading-relaxed text-ink-soft text-balance">
-            Cookieless analytics and a complete Consent Management Platform — unified in a single
-            script under 4KB. No cookies for measurement, no raw IP storage, no complexity.
+            Cookieless web analytics and a complete Consent Management Platform — unified in a single
+            script under 4KB. 100% free, self-hostable, and open source under Apache 2.0.
           </p>
         </Reveal>
         <Reveal delay={240}>
           <CTAGroup
             align="center"
             className="mt-8 justify-center"
-            primary={{ label: "Get started for free", to: "/contact" }}
+            primary={{ label: "Star on GitHub", to: "https://github.com/Abishekram03/usrly" }}
             secondary={{ label: "Explore features", to: "/product/analytics" }}
           />
         </Reveal>
@@ -100,7 +107,7 @@ function Hero() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm font-normal text-ink-soft">
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-primary" aria-hidden="true" />
-              <span>No credit card required</span>
+              <span>100% Free & Open Source (Apache 2.0)</span>
             </div>
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -121,6 +128,12 @@ function Hero() {
                 {t}
               </span>
             ))}
+          </div>
+        </Reveal>
+
+        <Reveal delay={360}>
+          <div className="mt-12 md:mt-16">
+            <InteractiveDashboardPreview />
           </div>
         </Reveal>
       </Container>
@@ -212,11 +225,22 @@ function AnalyticsSection() {
         </div>
       </Reveal>
 
-      <Reveal delay={160}>
-        <div className="mx-auto mt-10 max-w-2xl text-center">
+      <Reveal delay={140}>
+        <div className="mx-auto mt-10 max-w-4xl">
+          <BrowserMockupFrame
+            src="/dashboard-illustration/overview.png"
+            alt="UpFront Analytics Dashboard Overview"
+            width={1504}
+            height={873}
+            url="upfront.local/analytics"
+          />
+        </div>
+      </Reveal>
+
+      <Reveal delay={180}>
+        <div className="mx-auto mt-8 max-w-2xl text-center">
           <p className="rounded-xl border border-line bg-brand-mist/60 px-6 py-4 text-sm text-ink-soft">
-            <span className="font-semibold text-ink">Unlimited websites</span> on every plan —
-            pricing is based on monthly pageviews, not the number of sites you add.
+            <span className="font-semibold text-ink">Unlimited websites</span> — privacy-first analytics with zero cookies and no raw IP storage. 100% free and open source.
           </p>
           <div className="mt-6">
             <PrimaryCta label="Explore analytics" to="/product/analytics" />
@@ -234,7 +258,7 @@ const consentFeatures = [
   { icon: Ban, title: "Script auto-blocking", desc: "Third-party scripts wait for consent." },
   { icon: Gauge, title: "Google Consent Mode v2", desc: "Feed consent states to your Google tags." },
   { icon: ShieldCheck, title: "Global Privacy Control", desc: "Honor browser-level opt-out signals." },
-  { icon: FileText, title: "IAB TCF v2.3", desc: "Standards-based signaling on Business." },
+  { icon: FileText, title: "IAB TCF v2.3", desc: "Standards-based signaling out of the box." },
   { icon: Languages, title: "Multi-language", desc: "Serve banners in your visitors' languages." },
   { icon: MapPin, title: "Geo-targeting", desc: "Adapt behavior by visitor region." },
   { icon: CalendarClock, title: "Consent versioning", desc: "Track configuration changes over time." },
@@ -267,6 +291,18 @@ function ConsentSection() {
           </Reveal>
         ))}
       </div>
+      <Reveal delay={120}>
+        <div className="mx-auto mt-10 max-w-4xl">
+          <BrowserMockupFrame
+            src="/dashboard-illustration/banner-studio.png"
+            alt="UpFront Banner Studio"
+            width={1918}
+            height={868}
+            url="upfront.local/consent/studio"
+          />
+        </div>
+      </Reveal>
+
       <div className="mt-10 text-center">
         <PrimaryCta label="Explore consent management" to="/product/consent" />
       </div>
@@ -305,15 +341,15 @@ function ScannerProofSection() {
             <div>
               <SectionHeader
                 align="left"
-                eyebrow="Proof of Consent"
+                eyebrow="Proof of Consent & Policy"
                 title="Keep a clear record of consent."
-                description="Every consent decision is stored as a proof-of-consent record — a receipt you can search, filter, and export when you need evidence."
+                description="Every consent decision is stored as a proof-of-consent record — with automated cookie policy generation synced directly to your live scan."
               />
               <ul className="mt-6 space-y-3">
                 <CheckItem>Timestamp, country, and consent status per record</CheckItem>
                 <CheckItem>Categories granted and configuration version</CheckItem>
                 <CheckItem>Search, filtering, and CSV export</CheckItem>
-                <CheckItem>Historical records retained per your plan</CheckItem>
+                <CheckItem>Full historical records retained and searchable</CheckItem>
               </ul>
             </div>
             <div className="mt-8 pt-4 border-t border-line">
@@ -322,6 +358,18 @@ function ScannerProofSection() {
           </div>
         </Reveal>
       </div>
+
+      <Reveal delay={160}>
+        <div className="mx-auto mt-12 max-w-4xl">
+          <BrowserMockupFrame
+            src="/dashboard-illustration/policies.png"
+            alt="UpFront Cookie Policy & Legal Compliance"
+            width={1693}
+            height={877}
+            url="upfront.local/consent/policy"
+          />
+        </div>
+      </Reveal>
     </Section>
   );
 }
@@ -329,11 +377,11 @@ function ScannerProofSection() {
 const steps = [
   {
     title: "Create your UpFront workspace",
-    desc: "Sign up, add your website, and choose your consent defaults.",
+    desc: "Add your website and configure your privacy and consent defaults.",
   },
   {
     title: "Copy one lightweight script",
-    desc: "A single <script> tag, under 4KB, served from our edge.",
+    desc: "A single <script> tag, under 4KB, served from your instance or CDN.",
   },
   {
     title: "Paste it into your website",
@@ -424,7 +472,7 @@ function WhyUpFrontSection() {
           <Layers className="mx-auto h-5 w-5 text-primary" aria-hidden="true" />
           <p className="mt-2 text-sm font-medium text-ink">Unlimited websites</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Every plan includes unlimited websites. Pricing follows pageviews.
+            Unlimited websites and pageviews. 100% free forever under Apache 2.0.
           </p>
         </div>
       </div>

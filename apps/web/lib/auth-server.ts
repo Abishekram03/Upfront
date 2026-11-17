@@ -1,19 +1,30 @@
-import { headers } from "next/headers"
-import { auth } from "@/lib/auth"
+/**
+ * UpFront - Open Source Local Session & User Provider
+ *
+ * Auth is disabled for open source self-hosting. Always returns the default local administrator user.
+ */
+
+export const DEFAULT_USER = {
+  id: "usr_local_admin",
+  email: "admin@upfront.local",
+  name: "Admin",
+  role: "owner",
+  image: null,
+  twoFactorEnabled: false,
+}
 
 export async function getServerSession() {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    })
-    return session
-  } catch (error) {
-    console.error("[Better Auth] Failed to retrieve server session:", error)
-    return null
+  return {
+    user: DEFAULT_USER,
+    session: {
+      id: "sess_local",
+      userId: DEFAULT_USER.id,
+      token: "local_dev_token",
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+    },
   }
 }
 
 export async function getCurrentUser() {
-  const session = await getServerSession()
-  return session?.user || null
+  return DEFAULT_USER
 }

@@ -18,6 +18,7 @@ import {
   Section,
   SectionHeader,
 } from "@/components/marketing/ui";
+import { BrowserMockupFrame } from "@/components/marketing/dashboard-preview";
 import { FaqSection } from "@/components/marketing/faq";
 import { FinalCta } from "@/components/marketing/cta";
 
@@ -68,9 +69,19 @@ export default function ConsentPage() {
         description="A complete CMP in the same under-4KB script as your analytics. Configure it once — banner, script blocking, scanning, and consent records are handled from one dashboard."
       >
         <CTAGroup
-          primary={{ label: "Start for free", to: "/contact" }}
-          secondary={{ label: "See pricing", to: "/pricing" }}
+          primary={{ label: "Star on GitHub", to: "https://github.com/Abishekram03/usrly" }}
+          secondary={{ label: "Open Banner Studio", to: "/consent/studio" }}
         />
+        <div className="mx-auto mt-12 max-w-4xl text-left">
+          <BrowserMockupFrame
+            src="/dashboard-illustration/banner-studio.png"
+            alt="UpFront Consent Banner Studio"
+            width={1918}
+            height={868}
+            url="upfront.local/consent/studio"
+            priority
+          />
+        </div>
       </PageHero>
 
       <Section className="border-t border-line bg-surface">
@@ -78,7 +89,7 @@ export default function ConsentPage() {
           <SectionHeader
             eyebrow="Banner Studio"
             title="Design a banner your visitors actually understand."
-            description="Choose layouts, colors, and copy that fit your brand. Start with a bottom-bar banner on Free, unlock additional layouts on Growth, and add custom CSS on Business."
+            description="Choose layouts, colors, and copy that fit your brand. Configure box, bar, or popup banners, granular categories, and custom CSS without restrictions."
           />
         </Reveal>
         <div className="mt-12 grid gap-6 md:grid-cols-3">

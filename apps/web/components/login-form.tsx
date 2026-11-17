@@ -65,7 +65,7 @@ export function LoginForm({
         <div>
           <Link href="/" aria-label="UpFront Home" className="inline-block">
             <Image
-              src="/logo/syft-logo-black.svg"
+              src="/logo/upfront-logo-black.svg"
               alt="UpFront"
               width={140}
               height={38}

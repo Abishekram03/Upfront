@@ -74,26 +74,35 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
   const [targetFeatureName, setTargetFeatureName] = useState<string>("")
 
   const refreshEntitlements = useCallback(async () => {
+    const businessPlan = PLANS.business
+    const defaultEntitlements: WorkspaceEntitlementsData = {
+      workspaceId: activeWorkspace?.id || "ws_default",
+      plan: "business",
+      planConfig: businessPlan,
+      status: "active",
+      isPaid: true,
+      isPastDue: false,
+      capabilities: businessPlan.capabilities,
+      limits: {
+        monthlyPageviews: 100_000_000,
+        retentionDays: 3650,
+        pagesPerScan: 100_000,
+        consentHistoryDays: 3650,
+      },
+    }
+
+    const defaultUsage: WorkspaceUsageData = {
+      workspaceId: activeWorkspace?.id || "ws_default",
+      pageviewsThisMonth: 0,
+      pageviewLimit: 100_000_000,
+      pageviewPercent: 0,
+      sitesCount: 0,
+      activeScansCount: 0,
+    }
+
     if (!activeWorkspace?.id) {
-      const freePlan = PLANS.free
-      setEntitlements({
-        workspaceId: "",
-        plan: "free",
-        planConfig: freePlan,
-        status: "active",
-        isPaid: false,
-        isPastDue: false,
-        capabilities: freePlan.capabilities,
-        limits: freePlan.limits,
-      })
-      setUsage({
-        workspaceId: "",
-        pageviewsThisMonth: 0,
-        pageviewLimit: 50000,
-        pageviewPercent: 0,
-        sitesCount: 0,
-        activeScansCount: 0,
-      })
+      setEntitlements(defaultEntitlements)
+      setUsage(defaultUsage)
       setIsLoading(false)
       return
     }
@@ -103,24 +112,15 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
       const res = await fetch(`/api/v1/billing/entitlements?workspaceId=${encodeURIComponent(activeWorkspace.id)}`)
       if (res.ok) {
         const data = await res.json()
-        setEntitlements(data.entitlements)
-        setUsage(data.usage)
+        setEntitlements(data.entitlements || defaultEntitlements)
+        setUsage(data.usage || defaultUsage)
       } else {
-        // Fallback to Free
-        const freePlan = PLANS.free
-        setEntitlements({
-          workspaceId: activeWorkspace.id,
-          plan: "free",
-          planConfig: freePlan,
-          status: "active",
-          isPaid: false,
-          isPastDue: false,
-          capabilities: freePlan.capabilities,
-          limits: freePlan.limits,
-        })
+        setEntitlements(defaultEntitlements)
+        setUsage(defaultUsage)
       }
-    } catch (err) {
-      console.error("Failed to load workspace entitlements:", err)
+    } catch {
+      setEntitlements(defaultEntitlements)
+      setUsage(defaultUsage)
     } finally {
       setIsLoading(false)
     }
@@ -131,11 +131,10 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
   }, [refreshEntitlements])
 
   const hasCapability = useCallback(
-    (key: EntitlementKey): boolean => {
-      if (!entitlements) return !!PLANS.free.capabilities[key]
-      return !!entitlements.capabilities[key]
+    (_key: EntitlementKey): boolean => {
+      return true
     },
-    [entitlements]
+    []
   )
 
   const getRequiredPlan = useCallback((key: EntitlementKey): PlanId => {
@@ -144,80 +143,25 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
 
   const startCheckout = useCallback(
     async (planToCheckout: PlanId | "addon_100k" | string = "growth") => {
-      if (!activeWorkspace?.id) {
-        alert("Please select a workspace before upgrading.")
-        return
-      }
-
-      try {
-        setIsCheckingOut(planToCheckout)
-        const res = await fetch(
-          `/api/v1/billing/subscription?workspaceId=${encodeURIComponent(activeWorkspace.id)}`
-        )
-        const data = await res.json().catch(() => ({}))
-
-        const isAddon = planToCheckout === "addon_100k"
-        const targetPriceId = isAddon
-          ? data?.addons?.pageviews_100k?.paddlePriceId ||
-            process.env.NEXT_PUBLIC_PADDLE_ADDON_100K_PRICE_ID ||
-            "pri_01addon_100k_pageviews"
-          : data?.plans?.[planToCheckout]?.paddlePriceId ||
-            (planToCheckout === "business"
-              ? (process.env.NEXT_PUBLIC_PADDLE_BUSINESS_PRICE_ID || PADDLE_PRICE_IDS.business)
-              : (process.env.NEXT_PUBLIC_PADDLE_GROWTH_PRICE_ID || PADDLE_PRICE_IDS.growth))
-
-        await openPaddleCheckout({
-          priceId: targetPriceId,
-          plan: planToCheckout,
-          workspaceId: activeWorkspace.id,
-          userEmail: data?.userEmail,
-          onSuccess: async () => {
-            setIsCheckingOut(null)
-            await fetch("/api/v1/billing/sync", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                workspaceId: activeWorkspace.id,
-                plan: planToCheckout,
-              }),
-            }).catch(() => {})
-            await refreshEntitlements()
-          },
-          onError: (errText?: string) => {
-            setIsCheckingOut(null)
-            console.error("[Checkout error]", errText)
-            alert(errText || "Payment checkout could not be processed. Please try again.")
-          },
-          onClose: () => {
-            setIsCheckingOut(null)
-          },
-        })
-      } catch (err: any) {
-        setIsCheckingOut(null)
-        console.error("Failed to start direct checkout:", err)
-        alert(err.message || "Failed to initialize payment checkout.")
-      }
+      console.log("[UpFront Open Source] Checkout disabled in open source edition.")
     },
-    [activeWorkspace?.id, refreshEntitlements]
+    []
   )
 
-  // Direct checkout: immediately launches checkout without intermediate wizard modal
   const openUpgradeModal = useCallback(
-    (requiredPlan: PlanId = "growth", featureName: string = "") => {
-      setTargetUpgradePlan(requiredPlan)
-      setTargetFeatureName(featureName)
-      startCheckout(requiredPlan)
+    (_requiredPlan: PlanId = "growth", _featureName: string = "") => {
+      // In open source edition, all features are completely unlocked
     },
-    [startCheckout]
+    []
   )
 
   const closeUpgradeModal = useCallback(() => {
     setIsUpgradeModalOpen(false)
   }, [])
 
-  const plan: PlanId = entitlements?.plan || "free"
-  const isPaid = !!entitlements?.isPaid
-  const isPastDue = !!entitlements?.isPastDue
+  const plan: PlanId = "business"
+  const isPaid = true
+  const isPastDue = false
 
   return (
     <EntitlementsContext.Provider

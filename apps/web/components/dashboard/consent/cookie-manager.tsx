@@ -213,8 +213,8 @@ const DEFAULT_CATEGORY_CONFIGS: Record<
 export function CookieManager() {
   const { activeDomain } = useDomain()
   const { hasCapability, openUpgradeModal, plan } = useEntitlements()
-  const canScheduledScans = hasCapability("cmp.scheduled_scans")
-  const canCustomScriptRules = plan === "growth" || plan === "business"
+  const canScheduledScans = true
+  const canCustomScriptRules = true
 
   // Primary navigation tab: "cookies" | "history"
   const [activeMainTab, setActiveMainTab] = useState<"cookies" | "history">("cookies")
@@ -1793,18 +1793,13 @@ export function CookieManager() {
                 <label className="font-bold text-slate-700 block">Scan Frequency</label>
                 <div className="grid grid-cols-3 gap-2">
                   {(["daily", "weekly", "monthly"] as const).map((freq) => {
-                    const isBusinessOnly = freq === "daily" || freq === "weekly"
-                    const isLocked = isBusinessOnly && plan !== "business"
+                    const isLocked = false
 
                     return (
                       <button
                         key={freq}
                         type="button"
                         onClick={() => {
-                          if (isLocked) {
-                            openUpgradeModal("business", `${freq === "daily" ? "Daily" : "Weekly"} Scheduled Scans`)
-                            return
-                          }
                           setScheduleForm({ ...scheduleForm, frequency: freq })
                         }}
                         className={cn(

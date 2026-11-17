@@ -1,22 +1,22 @@
-import { auth, initAuthDatabase } from "@/lib/auth"
 import { NextResponse } from "next/server"
+import { DEFAULT_USER } from "@/lib/auth-server"
 
-export async function GET(req: Request) {
-  try {
-    await initAuthDatabase()
-    return await auth.handler(req)
-  } catch (err: any) {
-    console.error("[Auth GET Error]:", err)
-    return NextResponse.json({ error: err.message || "Auth error", detail: String(err) }, { status: 500 })
-  }
+export async function GET() {
+  return NextResponse.json({
+    user: DEFAULT_USER,
+    session: {
+      id: "sess_local",
+      userId: DEFAULT_USER.id,
+    },
+  })
 }
 
-export async function POST(req: Request) {
-  try {
-    await initAuthDatabase()
-    return await auth.handler(req)
-  } catch (err: any) {
-    console.error("[Auth POST Error]:", err)
-    return NextResponse.json({ error: err.message || "Auth error", detail: String(err) }, { status: 500 })
-  }
+export async function POST() {
+  return NextResponse.json({
+    user: DEFAULT_USER,
+    session: {
+      id: "sess_local",
+      userId: DEFAULT_USER.id,
+    },
+  })
 }

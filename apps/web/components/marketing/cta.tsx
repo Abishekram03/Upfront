@@ -2,10 +2,10 @@ import { Section, PrimaryCta, SecondaryCta } from "./ui";
 
 export function FinalCta({
   title = "Start understanding your traffic — the privacy-first way.",
-  description = "Create your workspace for free. Analytics and consent management live on your site in under two minutes.",
-  primaryLabel = "Start for free",
-  primaryTo = "/contact",
-  secondaryLabel = "Read the documentation",
+  description = "No accounts or subscriptions required. Self-host or run locally with cookieless analytics and consent management live in under two minutes.",
+  primaryLabel = "Star on GitHub",
+  primaryTo = "https://github.com/Abishekram03/usrly",
+  secondaryLabel = "Read documentation",
   secondaryTo = "/docs",
 }: {
   title?: string;
@@ -44,7 +44,7 @@ export function FinalCta({
             />
           </div>
           <p className="mt-6 text-xs text-slate-400">
-            No credit card required · Unlimited websites · Setup in under 2 minutes
+            100% Free & Open Source under Apache 2.0 · Unlimited websites · Setup in under 2 minutes
           </p>
         </div>
       </div>

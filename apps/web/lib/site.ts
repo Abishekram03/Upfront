@@ -111,12 +111,12 @@ export const comparisonRows: ComparisonRow[] = [
   { category: "Cookie scanning", upfront: true, traditional: "Add-on" },
   { category: "Proof-of-consent records", upfront: true, traditional: "Add-on" },
   { category: "Script auto-blocking", upfront: true, traditional: "Add-on" },
-  { category: "Google Consent Mode v2", upfront: "Growth+", traditional: "Varies" },
-  { category: "Global Privacy Control", upfront: "Growth+", traditional: "Varies" },
-  { category: "IAB TCF v2.3", upfront: "Business", traditional: "Varies" },
+  { category: "Google Consent Mode v2", upfront: true, traditional: "Varies" },
+  { category: "Global Privacy Control", upfront: true, traditional: "Varies" },
+  { category: "IAB TCF v2.3", upfront: true, traditional: "Varies" },
   { category: "Websites included", upfront: "Unlimited", traditional: "Often per domain" },
   { category: "Dashboards", upfront: "One unified dashboard", traditional: "Separate dashboards" },
-  { category: "Billing", upfront: "Single subscription", traditional: "Separate vendors" },
+  { category: "License & Cost", upfront: "Free & Open Source (Apache 2.0)", traditional: "Paid subscriptions" },
   { category: "Script footprint", upfront: "One script under 4KB", traditional: "Multiple scripts" },
 ];
 
@@ -149,11 +149,11 @@ export const homeFaqs: Faq[] = [
   },
   {
     q: "Can I manage multiple websites?",
-    a: "Yes. Every plan includes unlimited websites in one workspace. Pricing is based on monthly pageviews, not on the number of websites you add.",
+    a: "Yes. UpFront includes unlimited websites and unlimited pageviews in your self-hosted setup with 100% full data ownership.",
   },
   {
     q: "How do I install UpFront?",
-    a: "Create a workspace, add your website, and copy the one-line script from your dashboard. Paste it into your site's <head> and data starts flowing immediately — setup takes under two minutes.",
+    a: "Open your dashboard, add your website, and copy the one-line script. Paste it into your site's <head> and data starts flowing immediately — setup takes under two minutes.",
   },
 ];
 
@@ -171,7 +171,7 @@ export const footerColumns = [
     title: "Resources",
     links: [
       { label: "Documentation", to: "/docs" },
-      { label: "Pricing", to: "/pricing" },
+      { label: "GitHub", to: "https://github.com/Abishekram03/usrly" },
       { label: "Contact", to: "/contact" },
     ],
   },

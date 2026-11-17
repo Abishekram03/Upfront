@@ -84,16 +84,9 @@ export function CookiePolicyGenerator({ onBack, initialViewMode = "card", compan
   const domain = activeDomain || (sites && sites.length > 0 ? (sites[0]?.domain ?? "") : "")
   const effectiveCompany = companyName?.trim() || domain || "Your Company"
 
-  // Entitlements
-  let isGrowthPlus = false
-  let openUpgradeModal: ((plan?: any, feat?: string) => void) | undefined
-  try {
-    const entitlements = useEntitlements()
-    isGrowthPlus = entitlements.plan === "growth" || entitlements.plan === "business" || Boolean(entitlements.isPaid)
-    openUpgradeModal = entitlements.openUpgradeModal
-  } catch {
-    isGrowthPlus = false
-  }
+  // Entitlements: Open Source edition has all features unlocked
+  const isGrowthPlus = true
+  const openUpgradeModal = (_plan?: any, _feat?: string) => {}
 
   // View state: "card" (Clean Status Card) | "editor" (4-Step Customization Wizard)
   const [viewMode, setViewMode] = useState<"card" | "editor">(initialViewMode)

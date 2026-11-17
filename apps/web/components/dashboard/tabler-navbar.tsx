@@ -11,12 +11,9 @@ import {
   FileCheck,
   FileText,
   Cookie,
-  Sliders,
-  Activity,
 } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
 import { ToolType } from "./tool-switcher"
-import { useEntitlements } from "@/lib/entitlements-context"
 
 interface NavItem {
   title: string
@@ -37,7 +34,6 @@ export function TablerNavbar({
   onCloseMobile,
 }: TablerNavbarProps) {
   const pathname = usePathname()
-  const { usage, entitlements, plan } = useEntitlements()
 
   const analyticsNavItems: NavItem[] = [
     {
@@ -100,10 +96,6 @@ export function TablerNavbar({
     return false
   }
 
-  const currentUsage = usage?.pageviewsThisMonth ?? 0
-  const maxQuota = usage?.pageviewLimit ?? entitlements?.limits.monthlyPageviews ?? (plan === "business" ? 1000000 : plan === "growth" ? 250000 : 50000)
-  const usagePercent = usage?.pageviewPercent ?? Math.min(100, Math.round((currentUsage / maxQuota) * 100))
-
   return (
     <div
       className={cn(
@@ -153,39 +145,6 @@ export function TablerNavbar({
               )
             })}
           </nav>
-
-          {/* Right end corner: Usage Indicator (Usage x / x) */}
-          <div className="hidden sm:flex items-center gap-2 py-1.5 shrink-0">
-            <Link
-              href="/settings?tab=billing"
-              className="group flex items-center gap-2.5 px-2.5 py-1 rounded-md bg-slate-50 hover:bg-blue-50/80 border border-slate-200/80 hover:border-blue-200 transition-all text-xs"
-              title={`Workspace Traffic Usage: ${currentUsage.toLocaleString()} / ${maxQuota.toLocaleString()} monthly pageviews (${usagePercent}% used)`}
-            >
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-[#1868db] transition-colors">
-                  Usage
-                </span>
-                <span className="font-mono text-[11px] font-bold text-slate-700 group-hover:text-[#1868db] transition-colors">
-                  {currentUsage.toLocaleString()} / {maxQuota.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Mini visual usage bar */}
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden shrink-0">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all",
-                    usagePercent >= 90
-                      ? "bg-rose-500"
-                      : usagePercent >= 75
-                      ? "bg-amber-500"
-                      : "bg-[#1868db]"
-                  )}
-                  style={{ width: `${Math.min(100, Math.max(6, usagePercent))}%` }}
-                />
-              </div>
-            </Link>
-          </div>
         </div>
       </div>
     </div>
